@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+# 8 October 2026: make a real-footage turntable turn at UNIFORM angular speed, for a chosen duration.
+# Measures per-frame horizontal surface shift (phase correlation on a central window), trims the static head/tail,
+# builds the cumulative turn angle, interpolates the footage (ffmpeg minterpolate mci, factor K), then picks, for
+# each output frame, the interpolated frame whose angle sits on a straight line. Output: HEVC hvc1 mp4, no audio.
+# FR : uniformise la vitesse de rotation d'un plateau tournant filmé, pour une durée donnée.
+# usage: UniformTurn.py <src> <out.mp4> [--seconds 5] [--fps 24] [--size 1080x1920] [--k 3] [--work DIR]
+import argparse, json, subprocess, sys, os, numpy as np
+ap=argparse.ArgumentParser(); ap.add_argument('src'); ap.add_argument('out')
+ap.add_argument('--seconds',type=float,default=5); ap.add_argument('--fps',type=float,default=24)
+ap.add_argument('--size',default='1080x1920'); ap.add_argument('--k',type=int,default=3)
+ap.add_argument('--work',default=None); ap.add_argument('--thr',type=float,default=0.6,help='px/frame that counts as motion')
+ap.add_argument('--win',default='0.19,0.52,0.26,0.74',help='analysis window fractions y0,y1,x0,x1 (centre of the object)')
+a=ap.parse_args(); W,H=map(int,a.size.split('x')); work=a.work or os.path.splitext(a.out)[0]+'_work'; os.makedirs(work,exist_ok=True)
+AW,AH=270,480
+def run(c): return subprocess.run(c,capture_output=True,check=True).stdout
+gray=np.frombuffer(run(['ffmpeg','-v','error','-i',a.src,'-an','-vf',f'scale={AW}:{AH}','-pix_fmt','gray','-f','rawvideo','-']),np.uint8).reshape(-1,AH,AW).astype(np.float32)
+N=len(gray); fy0,fy1,fx0,fx1=map(float,a.win.split(',')); y0,y1,x0,x1=int(fy0*AH),int(fy1*AH),int(fx0*AW),int(fx1*AW)
+win=np.outer(np.hanning(y1-y0),np.hanning(x1-x0))
+sub=lambda i:(gray[i,y0:y1,x0:x1]-gray[i,y0:y1,x0:x1].mean())*win
+def para(v,m,p): d=m-2*v+p; return 0 if d==0 else 0.5*(m-p)/d
+s=[0.0]
+for i in range(1,N):
+    R=np.fft.fft2(sub(i-1))*np.conj(np.fft.fft2(sub(i))); R/=np.abs(R)+1e-6; c=np.fft.ifft2(R).real
+    py,px=np.unravel_index(np.argmax(c),c.shape); n=c.shape[1]
+    sx=px+para(c[py,px],c[py,(px-1)%n],c[py,(px+1)%n]); sx=sx-n if sx>n/2 else sx; s.append(-sx)
+s=np.array(s); sign=1 if s.sum()>=0 else -1; s=np.clip(s*sign,0,None)
+sm=np.convolve(s,np.ones(4)/4,mode='same'); mov=np.where(sm>a.thr)[0]; i0,i1=int(mov[0]),int(mov[-1]); print(f'frames {N}, motion {i0}..{i1}, total turn {s[i0:i1+1].sum():.0f}px')
+cum=np.cumsum(s); out_n=int(round(a.seconds*a.fps))
+tgt=cum[i0]+np.arange(out_n)/(out_n-1)*(cum[i1]-cum[i0])
+cs=cum[i0:i1+1]+np.arange(i1-i0+1)*1e-6                       # strictly increasing for interp
+src=np.interp(tgt,cs,np.arange(i0,i1+1))
+fr=os.path.join(work,'interp.mkv')
+_n,_d=run(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=r_frame_rate','-of','csv=p=0',a.src]).decode().strip().strip(',').split('/'); fps_src=float(_n)/float(_d)
+if not os.path.exists(fr): run(['ffmpeg','-v','error','-y','-i',a.src,'-an','-vf',f'minterpolate=fps={fps_src*a.k}:mi_mode=mci:mc_mode=aobmc:vsbmc=1','-c:v','ffv1',fr])
+iw,ih=map(int,run(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','csv=p=0',fr]).decode().strip().split(','))
+inter=np.frombuffer(run(['ffmpeg','-v','error','-i',fr,'-f','rawvideo','-pix_fmt','rgb24','-']),np.uint8).reshape(-1,ih,iw,3)
+idx=np.round(src*a.k).astype(int).clip(0,len(inter)-1)
+p=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{iw}x{ih}','-r',str(a.fps),'-i','-','-vf',f'scale={W}:{H}:flags=lanczos','-c:v','libx265','-crf','14','-preset','slow','-tag:v','hvc1','-pix_fmt','yuv420p','-movflags','+faststart',a.out],stdin=subprocess.PIPE)
+for i in idx: p.stdin.write(inter[i].tobytes())
+p.stdin.close(); p.wait()
+json.dump({'shifts':s.tolist(),'motion':[i0,i1],'src_frac':src.tolist()},open(os.path.join(work,f'plan_{a.seconds}s.json'),'w'))
+print('done',a.out,out_n,'frames')
