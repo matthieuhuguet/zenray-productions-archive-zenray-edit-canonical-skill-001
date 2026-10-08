@@ -1,0 +1,28 @@
+# Sound Design / Edit Sound (8 October 2026)
+
+Protocole validé par Matthieu jusqu'à `F1_Trigger_minus20ms` inclus. Tout ce qui a été essayé après F1 n'a pas fonctionné et n'est pas consigné. (8 October 2026)
+
+## Résultat retenu (8 October 2026)
+
+- 8 October 2026 : source = « BotW - Interact Sound.flac » (1,87 s, 32 kHz, stéréo, pic −16 dBFS, −28,5 LUFS). Résultat = `assets/sound/F1_Trigger_minus20ms.flac` (6,27 s, 48 kHz, 24 bits, pic −6 dBFS).
+- 8 October 2026 : recette reproductible, identique à l'octet près au fichier validé (écart maximal mesuré 0,0) : `python3 scripts/SoundF1.py <source.flac> <sortie.wav>`. Toutes les valeurs sont dans le dictionnaire `P` en tête du script.
+- 8 October 2026 : structure : un gonflement inversé de 1,2 s (réverbération du son, retournée, avec fondu en carré) qui se termine pile quand le son d'origine arrive ; à −20 ms avant cette arrivée, le même son une octave plus bas (ralenti de moitié, fondu d'entrée 4 ms) donne le corps ; une réverbération douce de salle en bois (wet 0,18, 1,6 s) sur l'ensemble.
+
+## Mesures de la source (8 October 2026)
+
+- 8 October 2026 : notes principales mesurées par FFT : 526,6 / 627,9 / 702,9 / 938,2 / 1256,1 Hz (Do5, Ré♯5, Fa5, Si♭5, Ré♯6), arpège montant sur environ 0,4 s puis résonance jusqu'à 1,3 s. Les hauteurs sont conservées à moins de 1,5 Hz dans le résultat.
+- 8 October 2026 : la source est très calme (−28,5 LUFS) ; viser environ −17 LUFS et −6 dBFS en pic pour un son d'interface, à régler ensuite dans le moteur de jeu.
+
+## Ce qui a fonctionné, dans l'ordre (8 October 2026)
+
+- 8 October 2026 : garder le son d'origine dominant. Rester proche de la source : la ressemblance spectrale mesurée (300 à 1500 Hz) reste au-dessus de 0,84 dans les versions retenues, contre 0,17 à 0,42 quand des timbres de koto, de suzu et de bol ont été superposés (rejeté par Matthieu : « horrible »).
+- 8 October 2026 : pas de boost d'aigus ni de bruit ajouté : le boost « air » à 3,5 kHz a amplifié le grain ; filtre passe-bas doux à 6,5 kHz sur la base, passe-bas final à 8,5 kHz, passe-haut 70 Hz.
+- 8 October 2026 : réverbération par réponse impulsionnelle de bruit amortie (fondu d'entrée, double passe-bas, plus sombre au fil du temps, gauche et droite décorrélées par 41 échantillons), jamais de reverb brillante.
+- 8 October 2026 : P2 (original + petit coup de tambour doux + bol grave discret + réverbération douce) a été jugé « intéressant » ; le gonflement inversé N1 a été jugé « exceptionnel » ; l'octave inférieure N2 déclenchée à la fin du délai donne le corps ; −20 ms a été retenu parmi −20 / 0 / +20.
+- 8 October 2026 : le grave ralenti de moitié a une attaque lente, donc on le déclenche un peu avant (−20 ms) pour que corps et attaque se sentent ensemble.
+
+## Méthode de travail (8 October 2026)
+
+- 8 October 2026 : fabriquer 3 variantes presque identiques ne différant que d'un paramètre en millisecondes quand le choix est fin, et 9 variantes vraiment différentes quand la direction est ouverte ; livrer FLAC (et WAV 24 bits) et laisser Matthieu choisir à l'oreille.
+- 8 October 2026 : vérifications avant livraison : pic, absence de saturation et de clic (premier et dernier échantillon à zéro), durée, énergie au-dessus de 5 kHz, LUFS (`ffmpeg -af ebur128=peak=true`), hauteurs des notes par FFT, ressemblance avec la source. Aucune de ces mesures ne remplace l'écoute.
+- 8 October 2026 : limite connue : un léger grain de la source subsiste dans F1 ; aucune variante essayée ensuite n'a été retenue, donc F1 reste la référence.

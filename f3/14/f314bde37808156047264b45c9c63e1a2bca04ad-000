@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+# 8 October 2026: SoundF1.py = validated sound-design recipe "reverse bloom + octave-down body" (F1, trigger -20 ms). Self-contained, numpy/scipy/soundfile.
+# FR : recette validée « gonflement inversé + corps une octave plus bas » (F1, déclenchement -20 ms). Usage: python3 SoundF1.py <in.flac> <out.wav>
+import sys, numpy as np, soundfile as sf
+from scipy.signal import butter, sosfilt, fftconvolve, resample_poly
+
+P = dict(  # one place for every value (HDA rule) / 8 October 2026
+    sr=48000, swell_s=1.2, body_offset_ms=-20, body_gain=1.0, swell_gain=.55, fade_ms=4.0,
+    warm_hz=900, warm_amt=.15, base_lp_hz=6500, swell_lp_hz=3500,
+    hall_wet=.18, hall_rt=1.6, tail_s=.8, hp_hz=70, lp_hz=8500, peak=.5,
+    pre_wet=1.2, pre_rt=1.2, ir_damp_hz=3800, ir_pre_s=.010, ir_seed=11)
+SR = P['sr']
+def lp(x, f, o=2): return sosfilt(butter(o, f, 'lp', fs=SR, output='sos'), x, axis=-1)
+
+def load(path):
+    x, sr = sf.read(path); return resample_poly(x, SR, sr, axis=0).T            # stereo (2, n) at 48 kHz
+
+def base(o):  # gentle polish, no timbre replacement: warmth + 6.5 kHz lowpass (no "air" boost: it amplified grain)
+    return lp(o + P['warm_amt'] * lp(o, P['warm_hz'], 2), P['base_lp_hz'], 4)
+
+def silk_hall(buf, wet, rt, pre=None, damp=None, seed=None):  # damped noise IR, darker as it decays, decorrelated L/R
+    pre = P['ir_pre_s'] if pre is None else pre; damp = P['ir_damp_hz'] if damp is None else damp; seed = P['ir_seed'] if seed is None else seed
+    r = np.random.default_rng(seed); n = int(rt * 1.4 * SR); t = np.arange(n) / SR; out = np.zeros_like(buf)
+    for c in range(2):
+        ir = r.standard_normal(n) * np.exp(-6.9 * t / rt) * (1 - np.exp(-t / 0.02))
+        ir = sosfilt(butter(4, damp, 'lp', fs=SR, output='sos'), ir)
+        ir = ir * 0.5 + 0.5 * sosfilt(butter(2, 1400, 'lp', fs=SR, output='sos'), ir) * np.exp(-t / rt) * 3
+        ir = np.concatenate([np.zeros(int(pre * SR) + c * 41), ir]); out[c] = fftconvolve(buf[c], ir)[:buf.shape[1]]
+    out /= np.abs(out).max() + 1e-9
+    return buf + wet * out * np.abs(buf).max()
+
+def put(b, x, at, g=1.0):
+    i = int(at * SR); n = min(x.shape[-1], b.shape[1] - i); b[:, i:i+n] += g * x[:, :n]
+
+def finalize(buf):  # hp/lp, anti-click fade-in, tail fade, gentle tanh glue (no hard clip), peak normalise
+    buf = sosfilt(butter(2, P['hp_hz'], 'hp', fs=SR, output='sos'), buf, axis=1)
+    buf = sosfilt(butter(2, P['lp_hz'], 'lp', fs=SR, output='sos'), buf, axis=1)
+    buf[:, :int(.004 * SR)] *= np.linspace(0, 1, int(.004 * SR))
+    f = int(P['tail_s'] * SR); buf[:, -f:] *= np.linspace(1, 0, f) ** 2
+    buf = np.tanh(buf * 1.1 / np.abs(buf).max() * 0.95) / np.tanh(1.05)
+    return buf * P['peak'] / np.abs(buf).max()
+
+def build(src):
+    O = base(load(src)); L = O.shape[1] / SR; sw = P['swell_s']
+    b = np.zeros((2, int((L + sw + 3.2) * SR)))
+    put(b, O, sw, 1.0)                                                                           # the original lands at the end of the swell
+    pre = silk_hall(np.pad(O, ((0, 0), (0, int(1.4 * SR)))), P['pre_wet'], P['pre_rt'])[:, :int(sw * SR) + O.shape[1]]
+    pre = lp(pre[:, :int(sw * SR)][:, ::-1], P['swell_lp_hz'], 2)                                # reversed reverb = the swell
+    pre *= np.linspace(0, 1, pre.shape[1]) ** 2; put(b, pre, 0, P['swell_gain'])
+    d = resample_poly(O, 2, 1, axis=1); fi = int(P['fade_ms'] / 1000 * SR); d[:, :fi] *= np.linspace(0, 1, fi)  # octave-down body
+    put(b, d, sw + P['body_offset_ms'] / 1000, P['body_gain'])
+    return finalize(silk_hall(b, P['hall_wet'], P['hall_rt']))
+
+if __name__ == '__main__':
+    src, dst = sys.argv[1], sys.argv[2]; y = build(src)
+    sf.write(dst, y.T, SR, subtype='PCM_24'); print('wrote', dst, y.shape, 'peak', round(float(np.abs(y).max()), 3))

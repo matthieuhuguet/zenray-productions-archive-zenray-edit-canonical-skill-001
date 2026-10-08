@@ -42,3 +42,9 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 - 8 October 2026 : méthode mesurée, jamais devinée : corrélation de phase image par image sur une fenêtre centrale (`--win y0,y1,x0,x1` en fractions) donne le décalage horizontal de la surface ; sa somme cumulée est l'angle ; on coupe le début et la fin à l'arrêt (lissage sur 4 images, seuil `--thr`) ; minterpolate mci ×K ; chaque image de sortie prend l'image interpolée dont l'angle tombe sur la droite. Écart-type de vitesse mesuré 2,5 px par image avant, 0,88 après (pot de poterie, 8 October 2026). (8 October 2026)
 - 8 October 2026 : limites : une caméra qui bouge ajoute son décalage à la mesure ; le fond de la fenêtre doit être le pot ; sortie sans audio ; la qualité est celle de la source (une source 1024×576 est agrandie en lanczos). Vérifier en remesurant la sortie avec le même script. (8 October 2026)
 - 8 October 2026 : titre Vogun jaune : recette dans `zenray-houdini/references/shorts/VogunTitles.md` ; exemple de montage complet (grade, titre trois lignes Vogun et Yu Mincho, easeOutBack d'entrée, rendu alpha ProRes 4444) : projet Assets `poisson-gloss-matthieu-poterie-aix-8-octobre-2026`, `Scripts/Montage.py`. (8 October 2026)
+
+## 8 October 2026 : Sound Design / Edit Sound
+
+- 8 October 2026 : mode son : transformer un effet sonore court (interface, jeu) en restant proche de la source ; recette validée `python3 scripts/SoundF1.py <source.flac> <sortie.wav>` (gonflement inversé de 1,2 s, corps une octave plus bas déclenché à −20 ms, réverbération douce), résultat de référence `assets/sound/F1_Trigger_minus20ms.flac`. Protocole complet, mesures et limites : [SoundDesign.md](references/SoundDesign.md). (8 October 2026)
+- 8 October 2026 : ajouter ici seulement ce que Matthieu a validé à l'oreille ; les essais non retenus ne se consignent pas. (8 October 2026)
+
