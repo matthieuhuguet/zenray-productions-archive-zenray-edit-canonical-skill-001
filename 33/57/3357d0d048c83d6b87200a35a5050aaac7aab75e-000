@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# 9 October 2026: uniform turntable speed WITHOUT ghosting. FR : vitesse de rotation uniforme sans fantômes.
+# Why not minterpolate: block motion compensation cannot follow a rotating textured cylinder; it blends two
+# positions and 2 frames out of 3 show doubled white lines that appear and disappear (measured 9 October 2026).
+# Method: (1) turn angle per frame from a centre window (phase correlation) -> uniform retime;
+# (2) horizontal displacement field d(x) per frame pair from 10 overlapping column strips (cylinder: d falls as cos(theta)
+#     toward the edges, background ~0); (3) in-between image at fraction f = F_i warped by f*d  blended (1-f)/f with
+#     F_{i+1} warped back by (1-f)*d. Original frames are used untouched when f is ~0.
+# usage: UniformTurnWarp.py <src> <out.mp4> [--seconds 7.5] [--fps 24] [--size 1080x1920]
+import argparse, json, subprocess, sys, os, numpy as np
+ap=argparse.ArgumentParser(); ap.add_argument('src'); ap.add_argument('out'); ap.add_argument('--seconds',type=float,default=5)
+ap.add_argument('--fps',type=float,default=24); ap.add_argument('--size',default='1080x1920'); ap.add_argument('--thr',type=float,default=0.6)
+ap.add_argument('--win',default='0.19,0.52,0.26,0.74'); ap.add_argument('--strips',type=int,default=10); a=ap.parse_args()
+W,H=map(int,a.size.split('x')); run=lambda c:subprocess.run(c,capture_output=True,check=True).stdout
+fr=np.frombuffer(run(['ffmpeg','-v','error','-i',a.src,'-an','-vf',f'scale={W}:{H}:flags=lanczos','-pix_fmt','rgb24','-f','rawvideo','-']),np.uint8).reshape(-1,H,W,3); N=len(fr)
+g=fr.mean(3).reshape(N,H//4,4,W//4,4).mean((2,4)).astype(np.float32); AH,AW=g.shape[1:]
+def para(v,m,p): d=m-2*v+p; return 0 if d==0 else 0.5*(m-p)/d
+def shift(A,B,win):
+    R=np.fft.fft2(A*win)*np.conj(np.fft.fft2(B*win)); R/=np.abs(R)+1e-6; c=np.fft.ifft2(R).real
+    py,px=np.unravel_index(np.argmax(c),c.shape); n=c.shape[1]; sx=px+para(c[py,px],c[py,(px-1)%n],c[py,(px+1)%n]); sx=sx-n if sx>n/2 else sx; return -sx
+fy0,fy1,fx0,fx1=map(float,a.win.split(',')); y0,y1,x0,x1=int(fy0*AH),int(fy1*AH),int(fx0*AW),int(fx1*AW)
+win=np.outer(np.hanning(y1-y0),np.hanning(x1-x0)); sub=lambda i:g[i,y0:y1,x0:x1]-g[i,y0:y1,x0:x1].mean()
+s=np.array([0.0]+[shift(sub(i-1),sub(i),win) for i in range(1,N)]); sign=1 if s.sum()>=0 else -1; s=np.clip(s*sign,0,None)
+# per-strip displacement (px at analysis scale) for every pair
+sw=64; centres=np.linspace(sw//2,AW-sw//2,a.strips).astype(int); sy0,sy1=int(0.15*AH),int(0.60*AH); wn=np.outer(np.hanning(sy1-sy0),np.hanning(sw))
+D=np.zeros((N,a.strips),np.float32)
+for i in range(1,N):
+    for j,c in enumerate(centres):
+        xs=slice(c-sw//2,c+sw//2); A=g[i-1,sy0:sy1,xs]; B=g[i,sy0:sy1,xs]; D[i,j]=shift(A-A.mean(),B-B.mean(),wn)*sign
+D=np.clip(D,-12,12); Dm=D.copy()
+for i in range(1,N-1): Dm[i]=np.median(D[max(1,i-1):i+2],axis=0)          # 3-frame median against noise
+sm=np.convolve(s,np.ones(4)/4,mode='same'); mov=np.where(sm>a.thr)[0]; i0,i1=int(mov[0]),int(mov[-1]); print(f'frames {N}, motion {i0}..{i1}')
+cum=np.cumsum(s); out_n=int(round(a.seconds*a.fps)); tgt=cum[i0]+np.arange(out_n)/(out_n-1)*(cum[i1]-cum[i0])
+src=np.interp(tgt,cum[i0:i1+1]+np.arange(i1-i0+1)*1e-6,np.arange(i0,i1+1)); xs_full=np.arange(W,dtype=np.float32); cx=centres*4.0
+def field(i):                       # displacement per column at output scale, pair i-1 -> i
+    return np.interp(xs_full,cx,Dm[i]*4.0).astype(np.float32)
+def warp(F,d,k):                    # backward sample columns: out(x)=F(x - k*d(x))
+    x=np.clip(xs_full-k*d,0,W-1.001); x0=np.floor(x).astype(int); w=(x-x0)[None,:,None]; return F[:,x0]*(1-w)+F[:,x0+1]*w
+p=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(a.fps),'-i','-','-c:v','libx265','-crf','14','-preset','slow','-tag:v','hvc1','-pix_fmt','yuv420p','-movflags','+faststart',a.out],stdin=subprocess.PIPE)
+for pk in src:
+    i=int(np.floor(pk)); f=pk-i; i=min(i,N-2)
+    # single-source warp: take the NEAREST original frame and move it by the remaining fraction (<= half a frame).
+    # No cross-dissolve of two frames, so no ghost and no sharpness pulsing (a 9 October 2026 correction: the blended version softened in-between frames).
+    d=field(min(i+1,N-1))
+    if f<0.5: o=warp(fr[i].astype(np.float32),d,f) if f>0.02 else fr[i].astype(np.float32)
+    else:     o=warp(fr[i+1].astype(np.float32),d,-(1-f)) if f<0.98 else fr[i+1].astype(np.float32)
+    p.stdin.write(np.clip(o,0,255).astype(np.uint8).tobytes())
+p.stdin.close(); p.wait(); print('done',a.out,out_n,'frames')
