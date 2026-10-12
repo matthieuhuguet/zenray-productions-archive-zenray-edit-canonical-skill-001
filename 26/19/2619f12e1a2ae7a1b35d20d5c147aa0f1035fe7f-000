@@ -1,0 +1,102 @@
+# 12 October 2026 : remove marks (watermark, logo, scale figure) from a texture by patch transplant, numpy only.
+# FR : efface des marques (logo, silhouette d'échelle) d'une texture en greffant un morceau voisin, numpy seulement.
+# For each rectangle, the ring of pixels around it is compared with every candidate place in a search window;
+# the best match (sum of squared differences on the ring) is copied into the hole, its mean matched to the ring,
+# and blended with a feathered edge. No pixel is invented: the fill is real texture taken from the same image.
+# FR : pour chaque rectangle, l'anneau autour est comparé à chaque place candidate ; la meilleure est recopiée dans
+# le trou, sa moyenne calée sur l'anneau, puis fondue avec un bord progressif. Rien n'est inventé.
+# Usage: python3 PatchFill.py <in> <out> --rect x,y,w,h [--rect ...] [--crop x,y,w,h] [--search 220] [--ring 14]
+import argparse
+import json
+import numpy as np
+from PIL import Image
+
+
+def load(path, crop):
+    im = Image.open(path)
+    if crop:
+        x, y, w, h = crop
+        im = im.crop((x, y, x + w, y + h))
+    a = np.asarray(im).astype(np.float64)
+    if a.ndim == 3:
+        a = a[..., :3].mean(axis=2)  # height maps are grey; RGB copies are averaged
+    return a
+
+
+def fill(a, rects, search, ring, step, feather, search_y):
+    H, W = a.shape
+    hole = np.zeros((H, W), bool)
+    for x, y, w, h in rects:
+        hole[y:y + h, x:x + w] = True
+    out = a.copy()
+    log = []
+    for x, y, w, h in rects:
+        # Target window = rectangle plus ring, clipped to the image.
+        # FR : fenêtre cible = rectangle plus anneau, bornée à l'image.
+        x0, y0 = max(0, x - ring), max(0, y - ring)
+        x1, y1 = min(W, x + w + ring), min(H, y + h + ring)
+        tw, th = x1 - x0, y1 - y0
+        tgt = out[y0:y1, x0:x1]
+        tmask = hole[y0:y1, x0:x1]
+        ringm = ~tmask
+        best = None
+        for dy in range(-search_y, search_y + 1, step):
+            for dx in range(-search, search + 1, step):
+                cx, cy = x0 + dx, y0 + dy
+                if cx < 0 or cy < 0 or cx + tw > W or cy + th > H:
+                    continue
+                if hole[cy:cy + th, cx:cx + tw].any():
+                    continue  # never copy from another hole
+                cand = out[cy:cy + th, cx:cx + tw]
+                # Normalised cross-correlation on the ring, plus a contrast penalty: plain squared
+                # differences prefer flat patches, which fill a hole with a smooth blob.
+                # FR : corrélation normalisée sur l'anneau, plus une pénalité de contraste : l'écart au carré
+                # préfère les zones plates, qui bouchent le trou par une tache lisse.
+                c, t = cand[ringm], tgt[ringm]
+                cs, ts = c.std() + 1e-6, t.std() + 1e-6
+                ncc = float(((c - c.mean()) * (t - t.mean())).mean() / (cs * ts))
+                inner = cand[tmask].std() + 1e-6
+                cost = (1.0 - ncc) + abs(np.log(inner / ts))
+                if best is None or cost < best[0]:
+                    best = (cost, cx, cy)
+        cost, cx, cy = best
+        cand = out[cy:cy + th, cx:cx + tw].copy()
+        # Match brightness with a plane fitted on the ring difference (a + b x + c y), so a slope of light
+        # across the hole is followed instead of leaving a lighter or darker rectangle.
+        # FR : calage de luminosité par un plan ajusté sur l'écart de l'anneau, pour suivre une pente de lumière.
+        gy, gx = np.mgrid[0:th, 0:tw]
+        A = np.stack([np.ones(ringm.sum()), gx[ringm], gy[ringm]], 1)
+        coef, *_ = np.linalg.lstsq(A, (tgt - cand)[ringm], rcond=None)
+        cand += coef[0] + coef[1] * gx + coef[2] * gy
+        # Feather: 1 inside the hole, falling to 0 across the ring.
+        # FR : fondu : 1 dans le trou, décroît à 0 sur l'anneau.
+        yy, xx = np.mgrid[0:th, 0:tw]
+        ax, ay = x - x0, y - y0
+        dist = np.maximum(np.maximum(ax - xx, xx - (ax + w - 1)), np.maximum(ay - yy, yy - (ay + h - 1)))
+        alpha = np.clip(1.0 - dist / float(max(feather, 1)), 0.0, 1.0)
+        out[y0:y1, x0:x1] = alpha * cand + (1 - alpha) * tgt
+        log.append({"rect": [x, y, w, h], "source": [cx + (x - x0), cy + (y - y0)], "cost": round(cost, 3)})
+    return out, log
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("src")
+    ap.add_argument("out")
+    ap.add_argument("--rect", action="append", required=True, help="x,y,w,h of a mark, in crop coordinates")
+    ap.add_argument("--crop", help="x,y,w,h applied first (e.g. keep the height half of a sheet)")
+    ap.add_argument("--search", type=int, default=220)
+    ap.add_argument("--ring", type=int, default=14)
+    ap.add_argument("--step", type=int, default=2)
+    ap.add_argument("--feather", type=int, default=10)
+    ap.add_argument("--search-y", type=int, default=12, help="vertical search; small keeps horizontal strata aligned")
+    a = ap.parse_args()
+    box = lambda s: tuple(int(v) for v in s.split(","))
+    img = load(a.src, box(a.crop) if a.crop else None)
+    res, log = fill(img, [box(r) for r in a.rect], a.search, a.ring, a.step, a.feather, a.search_y)
+    Image.fromarray(np.clip(res, 0, 255).round().astype(np.uint8), "L").save(a.out)
+    print(json.dumps({"out": a.out, "size": [img.shape[1], img.shape[0]], "fills": log}, indent=1))
+
+
+if __name__ == "__main__":
+    main()
