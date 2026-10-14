@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # Verify routing, real template files and browser isolation. (7 October 2026, 17:00 Europe/Paris)
+# 14 October 2026: designs/ is a LIVING register (every new design index is filed there by scripts/file-design.mjs), so it is outside the attested bundle.
+# FR : designs/ est un registre vivant, hors du lot atteste.
 import argparse
 import hashlib
 import json
@@ -7,7 +9,7 @@ from pathlib import Path
 
 def check(root):
     manifest = json.loads((root / 'BundleManifest.json').read_text())
-    actual = {str(path.relative_to(root)) for path in root.rglob('*') if path.is_file() and path.name != 'BundleManifest.json' and '__pycache__' not in path.parts and path.suffix != '.pyc' and path.name != '.DS_Store'}
+    actual = {str(path.relative_to(root)) for path in root.rglob('*') if path.is_file() and path.name != 'BundleManifest.json' and '__pycache__' not in path.parts and path.suffix != '.pyc' and path.name != '.DS_Store' and path.relative_to(root).parts[0] != 'designs'}
     assert actual == set(manifest['files']), 'Bundle inventory changed'
     for relative, expected in manifest['files'].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected, f'Current bundle changed: {relative}'

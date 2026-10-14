@@ -1,0 +1,54 @@
+// file-design.test.mjs (14 October 2026): green on a good atelier, RED on a missing index and a bad slug, append only register.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileDesign, decide, CONFIG } from './file-design.mjs'
+
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'filedesign-'))
+const config = { ...CONFIG, root: path.join(tmp, 'skill'), projectsRoot: path.join(tmp, 'projects') }
+fs.mkdirSync(path.join(config.root, 'designs'), { recursive: true })
+fs.writeFileSync(path.join(config.root, 'designs', 'INDEX.md'), '# register\n\n| h |\n|---|\n')
+fs.mkdirSync(path.join(config.projectsRoot, 'demo'), { recursive: true })
+const atelier = path.join(tmp, 'atelier')
+fs.mkdirSync(path.join(atelier, 'fonts'), { recursive: true })
+fs.writeFileSync(path.join(atelier, 'index.html'), "<style>@font-face{src:url('fonts/Inter.woff2')}</style><img src=\"frame.webp\">")
+fs.writeFileSync(path.join(atelier, 'fonts', 'Inter.woff2'), 'font')
+fs.writeFileSync(path.join(atelier, 'frame.webp'), 'img')
+const day = new Date('2026-10-14T12:00:00')
+
+test('GREEN: the index, its assets and the fonts are filed, the register gets one row', () => {
+  const r = fileDesign({ atelier, slug: 'player-icons', title: 'Lecteur, icônes seules', module: 'video-player', project: 'demo', now: day, config })
+  assert.equal(r.folder, '2026-10-14-player-icons')
+  const html = fs.readFileSync(path.join(r.target, 'index.html'), 'utf8')
+  assert.ok(html.includes("../_shared/fonts/Inter.woff2") && !html.includes("'fonts/"))
+  assert.ok(fs.existsSync(path.join(config.root, 'designs', '_shared', 'fonts', 'Inter.woff2')))
+  assert.ok(fs.existsSync(path.join(r.target, 'frame.webp')))
+  assert.ok(fs.existsSync(path.join(config.projectsRoot, 'demo', 'Designs', r.folder, 'index.html')))
+  const reg = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
+  assert.equal(reg.split('\n').filter((l) => l.includes('player-icons')).length, 1)
+  assert.ok(reg.includes('14 October 2026'))
+})
+
+test('a second filing of the same slug is a new version, the first one is untouched', () => {
+  const before = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
+  const r = fileDesign({ atelier, slug: 'player-icons', title: 'Lecteur, icônes seules', now: day, config })
+  assert.equal(r.folder, '2026-10-14-player-icons-v2')
+  const after = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
+  assert.ok(after.startsWith(before), 'append only: the old text is the prefix')
+})
+
+test('the choice of Matthieu is appended, never rewritten', () => {
+  const before = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
+  decide({ slug: 'player-icons', choice: 'B', now: day, config })
+  const after = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
+  assert.ok(after.startsWith(before) && after.includes('chosen B'))
+})
+
+test('RED: no index.html, a bad slug and a missing title are refused', () => {
+  assert.throws(() => fileDesign({ atelier: path.join(tmp, 'nothing'), slug: 'x', title: 't', config }), /no index\.html/)
+  assert.throws(() => fileDesign({ atelier, slug: 'Bad Slug', title: 't', config }), /slug/)
+  assert.throws(() => fileDesign({ atelier, slug: 'ok', title: '', config }), /title/)
+  assert.throws(() => decide({ slug: 'unknown-design', choice: 'A', config }), /no filed design/)
+})

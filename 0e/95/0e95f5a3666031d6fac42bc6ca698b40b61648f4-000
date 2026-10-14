@@ -39,6 +39,7 @@ Atelier de création et d’édition, de la demande à un média vérifié et mo
 | Post social et vignette | legacy/SocialText.md ; legacy/VignetteWorkflow.md ; legacy/PostEditorContract.md | 7 October 2026 |
 | Montage et motion design | ~/.claude/skills/zenray-motion-design/SKILL.md (analyse, storyboard, HyperFrames, contrat de vérification) | 10 October 2026 |
 | Animatique et inventaire d'assets | ~/.claude/skills/zenray-motion-design/SKILL.md, section Passe 2 (caméra mesurée, emplacements nommés, prompts, son, fiche) | 11 October 2026 |
+| Titre animé Vogun jaune ou blanc | templates/vogun-yellow-title/README.md (gabarit paramétrique, rendu `RenderTitle.cjs`, preuve) ; règles dans ~/.claude/skills/zenray-houdini/references/shorts/VogunTitles.md | 14 October 2026 |
 
 Les 15 blocs historiques, les corpus d’origine et leur provenance restent consultables par [INDEX.md](references/INDEX.md). Les anciennes consignes sont des recettes historiques ; ActiveContract.md gouverne les commandes actuelles et tranche leurs contradictions. (7 October 2026)
 
@@ -80,3 +81,14 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 - 12 October 2026 : méthode : l'anneau de pixels autour du trou est comparé à chaque place candidate par corrélation normalisée plus une pénalité de contraste ; la meilleure place est recopiée dans le trou, sa luminosité calée par un plan ajusté sur l'anneau, puis fondue sur le bord. Rien n'est inventé, la texture vient de la même image. (12 October 2026)
 - 12 October 2026 : pièges payés : un simple écart au carré choisit des zones plates et bouche le trou d'une tache lisse ; un calage de luminosité constant laisse un rectangle plus clair ; sur une roche en strates, chercher dans les mêmes rangées (`--search-y` petit) garde les lignes alignées. Vérifier toujours sur un zoom avant/après. (12 October 2026)
 - 12 October 2026 : exemple : planche de Javier Perez, moitié droite, silhouette `--rect 126,866,48,96` et logo `--rect 850,910,102,44`, atelier `/Users/zenray/.claude/tmp/tmp-height-javier-perez-clean/`. Un aperçu ombré en gris n'est pas une height linéaire : il sert de référence de mesure, pas de carte finale. (12 October 2026)
+
+## 14 October 2026 : maquettes du rework Assets et titre Vogun rangés ici
+
+- 14 October 2026 : les trois maquettes du rework ZenRay Assets (Tube, détails, page projet) et leurs décisions sont dans `templates/zenray-assets-mockups/rework-12-october-2026/` ; son README donne les choix de Matthieu et le code de production correspondant. (14 October 2026)
+- 14 October 2026 : le titre animé Vogun jaune `#FFFF00` de Vegetation Collection 01 est un gabarit paramétrique dans `templates/vogun-yellow-title/` (durées, lignes, couleur et ombre dans un JSON, rendu 4K transparent par `RenderTitle.cjs`). (14 October 2026)
+
+## 14 October 2026 : tout index de design est rangé automatiquement
+
+- 14 October 2026 : dès qu'un index de design (galerie de propositions) est créé pour Matthieu, la dernière étape est `node ~/.claude/skills/zenray-edit/scripts/file-design.mjs <atelier> --slug <slug> --title "<titre>" --module <module> --project <id-assets>`. Il copie l'index dans `designs/<date>-<slug>/` (polices partagées), ajoute une ligne au registre `designs/INDEX.md` et, avec `--project`, copie l'index dans `Memory1/Projects/<id>/Designs/`. Sans cette étape le design n'est pas fini. (14 October 2026)
+- 14 October 2026 : son choix s'ajoute par `file-design.mjs --decide <slug> --choice <A|B|C>`, jamais en réécrivant une ligne. `designs/` est un registre vivant, hors du lot attesté par `CheckContract.py`. (14 October 2026)
+- 14 October 2026 : la lecture du registre par projet dans `zenray-assets` n'existe pas encore ; aujourd'hui seule la copie dans la mémoire du projet est faite (colonne « Projet Assets » du registre). (14 October 2026)

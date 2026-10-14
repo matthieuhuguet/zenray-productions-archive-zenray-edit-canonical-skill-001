@@ -77,3 +77,7 @@ zéro, alors que son HTML se terminait proprement. Cause : une apostrophe non é
 une chaîne JavaScript, qui levait une `SyntaxError` et tuait tout le script. La parade est
 d'écrire les chaînes de données en guillemets doubles, ce que font les quatre fichiers
 depuis. Un fichier syntaxiquement complet n'est pas un fichier qui marche.
+
+## 14 October 2026 : rework de la vue Assets
+
+Les maquettes du rework (Tube, détails, page projet) et les choix qui en sont sortis sont dans `rework-12-october-2026/`. Elles remplacent ces cinq propositions comme référence de la vue actuelle. (14 October 2026)

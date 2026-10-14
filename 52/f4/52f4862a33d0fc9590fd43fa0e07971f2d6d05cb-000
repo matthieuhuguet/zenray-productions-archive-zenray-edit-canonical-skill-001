@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+// file-design.mjs (14 October 2026): every design index made with zenray-edit is filed by this script, automatically, into the skill
+// folder (designs/<date>-<slug>/) and appended to the register designs/INDEX.md. With --project it is also copied into the Assets project
+// memory (Memory1/Projects/<id>/Designs/). FR : chaque index de design est range ici, automatiquement, dans le skill, et ajoute au registre.
+//
+//   node file-design.mjs <atelier-dir> --slug <slug> --title "<title>" [--module <module>] [--project <assets-id>] [--note "<text>"]
+//   node file-design.mjs --decide <slug> --choice <A|B|C|...> [--note "<text>"]      (appends the choice, never rewrites a line)
+//
+// Environment (every location in ONE place, HDA rule): ZENRAY_EDIT_ROOT (the skill folder), ZENRAY_PROJECTS_ROOT (Memory1/Projects).
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+
+const HOME = os.homedir()
+export const CONFIG = {
+  root: process.env.ZENRAY_EDIT_ROOT || path.join(HOME, '.claude/skills/zenray-edit'),
+  projectsRoot: process.env.ZENRAY_PROJECTS_ROOT || path.join(HOME, '.claude/Memory1/Projects'),
+  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  skipNames: new Set(['.DS_Store', 'Scripts', 'node_modules']),
+}
+
+const die = (message, code = 2) => { console.error(`file-design: ${message}`); process.exit(code) }
+const parse = (argv) => {
+  const out = { _: [] }
+  for (let i = 0; i < argv.length; i += 1) {
+    if (!argv[i].startsWith('--')) { out._.push(argv[i]); continue }
+    const key = argv[i].slice(2); const next = argv[i + 1]
+    if (next === undefined || next.startsWith('--')) out[key] = true; else { out[key] = next; i += 1 }
+  }
+  return out
+}
+const dateParts = (now = new Date()) => ({
+  iso: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+  long: `${now.getDate()} ${CONFIG.months[now.getMonth()]} ${now.getFullYear()}`,
+})
+const cell = (v) => String(v ?? '—').replace(/\|/g, '/').replace(/\s+/g, ' ').trim() || '—'
+
+export function fileDesign({ atelier, slug, title, module = 'general', project = '', note = '', now = new Date(), config = CONFIG }) {
+  if (!atelier || !fs.existsSync(path.join(atelier, 'index.html'))) throw new Error(`no index.html in ${atelier}`)
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug || '')) throw new Error('--slug must be lowercase letters, digits and hyphens')
+  if (!title) throw new Error('--title is required')
+  const designsDir = path.join(config.root, 'designs')
+  const { iso, long } = dateParts(now)
+  let folder = `${iso}-${slug}`; let version = 1
+  while (fs.existsSync(path.join(designsDir, folder))) { version += 1; folder = `${iso}-${slug}-v${version}` }
+  const target = path.join(designsDir, folder)
+  fs.mkdirSync(target, { recursive: true })
+  const sharedFonts = path.join(designsDir, '_shared', 'fonts')
+  fs.mkdirSync(sharedFonts, { recursive: true })
+
+  // index.html: the relative fonts move to the shared folder (one copy for all designs). FR : polices partagees, une seule copie.
+  let html = fs.readFileSync(path.join(atelier, 'index.html'), 'utf8')
+  const fontDir = path.join(atelier, 'fonts')
+  if (fs.existsSync(fontDir)) {
+    for (const name of fs.readdirSync(fontDir)) {
+      const dest = path.join(sharedFonts, name)
+      if (!fs.existsSync(dest)) fs.copyFileSync(path.join(fontDir, name), dest)
+    }
+  }
+  const forSkill = html.replace(/(['"(])fonts\//g, '$1../_shared/fonts/')
+  fs.writeFileSync(path.join(target, 'index.html'), forSkill)
+
+  // other assets next to index.html (images, json): copied as they are; sources and build scripts stay in the atelier
+  const copied = ['index.html']
+  for (const entry of fs.readdirSync(atelier, { withFileTypes: true })) {
+    if (!entry.isFile() || entry.name === 'index.html' || config.skipNames.has(entry.name)) continue
+    if (!/\.(png|jpe?g|webp|svg|gif|avif|json|css|mp4)$/i.test(entry.name)) continue
+    if (fs.statSync(path.join(atelier, entry.name)).size > 8 * 1024 * 1024) continue
+    fs.copyFileSync(path.join(atelier, entry.name), path.join(target, entry.name)); copied.push(entry.name)
+  }
+  const sha256 = crypto.createHash('sha256').update(forSkill).digest('hex')
+  const meta = { date: long, slug, folder, version, title, module, project: project || null, status: 'pending', atelier: path.resolve(atelier), files: copied, indexSha256: sha256, filedAt: new Date(now).toISOString(), note: note || null }
+  fs.writeFileSync(path.join(target, 'META.json'), JSON.stringify(meta, null, 2) + '\n')
+
+  // project memory (Assets): the same index with ABSOLUTE font URLs, so it opens from anywhere on this Mac
+  let projectCopy = null
+  if (project) {
+    const projectDir = path.join(config.projectsRoot, project)
+    if (fs.existsSync(projectDir)) {
+      projectCopy = path.join(projectDir, 'Designs', folder)
+      fs.mkdirSync(projectCopy, { recursive: true })
+      const absolute = html.replace(/(['"(])fonts\//g, `$1file://${sharedFonts}/`)
+      fs.writeFileSync(path.join(projectCopy, 'index.html'), absolute)
+      for (const name of copied.slice(1)) fs.copyFileSync(path.join(target, name), path.join(projectCopy, name))
+      fs.writeFileSync(path.join(projectCopy, 'META.json'), JSON.stringify(meta, null, 2) + '\n')
+    }
+  }
+
+  const register = path.join(designsDir, 'INDEX.md')
+  const row = `| ${long} | ${cell(slug)} | ${cell(module)} | ${cell(title)} | pending | ${cell(project)} | designs/${folder}/index.html | ${cell(path.resolve(atelier))} |\n`
+  fs.appendFileSync(register, row)
+  return { folder, target, projectCopy, register, meta }
+}
+
+export function decide({ slug, choice, note = '', now = new Date(), config = CONFIG }) {
+  const designsDir = path.join(config.root, 'designs')
+  const folders = fs.existsSync(designsDir) ? fs.readdirSync(designsDir).filter((n) => n.endsWith(`-${slug}`) || new RegExp(`-${slug}-v\\d+$`).test(n)).sort() : []
+  if (!folders.length) throw new Error(`no filed design named ${slug}`)
+  const meta = JSON.parse(fs.readFileSync(path.join(designsDir, folders.at(-1), 'META.json'), 'utf8'))
+  const { long } = dateParts(now)
+  const row = `| ${long} | ${cell(slug)} | ${cell(meta.module)} | ${cell(meta.title)} | chosen ${cell(choice)}${note ? ` (${cell(note)})` : ''} | ${cell(meta.project)} | designs/${meta.folder}/index.html | ${cell(meta.atelier)} |\n`
+  fs.appendFileSync(path.join(designsDir, 'INDEX.md'), row)
+  return { slug, choice, folder: meta.folder }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const args = parse(process.argv.slice(2))
+  try {
+    if (args.decide) {
+      if (!args.choice || args.choice === true) die('--choice is required with --decide')
+      console.log(JSON.stringify(decide({ slug: args.decide, choice: args.choice, note: args.note || '' })))
+    } else {
+      const atelier = args._[0] ? path.resolve(args._[0]) : null
+      console.log(JSON.stringify(fileDesign({ atelier, slug: args.slug, title: args.title, module: args.module || 'general', project: args.project || '', note: args.note || '' }), null, 2))
+    }
+  } catch (error) { die(error.message) }
+}
