@@ -1,0 +1,34 @@
+# ZenRay Plan et Google Calendar, mockup et cahier des charges (17 October 2026)
+
+Mockup HTML paramétrable : `/Users/zenray/.claude/skills/zenray-edit/templates/zenray-plan-gcal/index.html`
+(se rouvre en double-clic, aucune dépendance réseau, polices dans `fonts/`).
+Les valeurs se règlent dans le panneau de droite ; elles vivent toutes dans `PARAM_SPEC` en tête du script,
+8 paramètres au maximum par catégorie. Bouton « Copier les valeurs » pour les coller dans un prompt. (17 October 2026)
+
+## Ce que le Plan stocke (lu dans `src/create/PlanBoard.jsx`, 17 October 2026)
+
+Fichier `.plan.json` du drive, `{ type:'plan', v:1, title, tasks:[...] }`. Tâche : `id` (base 36, non sûr pour un
+identifiant Google), `title`, `date` (YYYY-MM-DD), `startTime` (HH:MM ou null), `durationMin`, `status`
+(planned, done, late-complete, dropped ; « en retard » est dérivé à la lecture), `note`, `publish` (tuile rose),
+`streakId` (série), `firstMovement`, `overdueSince`, `doneAt`. Écriture : `saveJsonWithRetry` (read, mutate, write avec sha).
+
+## Règles de synchronisation (sens Plan vers agenda)
+
+1. Identifiant d'événement : `"plan" + sha256(task.id)[0..32]` (alphabet Google a-v, 0-9). Jamais de doublon.
+2. `extendedProperties.private` : `zrSource="zenray-plan"`, `zrPlanTaskId`, `zrHash`. Seuls les événements portant `zrSource` sont lus, modifiés ou supprimés.
+3. Heures : `dateTime` local + `timeZone` Europe/Paris (paramètre) ; fin = début + `durationMin`. Sans heure : journée entière (paramètre).
+4. Hash du contenu : identique, aucune requête ; différent, PATCH ; tâche disparue du Plan, DELETE ; abandonnée, selon paramètre.
+5. Horizon : 30 jours passés, 365 jours futurs (paramètres). Événements `zrSource` hors horizon laissés tels quels.
+6. Déclencheurs : push à chaque enregistrement du Plan, plus balayage toutes les 5 minutes (paramètre) comme filet.
+7. Sens unique : une modification faite dans l'agenda est écrasée au balayage suivant (le Plan fait foi). Le sens inverse est un chantier à part, non inclus.
+8. Reprise : un échec Google ne touche jamais le Plan ; le balayage rejoue, l'opération est idempotente.
+
+## Ce qui manque pour passer au réel (à faire par Matthieu, jamais par l'agent)
+
+- Accord Google Calendar, une seule fois : soit brancher le connecteur « Google Calendar » (présent au registre, non connecté dans cette session), soit accepter un écran de consentement OAuth (portée `calendar.events`) pour une liaison continue. L'agent ne saisit aucun mot de passe et ne crée aucun compte.
+- Choix du mode de liaison (A Worker Cloudflare recommandé, B agent Mac, C connecteur Claude ponctuel).
+- Validation du mockup. Aucun événement n'est créé avant.
+
+## Tests à livrer avec le code (prévus)
+
+`toEvent` pur (fuseau, durée, sans heure, DST de fin octobre), idempotence (deux balayages, zéro requête), identifiant stable, événement étranger jamais touché, reprise après échec 429 et 5xx. Vérifié dans les deux sens (vert sur un cas bon, rouge sur un cas cassé).

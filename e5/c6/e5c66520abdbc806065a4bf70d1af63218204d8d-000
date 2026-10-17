@@ -46,7 +46,7 @@
   h1{font:var(--w-serif) 34px/1.1 var(--serif);margin:0}
   h1 em{font-style:italic;color:var(--accent)}
   .sub{color:var(--encre2);margin-top:6px;max-width:68ch}
-  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--gris-fond);font-size:12px;color:var(--encre2)}
+  .pill{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--gris-fond);font-size:12px;color:var(--encre2)}
   .pill.ok{background:var(--vert-fond);color:var(--vert)} .pill.warn{background:var(--orange-fond);color:var(--orange)}
   .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
   @media(max-width:1100px){.layout{grid-template-columns:1fr}}
@@ -132,7 +132,7 @@
     <main>
       <div class="weeks">
         <section class="card" id="planCard"><div class="wk-head"><h2><i class="logo zr"></i>ZenRay Plan</h2><span class="pill" id="planCount"></span></div><div id="planGrid"></div></section>
-        <section class="card" id="calCard"><div class="wk-head"><h2><i class="logo g"></i><span id="calName">Google Calendar</span></h2><span class="pill ok" id="calCount"></span></div><div id="calGrid"></div></section>
+        <section class="card" id="calCard"><div class="wk-head"><h2><i class="logo g"></i><span id="calName">Google Calendar</span> <small style="font:12px var(--sans);color:var(--encre3)">matth.huguet@gmail.com</small></h2><span class="pill ok" id="calCount"></span></div><div id="calGrid"></div></section>
       </div>
 
       <div class="below">
@@ -318,7 +318,7 @@ function render(){
   document.documentElement.dataset.theme = P.theme;
   document.getElementById('planGrid').innerHTML = gridHTML('plan');
   document.getElementById('calGrid').innerHTML = gridHTML('cal');
-  document.getElementById('calName').textContent = P.calendarName + ' (matth.huguet@gmail.com)';
+  document.getElementById('calName').textContent = P.calendarName;
   document.getElementById('planCount').innerHTML = `<span class="num">${tasks.length}</span> tâches`;
   document.getElementById('calCount').innerHTML = `<span class="num">${allEvents().length}</span> événements synchronisés`;
   document.querySelectorAll('[data-id]').forEach(el => el.onclick = () => { selected = el.dataset.id; render(); renderEditor(); });
