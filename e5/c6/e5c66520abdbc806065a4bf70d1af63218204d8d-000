@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZenRay Plan et Google Calendar</title>
+<!--
+  MOCKUP, 17 October 2026. ZenRayPlan <-> Google Calendar (matth.huguet@gmail.com).
+  Nothing here talks to Google: the right-hand week is DERIVED from the left-hand Plan by the
+  same mapping function the real sync will use (toEvent), so what you see is what will be sent.
+  FR : aucun appel reseau. La semaine de droite est calculee depuis le Plan par la meme fonction
+  de correspondance que la vraie synchronisation (toEvent).
+  Edit the values in the panel (HDA style): every parameter lives in ONE object, PARAM_SPEC.
+  FR : tous les parametres vivent dans un seul objet, PARAM_SPEC, max 8 par categorie.
+  Trio: Inter 400 for UI, AnthropicSerif 350 for titles, AnthropicSerif 400 for every number.
+-->
+<style>
+  @font-face{font-family:'Inter';src:url('fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap;}
+  @font-face{font-family:'AnthropicSerif';src:url('fonts/AnthropicSerif-Romans.woff2') format('woff2');font-weight:300 800;font-style:normal;font-display:swap;}
+
+  :root{
+    --sans:'Inter','Hiragino Sans W4','Hiragino Sans',sans-serif;
+    --serif:'AnthropicSerif','Hiragino Mincho ProN W3',serif;
+    --w-sans:400; --w-serif:350; --w-num:400;
+    --ui:14px; --accent:#cc7c5e; --ph:46px;
+    --fond:#F2F1EE; --carte:#FDFDFC; --encre:#20201E; --encre2:#5F5E59; --encre3:#8C8A83;
+    --filet:rgba(0,0,0,.10); --ombre:0 1px 2px rgba(0,0,0,.05),0 10px 28px rgba(0,0,0,.07);
+    --rose:#E27687; --rose-fond:rgba(226,118,135,.16);
+    --vert:#5E9B6B; --vert-fond:rgba(94,155,107,.16);
+    --orange:#D9822B; --orange-fond:rgba(217,130,43,.16);
+    --violet:#8667C4; --violet-fond:rgba(134,103,196,.16);
+    --gris-fond:rgba(120,120,115,.14);
+    --bleu-g:#4285F4; --bleu-g-fond:rgba(66,133,244,.14);
+    --r:12px;
+  }
+  :root[data-theme="dark"]{
+    --fond:#161615; --carte:#222220; --encre:#EDECE8; --encre2:#B3B1AA; --encre3:#7F7D76;
+    --filet:rgba(255,255,255,.12); --ombre:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--fond);color:var(--encre);font:var(--w-sans) var(--ui)/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+  .num,.hour,time,input[type=number]{font-family:var(--serif);font-weight:var(--w-num);font-variant-numeric:tabular-nums}
+  .wrap{max-width:1500px;margin:0 auto;padding:28px 16px 64px}
+  header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:22px}
+  h1{font:var(--w-serif) 34px/1.1 var(--serif);margin:0}
+  h1 em{font-style:italic;color:var(--accent)}
+  .sub{color:var(--encre2);margin-top:6px;max-width:68ch}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--gris-fond);font-size:12px;color:var(--encre2)}
+  .pill.ok{background:var(--vert-fond);color:var(--vert)} .pill.warn{background:var(--orange-fond);color:var(--orange)}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+  @media(max-width:1100px){.layout{grid-template-columns:1fr}}
+  .card{background:var(--carte);border-radius:var(--r);box-shadow:var(--ombre);border:.5px solid var(--filet)}
+  .weeks{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:1250px){.weeks{grid-template-columns:1fr}}
+  .wk-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:.5px solid var(--filet)}
+  .wk-head h2{font:var(--w-serif) 19px var(--serif);margin:0}
+  .logo{width:18px;height:18px;border-radius:5px;display:inline-block;vertical-align:-3px;margin-right:6px}
+  .logo.zr{background:var(--accent)} .logo.g{background:var(--bleu-g)}
+  .grid{position:relative;display:grid;grid-template-columns:34px repeat(7,minmax(0,1fr));overflow:hidden;border-radius:0 0 var(--r) var(--r)}
+  .dayh{padding:6px 2px;text-align:center;font-size:12px;color:var(--encre2);border-bottom:.5px solid var(--filet)}
+  .dayh b{display:block;font:var(--w-num) 17px var(--serif);color:var(--encre)}
+  .dayh.today b{color:var(--accent)}
+  .allday{border-bottom:.5px solid var(--filet);padding:3px;min-height:28px;display:flex;flex-direction:column;gap:2px}
+  .allday-label{font-size:10px;color:var(--encre3);padding:4px 2px;border-bottom:.5px solid var(--filet)}
+  .col{position:relative;border-left:.5px solid var(--filet)}
+  .hours{position:relative}
+  .hour{position:absolute;right:4px;font-size:10px;color:var(--encre3);transform:translateY(-6px)}
+  .line{position:absolute;left:0;right:0;border-top:.5px solid var(--filet)}
+  .ev{position:absolute;left:2px;right:2px;border-radius:7px;padding:3px 5px;font-size:11px;line-height:1.25;overflow:hidden;cursor:pointer;
+      border-left:3px solid var(--c,var(--accent));background:var(--cf,var(--gris-fond));color:var(--encre);transition:box-shadow .15s}
+  .ev:hover{box-shadow:0 2px 10px rgba(0,0,0,.18)}
+  .ev.sel{outline:2px solid var(--accent)}
+  .ev small{display:block;color:var(--encre2);font-family:var(--serif);font-size:10.5px}
+  .ev.foreign{--c:var(--bleu-g);--cf:var(--bleu-g-fond);cursor:default}
+  .ev.s-done{--c:var(--vert);--cf:var(--vert-fond)}
+  .ev.s-late{--c:var(--orange);--cf:var(--orange-fond)}
+  .ev.s-latec{--c:var(--violet);--cf:var(--violet-fond)}
+  .ev.s-dropped{--c:#999;--cf:var(--gris-fond);text-decoration:line-through;opacity:.7}
+  .ev.s-publish{--c:var(--rose);--cf:var(--rose-fond)}
+  .ev.synced::after{content:"ZR";position:absolute;right:3px;top:2px;font-size:8px;letter-spacing:.06em;color:var(--encre3)}
+  .chip{display:block;border-radius:6px;padding:2px 6px;font-size:11px;background:var(--cf,var(--gris-fond));border-left:3px solid var(--c,var(--accent));cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip.foreign{--c:var(--bleu-g);--cf:var(--bleu-g-fond);cursor:default}
+  .now{position:absolute;left:0;right:0;border-top:1.5px solid var(--accent);z-index:3;pointer-events:none}
+  .below{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  @media(max-width:1100px){.below{grid-template-columns:1fr}}
+  .pad{padding:14px}
+  h3{font:var(--w-serif) 17px var(--serif);margin:0 0 8px}
+  .editor{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+  .editor label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--encre2)}
+  .editor .full{grid-column:1/-1}
+  input,select,button,textarea{font:inherit;color:inherit}
+  input[type=text],input[type=date],input[type=time],input[type=number],select{background:var(--fond);border:.5px solid var(--filet);border-radius:8px;padding:6px 8px;width:100%}
+  button{background:var(--fond);border:.5px solid var(--filet);border-radius:9px;padding:7px 12px;cursor:pointer}
+  button:hover{border-color:var(--accent)} button.primary{background:var(--accent);color:#fff;border-color:transparent}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .log{font:12px/1.5 var(--sans);max-height:260px;overflow:auto}
+  .log div{padding:4px 0;border-bottom:.5px solid var(--filet);display:flex;gap:8px}
+  .op{font-family:var(--serif);min-width:62px;font-weight:600}
+  .op.INSERT{color:var(--vert)} .op.PATCH{color:var(--bleu-g)} .op.DELETE{color:var(--rose)} .op.NOOP{color:var(--encre3)}
+  code{font-family:'AnthropicMono',ui-monospace,monospace;font-size:11.5px;background:var(--gris-fond);padding:1px 5px;border-radius:5px;word-break:break-all}
+  .param-group{margin-bottom:14px}
+  .param-group h4{margin:0 0 6px;font:var(--w-serif) 15px var(--serif);display:flex;justify-content:space-between}
+  .param{display:grid;grid-template-columns:1fr 128px;gap:8px;align-items:center;padding:4px 0;font-size:12.5px}
+  .param small{display:block;color:var(--encre3);font-size:11px}
+  aside .card{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+  .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:900px){.opts{grid-template-columns:1fr}}
+  .opt{padding:12px;border-radius:10px;border:.5px solid var(--filet);background:var(--fond);font-size:12.5px}
+  .opt.on{border:1.5px solid var(--accent)}
+  .opt b{font:var(--w-serif) 15px var(--serif);display:block;margin-bottom:4px}
+  ul.tight{margin:6px 0 0;padding-left:18px} ul.tight li{margin:2px 0}
+  table.map{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.map td,table.map th{padding:5px 6px;border-bottom:.5px solid var(--filet);text-align:left;vertical-align:top}
+  table.map th{font-weight:500;color:var(--encre2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>ZenRay Plan, <em>dans ton agenda</em></h1>
+      <div class="sub">Chaque tâche du Plan devient un événement de <b>matth.huguet@gmail.com</b>, à la même heure. Modifie une heure, un titre ou un statut à gauche : l'agenda de droite suit, et le journal dit exactement ce qui serait envoyé. Données d'exemple, rien n'est écrit chez Google.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span class="pill warn" id="connState">Connecteur Google Calendar : non branché</span>
+      <span class="pill">Mockup, 17 October 2026</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main>
+      <div class="weeks">
+        <section class="card" id="planCard"><div class="wk-head"><h2><i class="logo zr"></i>ZenRay Plan</h2><span class="pill" id="planCount"></span></div><div id="planGrid"></div></section>
+        <section class="card" id="calCard"><div class="wk-head"><h2><i class="logo g"></i><span id="calName">Google Calendar</span></h2><span class="pill ok" id="calCount"></span></div><div id="calGrid"></div></section>
+      </div>
+
+      <div class="below">
+        <section class="card pad">
+          <h3>Éditer la tâche sélectionnée</h3>
+          <div class="editor" id="editor"><div class="full" style="color:var(--encre3)">Clique une tâche du Plan.</div></div>
+          <div class="row">
+            <button class="primary" id="addBtn">+ Nouvelle tâche</button>
+            <button id="resetBtn">Remettre l'exemple</button>
+          </div>
+        </section>
+        <section class="card pad">
+          <h3>Ce que la synchronisation enverrait</h3>
+          <div class="log" id="log"><div style="color:var(--encre3)">Modifie une tâche pour voir les opérations.</div></div>
+        </section>
+      </div>
+
+      <section class="card pad" style="margin-top:14px">
+        <h3>Trois façons de relier, une recommandée</h3>
+        <div class="opts" id="opts"></div>
+      </section>
+
+      <section class="card pad" style="margin-top:14px">
+        <h3>Règles de correspondance (les mêmes que dans le code à venir)</h3>
+        <table class="map">
+          <tr><th>Plan</th><th>Google Calendar</th></tr>
+          <tr><td><code>id</code> de la tâche</td><td><code>event.id = "plan" + sha256(id)[0..32]</code> (alphabet a-v et 0-9 imposé par Google) et <code>extendedProperties.private.zrPlanTaskId</code>. Stable : recréer ne duplique jamais.</td></tr>
+          <tr><td><code>date</code> + <code>startTime</code> + <code>durationMin</code></td><td><code>start.dateTime</code> et <code>end.dateTime</code> avec <code>timeZone</code> (Europe/Paris). Sans heure : événement sur la journée entière (réglable).</td></tr>
+          <tr><td><code>title</code>, <code>note</code></td><td><code>summary</code> (avec marque de publication ou de statut) et <code>description</code>.</td></tr>
+          <tr><td><code>status</code> done, late-complete, dropped</td><td>Titre préfixé ✓ ou supprimé selon les paramètres. Une tâche abandonnée peut supprimer l'événement.</td></tr>
+          <tr><td>Événements sans <code>zrSource = "zenray-plan"</code></td><td><b>Jamais touchés</b> : ni lus pour écrasement, ni supprimés. Ce sont tes rendez-vous (en bleu à droite).</td></tr>
+          <tr><td>Empreinte <code>zrHash</code></td><td>Hash de (titre, date, heure, durée, statut, note). Identique : aucune requête (NOOP). Différent : PATCH.</td></tr>
+        </table>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card pad">
+        <h3>Paramètres</h3>
+        <div id="params"></div>
+        <div class="row">
+          <button class="primary" id="copyBtn">Copier les valeurs</button>
+          <button id="defaultsBtn">Valeurs par défaut</button>
+        </div>
+        <div class="sub" id="copyNote" style="font-size:12px"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ============================================================================================
+   PARAM_SPEC: the ONLY place where a value is defined. 8 parameters max per group.
+   FR : l'unique endroit ou une valeur est definie. 8 parametres maximum par categorie.
+   ============================================================================================ */
+const PARAM_SPEC = [
+  // group "Correspondance"
+  {g:'Correspondance', k:'calendarName', label:'Agenda cible', hint:'Créé s\'il n\'existe pas', type:'text', def:'ZenRay Plan'},
+  {g:'Correspondance', k:'timeZone', label:'Fuseau', type:'select', opts:['Europe/Paris','Asia/Tokyo','UTC'], def:'Europe/Paris'},
+  {g:'Correspondance', k:'titlePrefix', label:'Préfixe de titre', hint:'Vide = aucun', type:'text', def:''},
+  {g:'Correspondance', k:'publishMark', label:'Marque publication', type:'text', def:'✦'},
+  {g:'Correspondance', k:'doneHandling', label:'Tâche terminée', type:'select', opts:['prefix-check','unchanged','delete'], def:'prefix-check'},
+  {g:'Correspondance', k:'droppedHandling', label:'Tâche abandonnée', type:'select', opts:['delete','strike','ignore'], def:'delete'},
+  {g:'Correspondance', k:'noTimeHandling', label:'Sans heure', type:'select', opts:['all-day','default-time'], def:'all-day'},
+  {g:'Correspondance', k:'defaultDurationMin', label:'Durée par défaut (min)', type:'number', min:5, max:240, step:5, def:60},
+  // group "Rythme"
+  {g:'Rythme', k:'transport', label:'Mode de liaison', type:'select', opts:['worker','mac-agent','claude-connector'], def:'worker'},
+  {g:'Rythme', k:'syncEveryMin', label:'Balayage (min)', hint:'Filet de sécurité en plus du push à l\'enregistrement', type:'number', min:1, max:60, step:1, def:5},
+  {g:'Rythme', k:'horizonPastDays', label:'Jours passés', type:'number', min:0, max:365, step:1, def:30},
+  {g:'Rythme', k:'horizonFutureDays', label:'Jours futurs', type:'number', min:30, max:730, step:1, def:365},
+  {g:'Rythme', k:'reminderMin', label:'Rappel (min avant)', hint:'0 = aucun', type:'number', min:0, max:120, step:5, def:10},
+  // group "Apparence"
+  {g:'Apparence', k:'accent', label:'Accent', type:'color', def:'#cc7c5e'},
+  {g:'Apparence', k:'theme', label:'Thème', type:'select', opts:['light','dark'], def:'light'},
+  {g:'Apparence', k:'pxPerHour', label:'Hauteur d\'une heure (px)', type:'number', min:28, max:80, step:2, def:46},
+  {g:'Apparence', k:'uiBase', label:'Taille de l\'interface (px)', type:'number', min:12, max:18, step:1, def:14},
+  {g:'Apparence', k:'showForeign', label:'Montrer mes rendez-vous', type:'select', opts:['yes','no'], def:'yes'},
+];
+const LABELS = {'prefix-check':'Préfixer ✓','unchanged':'Inchangée','delete':'Supprimer l\'événement','strike':'Barrer','ignore':'Ne pas synchroniser','all-day':'Journée entière','default-time':'Heure par défaut 09:00','worker':'Worker Cloudflare (recommandé)','mac-agent':'Agent sur le Mac','claude-connector':'Connecteur Claude','yes':'Oui','no':'Non','light':'Clair','dark':'Sombre'};
+
+/* Sample data / donnees d'exemple: shape identical to a real .plan.json task. */
+const SAMPLE = [
+ {id:'m1a2b3c4d',title:'Production Houdini',date:'2026-10-12',startTime:'09:00',durationMin:180,status:'done',note:''},
+ {id:'m1a2b3c5e',title:'Sport',date:'2026-10-12',startTime:'17:00',durationMin:60,status:'done',streakId:'s1'},
+ {id:'m1a2b3c6f',title:'Japonais',date:'2026-10-13',startTime:'14:00',durationMin:90,status:'done'},
+ {id:'m1a2b3c7g',title:'Sport',date:'2026-10-14',startTime:'17:00',durationMin:60,status:'done',streakId:'s1'},
+ {id:'m1a2b3c8h',title:'Devlog Unreal',date:'2026-10-14',startTime:'11:00',durationMin:45,status:'done',publish:true},
+ {id:'m1a2b3c9i',title:'Prospection freelance',date:'2026-10-15',startTime:'10:00',durationMin:120,status:'planned'},
+ {id:'m1a2b3caj',title:'Sport',date:'2026-10-16',startTime:'17:00',durationMin:60,status:'late-complete',streakId:'s1'},
+ {id:'m1a2b3cbk',title:'Japonais',date:'2026-10-17',startTime:'13:30',durationMin:75,status:'planned'},
+ {id:'m1a2b3cdl',title:'Article ZenRayProgress',date:'2026-10-17',startTime:'15:00',durationMin:60,status:'planned',publish:true},
+ {id:'m1a2b3cem',title:'Sport',date:'2026-10-18',startTime:'17:00',durationMin:60,status:'planned',streakId:'s1'},
+ {id:'m1a2b3cfn',title:'Revue de la semaine',date:'2026-10-18',startTime:null,durationMin:30,status:'planned'},
+];
+const FOREIGN = [ // events that do NOT come from the Plan: never touched / jamais touches
+ {id:'f1',summary:'Rendez-vous banque',date:'2026-10-13',start:'16:00',end:'17:00'},
+ {id:'f2',summary:'Dentiste',date:'2026-10-16',start:'12:00',end:'13:00'},
+];
+const TODAY = '2026-10-17';
+const DAYS = ['2026-10-12','2026-10-13','2026-10-14','2026-10-15','2026-10-16','2026-10-17','2026-10-18'];
+const DAYNAMES = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const H0 = 7, H1 = 22;
+
+/* ---- state ---- */
+const defaults = () => Object.fromEntries(PARAM_SPEC.map(p => [p.k, p.def]));
+let P = defaults();
+try { const s = localStorage.getItem('zr:plan-gcal:params'); if (s) P = {...P, ...JSON.parse(s)}; } catch {}
+let tasks = structuredClone(SAMPLE);
+let selected = null;
+let prevEvents = null;
+
+/* ---- helpers ---- */
+const pad = n => String(n).padStart(2,'0');
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const fromMin = m => `${pad(Math.floor(m/60)%24)}:${pad(m%60)}`;
+// Cheap deterministic hash standing in for sha256 in the mockup / hachage de remplacement pour la maquette.
+function h32(s){ let h = 2166136261 >>> 0; for (const c of s){ h ^= c.charCodeAt(0); h = Math.imul(h,16777619) >>> 0; } return h.toString(16).padStart(8,'0'); }
+const eventId = id => 'plan' + (h32(id)+h32(id+'a')+h32(id+'b')+h32(id+'c'));
+
+/* ---- THE mapping function: Plan task -> Google event (or null). Same logic as the real sync. ---- */
+function toEvent(t){
+  if (t.status === 'dropped' && P.droppedHandling !== 'strike') return null;
+  if ((t.status === 'done' || t.status === 'late-complete') && P.doneHandling === 'delete') return null;
+  let summary = (P.titlePrefix ? P.titlePrefix + ' ' : '') + (t.publish ? P.publishMark + ' ' : '') + t.title;
+  if ((t.status === 'done' || t.status === 'late-complete') && P.doneHandling === 'prefix-check') summary = '✓ ' + summary;
+  if (t.status === 'dropped') summary = '✕ ' + summary;
+  const dur = t.durationMin || +P.defaultDurationMin;
+  let allDay = false, start = t.startTime, end = null;
+  if (!start){ if (P.noTimeHandling === 'all-day') allDay = true; else start = '09:00'; }
+  if (!allDay) end = fromMin(Math.min(toMin(start)+dur, 24*60-1));
+  const body = {id:eventId(t.id), summary, date:t.date, allDay, start, end, tz:P.timeZone,
+    reminderMin:+P.reminderMin, source:'zenray-plan', taskId:t.id,
+    cls: t.status==='dropped' ? 'dropped' : t.publish ? 'publish' : t.status==='done' ? 'done' : t.status==='late-complete' ? 'latec' : (t.status==='planned' && t.date < TODAY) ? 'late' : ''};
+  body.hash = h32(JSON.stringify([t.title,t.date,t.startTime,t.durationMin,t.status,t.note||'',t.publish||false,P.titlePrefix,P.publishMark,P.doneHandling,P.droppedHandling,P.noTimeHandling,P.defaultDurationMin,P.timeZone,P.reminderMin]));
+  return body;
+}
+const allEvents = () => tasks.map(toEvent).filter(Boolean);
+
+/* ---- rendering ---- */
+function gridHTML(kind){
+  const ph = +P.pxPerHour;
+  const ev = kind === 'cal' ? allEvents() : null;
+  let head = '<div class="allday-label"></div>' + DAYS.map((d,i)=>`<div class="dayh${d===TODAY?' today':''}">${DAYNAMES[i]}<b>${+d.slice(8)}</b></div>`).join('');
+  const dayAll = d => {
+    const items = kind==='plan'
+      ? tasks.filter(t=>t.date===d && !t.startTime).map(t=>`<span class="chip ${clsOf(t)}" data-id="${t.id}">${esc(t.title)}</span>`)
+      : ev.filter(e=>e.date===d && e.allDay).map(e=>`<span class="chip ${e.cls?'s-'+e.cls:''}">${esc(e.summary)}</span>`);
+    return `<div class="allday">${items.join('')}</div>`;
+  };
+  let adRow = '<div class="allday-label">toute la journée</div>' + DAYS.map(dayAll).join('');
+  const hoursCol = `<div class="hours" style="height:${(H1-H0)*ph}px">${Array.from({length:H1-H0+1},(_,i)=>`<div class="hour" style="top:${i*ph}px">${H0+i}</div>`).join('')}</div>`;
+  const cols = DAYS.map(d=>{
+    let inner = Array.from({length:H1-H0},(_,i)=>`<div class="line" style="top:${i*ph}px"></div>`).join('');
+    const place = (s,e,html) => `<div style="position:absolute;inset:0">${html}</div>`;
+    const evs = [];
+    if (kind==='plan'){
+      tasks.filter(t=>t.date===d && t.startTime).forEach(t=>{
+        const s = toMin(t.startTime), dur = t.durationMin||+P.defaultDurationMin;
+        evs.push(`<div class="ev ${clsOf(t)}${t.id===selected?' sel':''}" data-id="${t.id}" style="top:${(s/60-H0)*ph}px;height:${Math.max(dur/60*ph-2,18)}px">${esc(t.title)}${t.publish?' '+esc(P.publishMark):''}<small>${t.startTime} · ${dur} min</small></div>`);
+      });
+    } else {
+      ev.filter(e=>e.date===d && !e.allDay).forEach(e=>{
+        const s = toMin(e.start), dur = toMin(e.end)-s;
+        evs.push(`<div class="ev synced ${e.cls?'s-'+e.cls:''}${e.taskId===selected?' sel':''}" style="top:${(s/60-H0)*ph}px;height:${Math.max(dur/60*ph-2,18)}px">${esc(e.summary)}<small>${e.start} à ${e.end}</small></div>`);
+      });
+      if (P.showForeign==='yes') FOREIGN.filter(f=>f.date===d).forEach(f=>{
+        const s = toMin(f.start), dur = toMin(f.end)-s;
+        evs.push(`<div class="ev foreign" style="top:${(s/60-H0)*ph}px;height:${dur/60*ph-2}px">${esc(f.summary)}<small>${f.start} à ${f.end} · pas du Plan</small></div>`);
+      });
+    }
+    return `<div class="col" style="height:${(H1-H0)*ph}px">${inner}${evs.join('')}</div>`;
+  });
+  // keep the all-day row inside the same grid / la rangee "journee" dans la meme grille
+  return `<div class="grid">${head}${adRow}${hoursCol}${cols.join('')}</div>`;
+}
+const clsOf = t => t.status==='dropped'?'s-dropped':t.publish?'s-publish':t.status==='done'?'s-done':t.status==='late-complete'?'s-latec':(t.status==='planned'&&t.date<TODAY)?'s-late':'';
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render(){
+  document.documentElement.style.setProperty('--accent', P.accent);
+  document.documentElement.style.setProperty('--ph', P.pxPerHour+'px');
+  document.documentElement.style.setProperty('--ui', P.uiBase+'px');
+  document.documentElement.dataset.theme = P.theme;
+  document.getElementById('planGrid').innerHTML = gridHTML('plan');
+  document.getElementById('calGrid').innerHTML = gridHTML('cal');
+  document.getElementById('calName').textContent = P.calendarName + ' (matth.huguet@gmail.com)';
+  document.getElementById('planCount').innerHTML = `<span class="num">${tasks.length}</span> tâches`;
+  document.getElementById('calCount').innerHTML = `<span class="num">${allEvents().length}</span> événements synchronisés`;
+  document.querySelectorAll('[data-id]').forEach(el => el.onclick = () => { selected = el.dataset.id; render(); renderEditor(); });
+  renderOpts();
+}
+
+function renderEditor(){
+  const t = tasks.find(x=>x.id===selected); const box = document.getElementById('editor');
+  if (!t){ box.innerHTML = '<div class="full" style="color:var(--encre3)">Clique une tâche du Plan.</div>'; return; }
+  box.innerHTML = `
+    <label class="full">Titre<input type="text" id="e-title" value="${esc(t.title)}"></label>
+    <label>Date<input type="date" id="e-date" value="${t.date}"></label>
+    <label>Début (vide = sans heure)<input type="time" id="e-start" value="${t.startTime||''}"></label>
+    <label>Durée (min)<input type="number" id="e-dur" min="5" max="240" step="5" value="${t.durationMin||''}"></label>
+    <label>Statut<select id="e-status">${['planned','done','late-complete','dropped'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select></label>
+    <label>Publication<select id="e-pub"><option value="0">Non</option><option value="1" ${t.publish?'selected':''}>Oui</option></select></label>
+    <label>Série<input type="text" value="${t.streakId?'oui ('+t.streakId+')':'non'}" disabled></label>
+    <div class="full"><button id="e-del">Supprimer la tâche du Plan</button></div>`;
+  const bind = (id, fn) => document.getElementById(id).addEventListener('change', e => { fn(e.target.value); commit(); });
+  bind('e-title', v=>t.title=v); bind('e-date', v=>t.date=v||t.date); bind('e-start', v=>t.startTime=v||null);
+  bind('e-dur', v=>t.durationMin=+v||60); bind('e-status', v=>t.status=v); bind('e-pub', v=>{ if(v==='1') t.publish=true; else delete t.publish; });
+  document.getElementById('e-del').onclick = () => { tasks = tasks.filter(x=>x.id!==t.id); selected=null; commit(true); renderEditor(); };
+}
+
+/* ---- diff = what the real sync would send / ce que la vraie synchronisation enverrait ---- */
+function commit(force){
+  const now = Object.fromEntries(allEvents().map(e=>[e.id,e]));
+  const ops = [];
+  for (const [id,e] of Object.entries(now)){
+    const old = prevEvents[id];
+    if (!old) ops.push(['INSERT', e, `POST events  id=${id}`]);
+    else if (old.hash !== e.hash) ops.push(['PATCH', e, `PATCH events/${id}  (${diffWhat(old,e)})`]);
+  }
+  for (const [id,e] of Object.entries(prevEvents)) if (!now[id]) ops.push(['DELETE', e, `DELETE events/${id}`]);
+  prevEvents = now;
+  const log = document.getElementById('log');
+  const stamp = new Date().toLocaleTimeString('fr-FR');
+  const rows = ops.length ? ops.map(([op,e,line])=>`<div><span class="op ${op}">${op}</span><span><b>${esc(e.summary)}</b><br><code>${esc(line)}</code> ${e.allDay?'journée entière':`${e.date} ${e.start} à ${e.end} ${e.tz}`}</span></div>`)
+    : [`<div><span class="op NOOP">NOOP</span><span>Aucun changement visible côté agenda, aucune requête envoyée.</span></div>`];
+  log.innerHTML = `<div style="color:var(--encre3)"><span class="num">${stamp}</span> · ${ops.length} opération(s)</div>` + rows.join('') + log.innerHTML.replace(/^<div style="color:var\(--encre3\)">Modifie[^]*?<\/div>/,'');
+  render();
+}
+function diffWhat(a,b){ const w=[]; if(a.summary!==b.summary)w.push('titre'); if(a.start!==b.start||a.end!==b.end)w.push('heure'); if(a.date!==b.date)w.push('date'); return w.join(', ')||'attributs'; }
+
+/* ---- params panel ---- */
+function renderParams(){
+  const groups = [...new Set(PARAM_SPEC.map(p=>p.g))];
+  document.getElementById('params').innerHTML = groups.map(g=>{
+    const items = PARAM_SPEC.filter(p=>p.g===g);
+    return `<div class="param-group"><h4>${g}<small class="num" style="font-size:12px;color:var(--encre3)">${items.length}/8</small></h4>` + items.map(p=>{
+      let field;
+      if (p.type==='select') field = `<select data-k="${p.k}">${p.opts.map(o=>`<option value="${o}" ${P[p.k]===o?'selected':''}>${LABELS[o]||o}</option>`).join('')}</select>`;
+      else if (p.type==='number') field = `<input type="number" data-k="${p.k}" min="${p.min}" max="${p.max}" step="${p.step}" value="${P[p.k]}">`;
+      else if (p.type==='color') field = `<input type="color" data-k="${p.k}" value="${P[p.k]}" style="width:100%;height:30px;border:none;background:none">`;
+      else field = `<input type="text" data-k="${p.k}" value="${esc(P[p.k])}">`;
+      return `<div class="param"><div>${p.label}${p.hint?`<small>${p.hint}</small>`:''}</div>${field}</div>`;
+    }).join('') + '</div>';
+  }).join('');
+  document.querySelectorAll('[data-k]').forEach(el => el.addEventListener('input', () => {
+    const spec = PARAM_SPEC.find(p=>p.k===el.dataset.k);
+    P[spec.k] = spec.type==='number' ? +el.value : el.value;
+    try { localStorage.setItem('zr:plan-gcal:params', JSON.stringify(P)); } catch {}
+    // recompute events with new rules, log the resulting diff / recalcule et journalise
+    commit();
+  }));
+}
+function renderOpts(){
+  const o = [
+    {k:'worker', t:'A. Worker Cloudflare (recommandé)', d:`<ul class="tight"><li>Un Pages Function déclenché à chaque enregistrement du Plan, plus un balayage toutes les <span class="num">${P.syncEveryMin}</span> min.</li><li>Fonctionne Mac éteint, téléphone compris.</li><li>Il te faut accepter UNE fois l'accès Google (écran de consentement), le jeton reste dans les secrets Cloudflare.</li></ul>`},
+    {k:'mac-agent', t:'B. Agent sur le Mac', d:`<ul class="tight"><li>Un LaunchAgent, comme le moteur Freelance, lit le Plan et écrit dans l'agenda.</li><li>Rien à héberger, mais ne synchronise que Mac allumé.</li><li>Même consentement Google une fois, jeton dans le trousseau macOS.</li></ul>`},
+    {k:'claude-connector', t:'C. Connecteur Claude', d:`<ul class="tight"><li>Le connecteur Google Calendar existe mais n'est pas branché ici.</li><li>Écrit seulement quand une session Claude tourne : pas une synchronisation continue.</li><li>Bon pour un rattrapage ponctuel, pas pour « toutes les futures tâches ».</li></ul>`},
+  ];
+  document.getElementById('opts').innerHTML = o.map(x=>`<div class="opt${P.transport===x.k?' on':''}"><b>${x.t}</b>${x.d}</div>`).join('');
+}
+
+document.getElementById('addBtn').onclick = () => {
+  const t = {id:'new'+Date.now().toString(36), title:'Nouvelle tâche', date:TODAY, startTime:'18:00', durationMin:60, status:'planned'};
+  tasks.push(t); selected = t.id; commit(); renderEditor();
+};
+document.getElementById('resetBtn').onclick = () => { tasks = structuredClone(SAMPLE); selected = null; prevEvents = Object.fromEntries(allEvents().map(e=>[e.id,e])); document.getElementById('log').innerHTML=''; render(); renderEditor(); };
+document.getElementById('defaultsBtn').onclick = () => { P = defaults(); try{localStorage.removeItem('zr:plan-gcal:params')}catch{} renderParams(); commit(); };
+document.getElementById('copyBtn').onclick = async () => {
+  const txt = 'ZenRayPlan x Google Calendar, valeurs: ' + JSON.stringify(P);
+  try { await navigator.clipboard.writeText(txt); document.getElementById('copyNote').textContent = 'Copié. Colle-le dans le prompt.'; }
+  catch { document.getElementById('copyNote').textContent = txt; }
+};
+
+prevEvents = Object.fromEntries(allEvents().map(e=>[e.id,e]));
+renderParams(); render();
+</script>
+</body>
+</html>
