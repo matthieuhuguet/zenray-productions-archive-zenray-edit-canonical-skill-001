@@ -1,0 +1,17 @@
+{
+  "date": "18 October 2026",
+  "slug": "color-picker-minimal-3-designs",
+  "folder": "2026-10-18-color-picker-minimal-3-designs-v2",
+  "version": 2,
+  "title": "ZenRay Color Picker : 3 designs minimalistes (A, B, C)",
+  "module": "ui",
+  "project": "zenray-color-picker-18-october-2026",
+  "status": "pending",
+  "atelier": "/Users/zenray/.claude/tmp/tmp-zenray-color-picker-18-october-2026/designs-round-1",
+  "files": [
+    "index.html"
+  ],
+  "indexSha256": "2ac2c4f221d9c87cd02f8c8022f8bab2132709381f5adcbb2f09610f610655db",
+  "filedAt": "2026-10-18T17:57:41.503Z",
+  "note": null
+}

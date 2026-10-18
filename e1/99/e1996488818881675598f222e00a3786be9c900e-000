@@ -1,0 +1,1061 @@
+<!doctype html>
+<!-- 18 October 2026 : ZenRayColorPicker, 3 propositions de design ultra-minimalistes (HDA + Gestalt + Trio typographique) -->
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZenRayColorPicker · 3 Designs Minimalistes (18 October 2026)</title>
+<style>
+  /* 18 October 2026 : Trio typographique système ZenRay (Typography1.md) */
+  @font-face {
+    font-family: 'InterVariable';
+    src: url('./fonts/InterVariable.woff2') format('woff2'),
+         url('../_shared/fonts/InterVariable.woff2') format('woff2'),
+         local('InterVariable'), local('Inter Variable');
+    font-weight: 100 900;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'AnthropicSerif';
+    src: url('./fonts/AnthropicSerif-Light.ttf') format('truetype'),
+         url('../_shared/fonts/AnthropicSerif-Light.ttf') format('truetype'),
+         local('AnthropicSerif-Light'), local('Anthropic Serif');
+    font-weight: 350;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'AnthropicSerif';
+    src: url('./fonts/AnthropicSerif-Regular.ttf') format('truetype'),
+         url('../_shared/fonts/AnthropicSerif-Regular.ttf') format('truetype'),
+         local('AnthropicSerif-Regular'), local('Anthropic Serif');
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'AnthropicMono';
+    src: url('./fonts/AnthropicMono-Regular.ttf') format('truetype'),
+         url('../_shared/fonts/AnthropicMono-Regular.ttf') format('truetype'),
+         local('AnthropicMono-Regular'), local('Anthropic Mono');
+    font-weight: 400;
+    font-display: swap;
+  }
+
+  :root {
+    /* 18 October 2026 : Polices et graisses strictes */
+    --zr-police-sans: 'InterVariable', 'Hiragino Sans W4', 'Hiragino Sans', sans-serif;
+    --zr-police-serif: 'AnthropicSerif', 'Hiragino Mincho ProN W3', serif;
+    --zr-police-mono: 'AnthropicMono', ui-monospace, monospace;
+    --zr-poids-sans: 400;
+    --zr-poids-serif: 350;
+    --zr-poids-nombres: 400;
+
+    /* 18 October 2026 : Échelle d'espacement unique (ui-espacement-gestalt, 5 valeurs max) */
+    --e0: 2px;
+    --e1: 5px;
+    --e2: 9px;
+    --e3: 14px;
+    --e4: 22px;
+
+    /* 18 October 2026 : Paramètres HDA pilotables aux curseurs */
+    --hda-scale: 1;
+    --hda-radius: 14px;
+    --hda-pad: 14px;
+    --hda-gap-out: 14px;
+    --hda-gap-in: 5px;
+    --hda-mono-size: 13px;
+    --hda-dot-size: 11px;
+    --hda-bg-alpha: 0.88;
+
+    /* 18 October 2026 : Couleurs actives (extraites de Pika) */
+    --fg-color: #ec7e7e;
+    --bg-color: #1f1f1e;
+    --fg-text-on-swatch: #181818;
+    --bg-text-on-swatch: #f2f2f0;
+
+    /* 18 October 2026 : Surface de fenêtre (un seul fond par région, zéro boîte imbriquée) */
+    --win-bg: rgba(24, 24, 26, var(--hda-bg-alpha));
+    --win-border: rgba(255, 255, 255, 0.08);
+    --win-shadow: 0 20px 44px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.28);
+    --ink-1: rgba(255, 255, 255, 0.94);
+    --ink-2: rgba(255, 255, 255, 0.56);
+    --ink-3: rgba(255, 255, 255, 0.34);
+    --pill-active-bg: rgba(255, 255, 255, 0.11);
+    --row-hover: rgba(255, 255, 255, 0.05);
+    --divider: rgba(255, 255, 255, 0.06);
+
+    --page-bg: #111113;
+    --stage-bg: radial-gradient(circle at 22% 18%, rgba(236, 126, 126, 0.12), transparent 52%),
+                radial-gradient(circle at 80% 78%, rgba(217, 119, 87, 0.10), transparent 55%),
+                #161618;
+  }
+
+  body[data-theme="light"] {
+    --win-bg: rgba(250, 249, 246, var(--hda-bg-alpha));
+    --win-border: rgba(0, 0, 0, 0.07);
+    --win-shadow: 0 18px 40px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+    --ink-1: rgba(20, 20, 19, 0.92);
+    --ink-2: rgba(20, 20, 19, 0.52);
+    --ink-3: rgba(20, 20, 19, 0.34);
+    --pill-active-bg: rgba(0, 0, 0, 0.07);
+    --row-hover: rgba(0, 0, 0, 0.04);
+    --divider: rgba(0, 0, 0, 0.06);
+    --page-bg: #f3f1ec;
+    --stage-bg: radial-gradient(circle at 22% 18%, rgba(236, 126, 126, 0.16), transparent 52%),
+                radial-gradient(circle at 80% 78%, rgba(217, 119, 87, 0.12), transparent 55%),
+                #ebe8e1;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--page-bg);
+    color: var(--ink-1);
+    font-family: var(--zr-police-sans);
+    font-weight: var(--zr-poids-sans);
+    min-height: 100vh;
+    padding: var(--e4);
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+
+  .num {
+    font-family: var(--zr-police-serif);
+    font-weight: var(--zr-poids-nombres);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mono {
+    font-family: var(--zr-police-mono);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 18 October 2026 : En-tête de l'atelier et panneau HDA */
+  .header-bar {
+    max-width: 1120px;
+    margin: 0 auto var(--e3);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e3);
+    flex-wrap: wrap;
+  }
+
+  .header-title {
+    font-family: var(--zr-police-serif);
+    font-weight: var(--zr-poids-serif);
+    font-size: 22px;
+    letter-spacing: -0.015em;
+  }
+
+  .header-sub {
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+
+  .hda-panel {
+    max-width: 1120px;
+    margin: 0 auto var(--e4);
+    padding: var(--e3) var(--e4);
+    background: var(--win-bg);
+    border: 1px solid var(--win-border);
+    border-radius: 12px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--e3);
+  }
+
+  .hda-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e3);
+    flex-wrap: wrap;
+  }
+
+  .hda-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    flex-wrap: wrap;
+  }
+
+  .hda-btn {
+    appearance: none;
+    border: 1px solid var(--win-border);
+    background: var(--pill-active-bg);
+    color: var(--ink-1);
+    font-family: var(--zr-police-sans);
+    font-weight: var(--zr-poids-sans);
+    font-size: 12px;
+    padding: 6px 11px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: opacity 0.14s ease, transform 0.1s ease;
+  }
+
+  .hda-btn:hover {
+    opacity: 0.88;
+  }
+
+  .hda-btn.primary {
+    background: var(--fg-color);
+    color: #161616;
+    border-color: transparent;
+  }
+
+  .hda-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+    gap: var(--e2) var(--e4);
+  }
+
+  .hda-control {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .hda-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+
+  .hda-control input[type="range"] {
+    width: 100%;
+    accent-color: var(--fg-color);
+    cursor: pointer;
+  }
+
+  /* 18 October 2026 : Grille des 3 propositions A, B, C */
+  .cards-grid {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--e4);
+    align-items: start;
+  }
+
+  @media (max-width: 980px) {
+    .cards-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .proposal-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--e3);
+    background: var(--stage-bg);
+    border: 1px solid var(--win-border);
+    border-radius: 16px;
+    padding: var(--e4);
+    min-height: 360px;
+    position: relative;
+    transition: border-color 0.16s ease;
+  }
+
+  .proposal-col[data-selected="true"] {
+    border-color: var(--fg-color);
+  }
+
+  .proposal-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e2);
+  }
+
+  .proposal-title {
+    font-family: var(--zr-police-serif);
+    font-weight: var(--zr-poids-serif);
+    font-size: 17px;
+    color: var(--ink-1);
+  }
+
+  .proposal-dims {
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+
+  .proposal-desc {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--ink-2);
+    min-height: 36px;
+  }
+
+  .stage-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--e3) 0;
+  }
+
+  .choose-btn {
+    width: 100%;
+    appearance: none;
+    border: 1px solid var(--win-border);
+    background: var(--row-hover);
+    color: var(--ink-1);
+    font-family: var(--zr-police-sans);
+    font-weight: var(--zr-poids-sans);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.14s ease, border-color 0.14s ease;
+  }
+
+  .proposal-col[data-selected="true"] .choose-btn {
+    background: var(--fg-color);
+    color: #161616;
+    border-color: transparent;
+  }
+
+  /* 18 October 2026 : Fenêtre macOS flottante commune (1 seul fond par région, 0 boîte imbriquée) */
+  .picker-win {
+    background: var(--win-bg);
+    border: 1px solid var(--win-border);
+    border-radius: var(--hda-radius);
+    box-shadow: var(--win-shadow);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    padding: var(--hda-pad);
+    transform: scale(var(--hda-scale));
+    transform-origin: center center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--hda-gap-out);
+    user-select: none;
+  }
+
+  /* Icône pipette minimaliste */
+  .eyedrop-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-2);
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.14s ease, background 0.14s ease;
+  }
+  .eyedrop-btn:hover {
+    color: var(--ink-1);
+    background: var(--row-hover);
+  }
+  .eyedrop-btn svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Pastilles d'historique communes : zéro bordure, pur disque de couleur */
+  .dots-row {
+    display: flex;
+    align-items: center;
+    gap: var(--hda-gap-in);
+  }
+  .color-dot {
+    width: var(--hda-dot-size);
+    height: var(--hda-dot-size);
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.12s ease;
+  }
+  .color-dot:hover {
+    transform: scale(1.22);
+  }
+
+  /* ==========================================================================
+     DESIGN A · Pilule Bicolore (244 x 114 px)
+     Un seul bloc bicolore arrondi en haut, formats nus au milieu, points en bas
+     ========================================================================== */
+  .win-a {
+    width: 244px;
+  }
+
+  .a-pill-swatch {
+    height: 46px;
+    border-radius: calc(var(--hda-radius) - 4px);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .a-half {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-family: var(--zr-police-mono);
+    font-size: calc(var(--hda-mono-size) - 1px);
+    letter-spacing: -0.01em;
+    transition: filter 0.12s ease;
+  }
+  .a-half:hover {
+    filter: brightness(1.05);
+  }
+  .a-half.fg {
+    background: var(--fg-color);
+    color: var(--fg-text-on-swatch);
+    justify-content: flex-start;
+  }
+  .a-half.bg {
+    background: var(--bg-color);
+    color: var(--bg-text-on-swatch);
+    justify-content: flex-end;
+  }
+
+  .a-contrast-badge {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(18, 18, 20, 0.78);
+    color: #ffffff;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+  }
+
+  .a-formats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+  }
+
+  .a-fmt-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-2);
+    font-family: var(--zr-police-sans);
+    font-weight: var(--zr-poids-sans);
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: color 0.12s ease, background 0.12s ease;
+  }
+  .a-fmt-btn:hover {
+    color: var(--ink-1);
+  }
+  .a-fmt-btn[data-active="true"] {
+    background: var(--pill-active-bg);
+    color: var(--ink-1);
+  }
+
+  .a-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .a-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+
+  /* ==========================================================================
+     DESIGN B · Fiche Suisse Typographique (252 x 152 px)
+     Zéro boîte interne : 2 cercles qui se chevauchent + 4 lignes mono alignées
+     ========================================================================== */
+  .win-b {
+    width: 252px;
+  }
+
+  .b-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .b-circles {
+    display: flex;
+    align-items: center;
+  }
+
+  .b-circle-fg {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--fg-color);
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .b-circle-bg {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--bg-color);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    margin-left: -6px;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .b-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    font-size: 11.5px;
+    color: var(--ink-2);
+  }
+
+  .b-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .b-line {
+    appearance: none;
+    border: none;
+    background: transparent;
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 3px 5px;
+    margin: 0 -5px;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s ease;
+  }
+  .b-line:hover {
+    background: var(--row-hover);
+  }
+
+  .b-val {
+    font-family: var(--zr-police-mono);
+    font-size: var(--hda-mono-size);
+    color: var(--ink-1);
+  }
+
+  .b-tag {
+    font-family: var(--zr-police-sans);
+    font-size: 10px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ==========================================================================
+     DESIGN C · Micro-Barre Spotlight (286 x 74 px)
+     Ultra-compact sur 2 lignes : Pastille + Grand Code + Pipette / Formats + Dots
+     ========================================================================== */
+  .win-c {
+    width: 286px;
+    gap: var(--e2);
+  }
+
+  .c-row-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e2);
+  }
+
+  .c-left {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    min-width: 0;
+  }
+
+  .c-split-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--fg-color) 0%, var(--fg-color) 62%, var(--bg-color) 62%, var(--bg-color) 100%);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .c-code-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-1);
+    font-family: var(--zr-police-mono);
+    font-size: calc(var(--hda-mono-size) + 2px);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .c-code-btn:hover {
+    background: var(--row-hover);
+  }
+
+  .c-right {
+    display: flex;
+    align-items: center;
+    gap: var(--e1);
+    flex-shrink: 0;
+  }
+
+  .c-ratio {
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+
+  .c-row-sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e2);
+  }
+
+  .c-fmt-strip {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .c-fmt-item {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-3);
+    font-family: var(--zr-police-sans);
+    font-size: 10.5px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .c-fmt-item[data-active="true"] {
+    color: var(--ink-1);
+    background: var(--pill-active-bg);
+  }
+
+  /* Toast de copie discret */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--ink-1);
+    color: var(--page-bg);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .toast[data-show="true"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+  <header class="header-bar">
+    <div>
+      <h1 class="header-title">ZenRayColorPicker · <span class="num">3</span> propositions minimalistes</h1>
+      <p class="header-sub">18 October 2026 · Zéro boîte imbriquée (Gestalt) · Trio InterVariable <span class="num">400</span>, AnthropicSerif <span class="num">350/400</span>, AnthropicMono <span class="num">400</span></p>
+    </div>
+    <div class="hda-actions">
+      <button class="hda-btn" id="themeBtn" type="button">Thème : Sombre</button>
+      <button class="hda-btn primary" id="copyHdaBtn" type="button">Copier le choix + valeurs HDA</button>
+    </div>
+  </header>
+
+  <!-- 18 October 2026 : Panneau de curseurs HDA -->
+  <section class="hda-panel" aria-label="Paramètres HDA">
+    <div class="hda-grid">
+      <label class="hda-control">
+        <span class="hda-label"><span>Rayon coins</span><span class="num" id="val-radius">14px</span></span>
+        <input type="range" min="6" max="24" step="1" value="14" data-var="--hda-radius" data-unit="px" id="in-radius" />
+      </label>
+      <label class="hda-control">
+        <span class="hda-label"><span>Marge interne (padding)</span><span class="num" id="val-pad">14px</span></span>
+        <input type="range" min="8" max="22" step="1" value="14" data-var="--hda-pad" data-unit="px" id="in-pad" />
+      </label>
+      <label class="hda-control">
+        <span class="hda-label"><span>Écart entre groupes</span><span class="num" id="val-gap-out">14px</span></span>
+        <input type="range" min="8" max="22" step="1" value="14" data-var="--hda-gap-out" data-unit="px" id="in-gap-out" />
+      </label>
+      <label class="hda-control">
+        <span class="hda-label"><span>Écart pastilles</span><span class="num" id="val-gap-in">5px</span></span>
+        <input type="range" min="3" max="10" step="1" value="5" data-var="--hda-gap-in" data-unit="px" id="in-gap-in" />
+      </label>
+      <label class="hda-control">
+        <span class="hda-label"><span>Corps AnthropicMono</span><span class="num" id="val-mono">13px</span></span>
+        <input type="range" min="11" max="16" step="0.5" value="13" data-var="--hda-mono-size" data-unit="px" id="in-mono" />
+      </label>
+      <label class="hda-control">
+        <span class="hda-label"><span>Taille pastilles</span><span class="num" id="val-dot">11px</span></span>
+        <input type="range" min="8" max="15" step="1" value="11" data-var="--hda-dot-size" data-unit="px" id="in-dot" />
+      </label>
+    </div>
+  </section>
+
+  <!-- 18 October 2026 : Les 3 designs A, B, C -->
+  <main class="cards-grid">
+
+    <!-- DESIGN A -->
+    <article class="proposal-col" data-design="A" data-selected="true">
+      <div class="proposal-head">
+        <h2 class="proposal-title">Design A · Pilule Bicolore</h2>
+        <span class="proposal-dims"><span class="num">244</span> × <span class="num">114</span> pt</span>
+      </div>
+      <p class="proposal-desc">Esprit Pika épuré : une seule pilule bicolore en haut (clic gauche = FG, clic droit = BG), formats sans cadre au centre, pastilles nues en bas.</p>
+
+      <div class="stage-center">
+        <div class="picker-win win-a">
+          <div class="a-pill-swatch">
+            <div class="a-half fg" data-copy-role="fg" title="Cliquer pour copier ou pipeter FG">
+              <span class="mono" data-bind="fg-short">#ec7e7e</span>
+            </div>
+            <div class="a-half bg" data-copy-role="bg" title="Cliquer pour copier ou pipeter BG">
+              <span class="mono" data-bind="bg-hex">#1f1f1e</span>
+            </div>
+          </div>
+
+          <div class="a-formats" role="tablist">
+            <button class="a-fmt-btn" type="button" data-fmt="hex" data-active="true">HEX</button>
+            <button class="a-fmt-btn" type="button" data-fmt="rgb">RGB</button>
+            <button class="a-fmt-btn" type="button" data-fmt="hsl">HSL</button>
+            <button class="a-fmt-btn" type="button" data-fmt="oklch">OKLCH</button>
+            <button class="a-fmt-btn" type="button" data-fmt="vec3">Linear</button>
+          </div>
+
+          <div class="a-footer">
+            <div class="dots-row" data-dots-container></div>
+            <div class="a-footer-right">
+              <span><span class="num" data-bind="ratio">6.17</span></span>
+              <button class="eyedrop-btn" type="button" title="Pipette (⇧⌘C)">
+                <svg viewBox="0 0 24 24"><path d="m14 4 6 6-2 2-6-6 2-2z"/><path d="M12 6 4 14v6h6l8-8"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="choose-btn" type="button" data-pick-design="A">Choisir Design A</button>
+    </article>
+
+    <!-- DESIGN B -->
+    <article class="proposal-col" data-design="B" data-selected="false">
+      <div class="proposal-head">
+        <h2 class="proposal-title">Design B · Liste Typo Suisse</h2>
+        <span class="proposal-dims"><span class="num">252</span> × <span class="num">152</span> pt</span>
+      </div>
+      <p class="proposal-desc">Zéro bouton de format : les <span class="num">4</span> valeurs sont visibles en même temps en <span class="mono">AnthropicMono</span>, un clic sur une ligne la copie directement.</p>
+
+      <div class="stage-center">
+        <div class="picker-win win-b">
+          <div class="b-top">
+            <div class="b-circles">
+              <div class="b-circle-fg" title="Couleur principale"></div>
+              <div class="b-circle-bg" title="Couleur de fond"></div>
+            </div>
+            <div class="b-meta">
+              <span><span class="num" data-bind="ratio">6.17</span>:<span class="num">1</span> · AA</span>
+              <button class="eyedrop-btn" type="button" title="Pipette (⇧⌘C)">
+                <svg viewBox="0 0 24 24"><path d="m14 4 6 6-2 2-6-6 2-2z"/><path d="M12 6 4 14v6h6l8-8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="b-lines">
+            <button class="b-line" type="button" data-copy-fmt="hex">
+              <span class="b-val" data-bind="val-hex">#ec7e7e</span>
+              <span class="b-tag">hex</span>
+            </button>
+            <button class="b-line" type="button" data-copy-fmt="rgb">
+              <span class="b-val" data-bind="val-rgb">236, 126, 126</span>
+              <span class="b-tag">rgb</span>
+            </button>
+            <button class="b-line" type="button" data-copy-fmt="oklch">
+              <span class="b-val" data-bind="val-oklch">0.72 0.13 22°</span>
+              <span class="b-tag">oklch</span>
+            </button>
+            <button class="b-line" type="button" data-copy-fmt="vec3">
+              <span class="b-val" data-bind="val-vec3">0.84, 0.21, 0.21</span>
+              <span class="b-tag">linear 3d</span>
+            </button>
+          </div>
+
+          <div class="dots-row" data-dots-container></div>
+        </div>
+      </div>
+
+      <button class="choose-btn" type="button" data-pick-design="B">Choisir Design B</button>
+    </article>
+
+    <!-- DESIGN C -->
+    <article class="proposal-col" data-design="C" data-selected="false">
+      <div class="proposal-head">
+        <h2 class="proposal-title">Design C · Micro-Barre HUD</h2>
+        <span class="proposal-dims"><span class="num">286</span> × <span class="num">74</span> pt</span>
+      </div>
+      <p class="proposal-desc">Format Spotlight ultra-compact sur <span class="num">2</span> lignes seulement : empreinte visuelle minimale, toujours hors du chemin.</p>
+
+      <div class="stage-center">
+        <div class="picker-win win-c">
+          <div class="c-row-main">
+            <div class="c-left">
+              <div class="c-split-dot" title="FG / BG"></div>
+              <button class="c-code-btn" type="button" data-copy-active>
+                <span class="mono" data-bind="fg-short">#ec7e7e</span>
+              </button>
+            </div>
+            <div class="c-right">
+              <span class="c-ratio"><span class="num" data-bind="ratio">6.17</span> · AA</span>
+              <button class="eyedrop-btn" type="button" title="Pipette (⇧⌘C)">
+                <svg viewBox="0 0 24 24"><path d="m14 4 6 6-2 2-6-6 2-2z"/><path d="M12 6 4 14v6h6l8-8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="c-row-sub">
+            <div class="c-fmt-strip">
+              <button class="c-fmt-item" type="button" data-fmt="hex" data-active="true">hex</button>
+              <button class="c-fmt-item" type="button" data-fmt="rgb">rgb</button>
+              <button class="c-fmt-item" type="button" data-fmt="oklch">oklch</button>
+              <button class="c-fmt-item" type="button" data-fmt="vec3">3d</button>
+            </div>
+            <div class="dots-row" data-dots-container data-max-dots="6"></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="choose-btn" type="button" data-pick-design="C">Choisir Design C</button>
+    </article>
+
+  </main>
+
+  <div class="toast" id="toast">Copié dans le presse-papiers</div>
+
+<script>
+  // 18 October 2026 : Couleurs réelles migrées depuis Pika de Matthieu
+  const PIKA_PALETTE = [
+    '#ec7e7e', '#d97757', '#e6dfcf', '#a25942',
+    '#87a878', '#5c80bc', '#c89d54', '#dad2bc'
+  ];
+
+  const state = {
+    selectedDesign: 'A',
+    activeFormat: 'hex',
+    fg: '#ec7e7e',
+    bg: '#1f1f1e'
+  };
+
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const n = parseInt(clean, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  function srgbToLinear(c) {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(hex) {
+    const { r, g, b } = hexToRgb(hex);
+    return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+  }
+
+  function contrastRatio(h1, h2) {
+    const l1 = luminance(h1);
+    const l2 = luminance(h2);
+    return ((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)).toFixed(2);
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return `${Math.round(h * 360)}°, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%`;
+  }
+
+  function formatColor(hex, fmt) {
+    const { r, g, b } = hexToRgb(hex);
+    const lr = srgbToLinear(r), lg = srgbToLinear(g), lb = srgbToLinear(b);
+    if (fmt === 'rgb') return `rgb(${r}, ${g}, ${b})`;
+    if (fmt === 'hsl') return `hsl(${rgbToHsl(r, g, b)})`;
+    if (fmt === 'oklch') {
+      const l = Math.cbrt(0.4122 * lr + 0.5363 * lg + 0.0514 * lb).toFixed(2);
+      return `oklch(${l} 0.12 24°)`;
+    }
+    if (fmt === 'vec3') return `${lr.toFixed(2)}, ${lg.toFixed(2)}, ${lb.toFixed(2)}`;
+    return hex.toLowerCase();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.dataset.show = 'true';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => { t.dataset.show = 'false'; }, 1600);
+  }
+
+  function renderPaletteDots() {
+    document.querySelectorAll('[data-dots-container]').forEach(container => {
+      const max = parseInt(container.dataset.maxDots || '8', 10);
+      container.innerHTML = '';
+      PIKA_PALETTE.slice(0, max).forEach(hex => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'color-dot';
+        btn.style.background = hex;
+        btn.title = hex;
+        btn.addEventListener('click', () => {
+          state.fg = hex;
+          updateUI();
+          navigator.clipboard?.writeText(formatColor(state.fg, state.activeFormat));
+          showToast(`Couleur ${formatColor(state.fg, state.activeFormat)} copiée`);
+        });
+        container.appendChild(btn);
+      });
+    });
+  }
+
+  function updateUI() {
+    document.documentElement.style.setProperty('--fg-color', state.fg);
+    document.documentElement.style.setProperty('--bg-color', state.bg);
+    const fgLum = luminance(state.fg);
+    document.documentElement.style.setProperty('--fg-text-on-swatch', fgLum > 0.179 ? '#161616' : '#f7f7f5');
+
+    const { r, g, b } = hexToRgb(state.fg);
+    const lr = srgbToLinear(r).toFixed(2), lg = srgbToLinear(g).toFixed(2), lb = srgbToLinear(b).toFixed(2);
+
+    document.querySelectorAll('[data-bind="fg-short"]').forEach(el => {
+      el.textContent = formatColor(state.fg, state.activeFormat);
+    });
+    document.querySelectorAll('[data-bind="bg-hex"]').forEach(el => {
+      el.textContent = state.bg;
+    });
+    document.querySelectorAll('[data-bind="ratio"]').forEach(el => {
+      el.textContent = contrastRatio(state.fg, state.bg);
+    });
+    document.querySelectorAll('[data-bind="val-hex"]').forEach(el => { el.textContent = state.fg; });
+    document.querySelectorAll('[data-bind="val-rgb"]').forEach(el => { el.textContent = `${r}, ${g}, ${b}`; });
+    document.querySelectorAll('[data-bind="val-oklch"]').forEach(el => { el.textContent = formatColor(state.fg, 'oklch').replace('oklch(', '').replace(')', ''); });
+    document.querySelectorAll('[data-bind="val-vec3"]').forEach(el => { el.textContent = `${lr}, ${lg}, ${lb}`; });
+
+    document.querySelectorAll('[data-fmt]').forEach(btn => {
+      btn.dataset.active = String(btn.dataset.fmt === state.activeFormat);
+    });
+    document.querySelectorAll('.proposal-col').forEach(col => {
+      col.dataset.selected = String(col.dataset.design === state.selectedDesign);
+    });
+  }
+
+  // Format buttons (Design A & C)
+  document.querySelectorAll('[data-fmt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeFormat = btn.dataset.fmt;
+      updateUI();
+      const val = formatColor(state.fg, state.activeFormat);
+      navigator.clipboard?.writeText(val);
+      showToast(`Copié : ${val}`);
+    });
+  });
+
+  // Direct copy rows (Design B)
+  document.querySelectorAll('[data-copy-fmt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = formatColor(state.fg, btn.dataset.copyFmt);
+      navigator.clipboard?.writeText(val);
+      showToast(`Copié : ${val}`);
+    });
+  });
+
+  // Design chooser buttons
+  document.querySelectorAll('[data-pick-design]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.selectedDesign = btn.dataset.pickDesign;
+      updateUI();
+      copyHdaSummary();
+    });
+  });
+
+  // HDA sliders
+  const sliders = [
+    { inId: 'in-radius', valId: 'val-radius' },
+    { inId: 'in-pad', valId: 'val-pad' },
+    { inId: 'in-gap-out', valId: 'val-gap-out' },
+    { inId: 'in-gap-in', valId: 'val-gap-in' },
+    { inId: 'in-mono', valId: 'val-mono' },
+    { inId: 'in-dot', valId: 'val-dot' }
+  ];
+  sliders.forEach(({ inId, valId }) => {
+    const input = document.getElementById(inId);
+    const out = document.getElementById(valId);
+    input.addEventListener('input', () => {
+      const unit = input.dataset.unit || '';
+      const val = `${input.value}${unit}`;
+      document.documentElement.style.setProperty(input.dataset.var, val);
+      out.textContent = val;
+    });
+  });
+
+  // Theme toggle
+  document.getElementById('themeBtn').addEventListener('click', (e) => {
+    const next = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.body.dataset.theme = next;
+    e.currentTarget.textContent = `Thème : ${next === 'dark' ? 'Sombre' : 'Clair'}`;
+  });
+
+  function copyHdaSummary() {
+    const summary = `Design choisi : ${state.selectedDesign} | radius=${document.getElementById('in-radius').value}px, pad=${document.getElementById('in-pad').value}px, gapOut=${document.getElementById('in-gap-out').value}px, gapIn=${document.getElementById('in-gap-in').value}px, mono=${document.getElementById('in-mono').value}px, dot=${document.getElementById('in-dot').value}px`;
+    navigator.clipboard?.writeText(summary);
+    showToast(`Choix copié : Design ${state.selectedDesign}`);
+  }
+
+  document.getElementById('copyHdaBtn').addEventListener('click', copyHdaSummary);
+
+  renderPaletteDots();
+  updateUI();
+</script>
+</body>
+</html>
