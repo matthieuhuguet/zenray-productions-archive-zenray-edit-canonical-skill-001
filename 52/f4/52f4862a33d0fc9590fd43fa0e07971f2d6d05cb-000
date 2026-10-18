@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// file-design.mjs (14 October 2026): every design index made with zenray-edit is filed by this script, automatically, into the skill
-// folder (designs/<date>-<slug>/) and appended to the register designs/INDEX.md. With --project it is also copied into the Assets project
-// memory (Memory1/Projects/<id>/Designs/). FR : chaque index de design est range ici, automatiquement, dans le skill, et ajoute au registre.
+// file-design.mjs (18 October 2026): every design index made with zenray-edit is filed by this script, automatically, into:
+// 1. the skill folder (designs/<date>-<slug>/) and appended to designs/INDEX.md,
+// 2. the canonical ZenRay Assets project "zenray-edit" (Memory1/Projects/zenray-edit/Designs/<folder>/ + workshop + skill-sync + Assets inventory/archive),
+// 3. any additional active project passed via --project <assets-id> (Memory1/Projects/<id>/Designs/<folder>/).
 //
 //   node file-design.mjs <atelier-dir> --slug <slug> --title "<title>" [--module <module>] [--project <assets-id>] [--note "<text>"]
 //   node file-design.mjs --decide <slug> --choice <A|B|C|...> [--note "<text>"]      (appends the choice, never rewrites a line)
@@ -11,11 +12,17 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 
 const HOME = os.homedir()
+const DEFAULT_SKILL_ROOT = path.join(HOME, '.claude/skills/zenray-edit')
 export const CONFIG = {
-  root: process.env.ZENRAY_EDIT_ROOT || path.join(HOME, '.claude/skills/zenray-edit'),
+  root: process.env.ZENRAY_EDIT_ROOT || DEFAULT_SKILL_ROOT,
   projectsRoot: process.env.ZENRAY_PROJECTS_ROOT || path.join(HOME, '.claude/Memory1/Projects'),
+  assetsProjectId: 'zenray-edit',
+  workshopRoot: process.env.ZENRAY_EDIT_WORKSHOP || path.join(HOME, '.claude/tmp/tmp-zenray-edit'),
+  progressRepo: process.env.ZENRAY_PROGRESS_REPO || path.join(HOME, 'Create/Build/Productions/GithubProductions/ZenRayProgress'),
+  syncScript: path.join(HOME, '.claude/skills/skill-sync/scripts/sync-skill.sh'),
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
   skipNames: new Set(['.DS_Store', 'Scripts', 'node_modules']),
 }
@@ -34,7 +41,44 @@ const dateParts = (now = new Date()) => ({
   iso: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
   long: `${now.getDate()} ${CONFIG.months[now.getMonth()]} ${now.getFullYear()}`,
 })
-const cell = (v) => String(v ?? '—').replace(/\|/g, '/').replace(/\s+/g, ' ').trim() || '—'
+const cell = (v) => String(v ?? '-').replace(/\|/g, '/').replace(/\s+/g, ' ').trim() || '-'
+
+function writeStandaloneCopy({ destDir, html, sharedFonts, target, copied, meta }) {
+  fs.mkdirSync(destDir, { recursive: true })
+  const absolute = html.replace(/(['"(])(?:\.\/)?fonts\//g, `$1file://${sharedFonts}/`)
+  fs.writeFileSync(path.join(destDir, 'index.html'), absolute)
+  for (const name of copied.slice(1)) {
+    fs.copyFileSync(path.join(target, name), path.join(destDir, name))
+  }
+  fs.writeFileSync(path.join(destDir, 'META.json'), JSON.stringify(meta, null, 2) + '\n')
+}
+
+function syncSkillAndAssets({ config }) {
+  if (config.syncOnFile === false || path.resolve(config.root) !== path.resolve(DEFAULT_SKILL_ROOT)) {
+    return { skillSynced: false, assetsQueued: false }
+  }
+  let skillSynced = false
+  let assetsQueued = false
+  if (config.syncScript && fs.existsSync(config.syncScript)) {
+    const syncRes = spawnSync('bash', [config.syncScript, 'zenray-edit'], { encoding: 'utf8', timeout: 15000 })
+    skillSynced = syncRes.status === 0
+  }
+  const clientMjs = path.join(config.progressRepo, 'scripts/Assets/Client.mjs')
+  if (fs.existsSync(clientMjs)) {
+    spawnSync(process.execPath, [clientMjs, 'inventory', config.assetsProjectId], {
+      cwd: config.progressRepo,
+      encoding: 'utf8',
+      timeout: 20000,
+    })
+    const archRes = spawnSync(process.execPath, [clientMjs, 'archive', config.assetsProjectId], {
+      cwd: config.progressRepo,
+      encoding: 'utf8',
+      timeout: 20000,
+    })
+    assetsQueued = archRes.status === 0
+  }
+  return { skillSynced, assetsQueued }
+}
 
 export function fileDesign({ atelier, slug, title, module = 'general', project = '', note = '', now = new Date(), config = CONFIG }) {
   if (!atelier || !fs.existsSync(path.join(atelier, 'index.html'))) throw new Error(`no index.html in ${atelier}`)
@@ -49,8 +93,8 @@ export function fileDesign({ atelier, slug, title, module = 'general', project =
   const sharedFonts = path.join(designsDir, '_shared', 'fonts')
   fs.mkdirSync(sharedFonts, { recursive: true })
 
-  // index.html: the relative fonts move to the shared folder (one copy for all designs). FR : polices partagees, une seule copie.
-  let html = fs.readFileSync(path.join(atelier, 'index.html'), 'utf8')
+  // 18 October 2026: relative fonts move to the shared folder (one copy for all designs).
+  const html = fs.readFileSync(path.join(atelier, 'index.html'), 'utf8')
   const fontDir = path.join(atelier, 'fonts')
   if (fs.existsSync(fontDir)) {
     for (const name of fs.readdirSync(fontDir)) {
@@ -58,10 +102,9 @@ export function fileDesign({ atelier, slug, title, module = 'general', project =
       if (!fs.existsSync(dest)) fs.copyFileSync(path.join(fontDir, name), dest)
     }
   }
-  const forSkill = html.replace(/(['"(])fonts\//g, '$1../_shared/fonts/')
+  const forSkill = html.replace(/(['"(])(?:\.\/)?fonts\//g, '$1../_shared/fonts/')
   fs.writeFileSync(path.join(target, 'index.html'), forSkill)
 
-  // other assets next to index.html (images, json): copied as they are; sources and build scripts stay in the atelier
   const copied = ['index.html']
   for (const entry of fs.readdirSync(atelier, { withFileTypes: true })) {
     if (!entry.isFile() || entry.name === 'index.html' || config.skipNames.has(entry.name)) continue
@@ -70,27 +113,55 @@ export function fileDesign({ atelier, slug, title, module = 'general', project =
     fs.copyFileSync(path.join(atelier, entry.name), path.join(target, entry.name)); copied.push(entry.name)
   }
   const sha256 = crypto.createHash('sha256').update(forSkill).digest('hex')
-  const meta = { date: long, slug, folder, version, title, module, project: project || null, status: 'pending', atelier: path.resolve(atelier), files: copied, indexSha256: sha256, filedAt: new Date(now).toISOString(), note: note || null }
+  const assetsProject = config.assetsProjectId || 'zenray-edit'
+  const effectiveProjectLabel = project && project !== assetsProject ? `${assetsProject},${project}` : assetsProject
+  const meta = {
+    date: long,
+    slug,
+    folder,
+    version,
+    title,
+    module,
+    assetsProject,
+    project: project || assetsProject,
+    status: 'pending',
+    atelier: path.resolve(atelier),
+    files: copied,
+    indexSha256: sha256,
+    filedAt: new Date(now).toISOString(),
+    note: note || null,
+  }
   fs.writeFileSync(path.join(target, 'META.json'), JSON.stringify(meta, null, 2) + '\n')
 
-  // project memory (Assets): the same index with ABSOLUTE font URLs, so it opens from anywhere on this Mac
-  let projectCopy = null
-  if (project) {
+  // 18 October 2026: ALWAYS copy into the ZenRay Assets project "zenray-edit" (Memory1/Projects/zenray-edit/Designs/<folder>)
+  const zenrayEditProjectDir = path.join(config.projectsRoot, assetsProject)
+  fs.mkdirSync(zenrayEditProjectDir, { recursive: true })
+  const assetsProjectCopy = path.join(zenrayEditProjectDir, 'Designs', folder)
+  writeStandaloneCopy({ destDir: assetsProjectCopy, html, sharedFonts, target, copied, meta })
+
+  // Also mirror into workshop /Users/zenray/.claude/tmp/tmp-zenray-edit/Designs/<folder> when running on real skill
+  let workshopCopy = null
+  if (config.workshopRoot && path.resolve(config.root) === path.resolve(DEFAULT_SKILL_ROOT)) {
+    workshopCopy = path.join(config.workshopRoot, 'Designs', folder)
+    writeStandaloneCopy({ destDir: workshopCopy, html, sharedFonts, target, copied, meta })
+  }
+
+  // If caller also gave another --project <id>, copy into Memory1/Projects/<id>/Designs/<folder> too
+  let projectCopy = assetsProjectCopy
+  if (project && project !== assetsProject) {
     const projectDir = path.join(config.projectsRoot, project)
     if (fs.existsSync(projectDir)) {
       projectCopy = path.join(projectDir, 'Designs', folder)
-      fs.mkdirSync(projectCopy, { recursive: true })
-      const absolute = html.replace(/(['"(])fonts\//g, `$1file://${sharedFonts}/`)
-      fs.writeFileSync(path.join(projectCopy, 'index.html'), absolute)
-      for (const name of copied.slice(1)) fs.copyFileSync(path.join(target, name), path.join(projectCopy, name))
-      fs.writeFileSync(path.join(projectCopy, 'META.json'), JSON.stringify(meta, null, 2) + '\n')
+      writeStandaloneCopy({ destDir: projectCopy, html, sharedFonts, target, copied, meta })
     }
   }
 
   const register = path.join(designsDir, 'INDEX.md')
-  const row = `| ${long} | ${cell(slug)} | ${cell(module)} | ${cell(title)} | pending | ${cell(project)} | designs/${folder}/index.html | ${cell(path.resolve(atelier))} |\n`
+  const row = `| ${long} | ${cell(slug)} | ${cell(module)} | ${cell(title)} | pending | ${cell(effectiveProjectLabel)} | designs/${folder}/index.html | ${cell(path.resolve(atelier))} |\n`
   fs.appendFileSync(register, row)
-  return { folder, target, projectCopy, register, meta }
+
+  const syncStatus = syncSkillAndAssets({ config })
+  return { folder, target, assetsProjectCopy, workshopCopy, projectCopy, register, syncStatus, meta }
 }
 
 export function decide({ slug, choice, note = '', now = new Date(), config = CONFIG }) {
@@ -101,6 +172,7 @@ export function decide({ slug, choice, note = '', now = new Date(), config = CON
   const { long } = dateParts(now)
   const row = `| ${long} | ${cell(slug)} | ${cell(meta.module)} | ${cell(meta.title)} | chosen ${cell(choice)}${note ? ` (${cell(note)})` : ''} | ${cell(meta.project)} | designs/${meta.folder}/index.html | ${cell(meta.atelier)} |\n`
   fs.appendFileSync(path.join(designsDir, 'INDEX.md'), row)
+  syncSkillAndAssets({ config })
   return { slug, choice, folder: meta.folder }
 }
 

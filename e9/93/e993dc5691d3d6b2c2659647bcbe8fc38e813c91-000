@@ -26,15 +26,17 @@ test('GREEN: the index, its assets and the fonts are filed, the register gets on
   assert.ok(fs.existsSync(path.join(config.root, 'designs', '_shared', 'fonts', 'Inter.woff2')))
   assert.ok(fs.existsSync(path.join(r.target, 'frame.webp')))
   assert.ok(fs.existsSync(path.join(config.projectsRoot, 'demo', 'Designs', r.folder, 'index.html')))
+  assert.ok(fs.existsSync(path.join(config.projectsRoot, 'zenray-edit', 'Designs', r.folder, 'index.html')))
   const reg = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
   assert.equal(reg.split('\n').filter((l) => l.includes('player-icons')).length, 1)
   assert.ok(reg.includes('14 October 2026'))
 })
 
-test('a second filing of the same slug is a new version, the first one is untouched', () => {
+test('a second filing of the same slug is a new version, the first one is untouched, and zenray-edit Assets gets it even without --project', () => {
   const before = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
   const r = fileDesign({ atelier, slug: 'player-icons', title: 'Lecteur, icônes seules', now: day, config })
   assert.equal(r.folder, '2026-10-14-player-icons-v2')
+  assert.ok(fs.existsSync(path.join(config.projectsRoot, 'zenray-edit', 'Designs', r.folder, 'index.html')))
   const after = fs.readFileSync(path.join(config.root, 'designs', 'INDEX.md'), 'utf8')
   assert.ok(after.startsWith(before), 'append only: the old text is the prefix')
 })
