@@ -1,0 +1,109 @@
+// 20 October 2026, 15:25 CEST: file a portable project article locally; only an explicit approved hash can publish it through Assets.
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+export const ARTICLE_FILE_SETTINGS = {
+  root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
+  progressRepo: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayProgress',
+  maxHtmlBytes: 32 * 1024 * 1024,
+  thumbnailMaxChars: 400000,
+  syncScript: path.join(os.homedir(), '.claude/skills/skill-sync/scripts/sync-skill.sh'),
+  months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+}
+const sha = bytes => createHash('sha256').update(bytes).digest('hex')
+const projectIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const relative = value => {
+  if (typeof value !== 'string' || !value || path.isAbsolute(value) || /[\\\x00-\x1f]/.test(value) || value.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Unsafe article resource path')
+  return value
+}
+async function exactFile(root, name) {
+  const source = path.join(root, relative(name))
+  if (!(await fs.lstat(source)).isFile() || await fs.realpath(source) !== source) throw new Error('Article resources must be regular files without symlinks')
+  return {name,bytes:await fs.readFile(source)}
+}
+
+export async function fileArticle({ folder, projectId, title, slug, definition, manifest, thumbnail, approvedSha, now = new Date(), settings = ARTICLE_FILE_SETTINGS, publish }) {
+  if (!projectIdPattern.test(projectId || '') || !projectIdPattern.test(slug || '')) throw new Error('Stable project id and slug required')
+  if (!title?.trim()) throw new Error('Article title required')
+  const root = await fs.realpath(folder)
+  const html = await exactFile(root, 'index.html')
+  if (html.bytes.length > settings.maxHtmlBytes) throw new Error('Article exceeds the 32 MiB limit')
+  const digest = sha(html.bytes)
+  // 20 October 2026, 15:25 CEST: the exact reviewed HTML must still be current before any publishing side effect.
+  if (approvedSha && approvedSha !== digest) throw new Error('Approved HTML changed; review the new article before publishing')
+  const manifestFile = await exactFile(root, manifest)
+  const sources = JSON.parse(manifestFile.bytes.toString('utf8'))
+  const definitionFile = await exactFile(root, definition)
+  const files = [html,manifestFile,definitionFile]
+  for (const source of sources.files || []) {
+    const resource = await exactFile(root, source.path)
+    if (sha(resource.bytes) !== source.sha256 || resource.bytes.length !== source.bytes) throw new Error(`Article dependency changed: ${source.path}`)
+    files.push(resource)
+  }
+  const cover = await exactFile(root, thumbnail)
+  if (!/\.(png|jpe?g|webp)$/i.test(thumbnail)) throw new Error('Raster article thumbnail required')
+  files.push(cover)
+  const mime = /\.png$/i.test(thumbnail) ? 'image/png' : /\.webp$/i.test(thumbnail) ? 'image/webp' : 'image/jpeg'
+  const thumbnailUrl = `data:${mime};base64,${cover.bytes.toString('base64')}`
+  if (thumbnailUrl.length > settings.thumbnailMaxChars) throw new Error('Article thumbnail exceeds the small catalogue limit')
+  const month = settings.months[now.getMonth()]
+  const date = `${now.getDate()} ${month} ${now.getFullYear()}`
+  const bundleName = `${now.getDate()}-${month}-${now.getFullYear()}-${slug}`
+  const dest = path.join(settings.root,'articles',bundleName)
+  // A changed draft gets a version folder; the original article is retained.
+  let target = dest, version = 1
+  while (true) {
+    try {
+      const existing = JSON.parse(await fs.readFile(path.join(target,'Article.json'),'utf8'))
+      if (existing.sha256 === digest) break
+      version++; target = `${dest}-V_${String(version).padStart(3,'0')}`
+    } catch (error) { if (error.code !== 'ENOENT') throw error; break }
+  }
+  await fs.mkdir(target,{recursive:true})
+  for (const file of files) { const output = path.join(target,file.name);await fs.mkdir(path.dirname(output),{recursive:true});await fs.writeFile(output,file.bytes) }
+  const article = {schemaVersion:1,projectId,title,date,status:approvedSha ? 'approved' : 'draft',sha256:digest,thumbnailUrl,
+    definition,manifest,thumbnail,files:files.map(file=>({path:file.name,bytes:file.bytes.length,sha256:sha(file.bytes)})),folder:target}
+  await fs.writeFile(path.join(target,'Article.json'),JSON.stringify(article,null,2)+'\n')
+  const index = path.join(settings.root,'articles','INDEX.md')
+  try { await fs.writeFile(index,`# Project articles (${date})\n\n`,{flag:'wx'}) } catch(error) {if(error.code!=='EEXIST') throw error}
+  await fs.appendFile(index,`- ${date} : ${title.replace(/[\r\n]/g,' ')} ; ${projectId} ; ${article.status} ; ${path.basename(target)}/index.html ; SHA-256 ${digest}. (${date})\n`)
+  if (approvedSha) {
+    if (!publish) throw new Error('Assets publisher is unavailable; local article retained')
+    article.publication = await publish(article,files)
+  }
+  return article
+}
+
+export async function publishArticle(article, files, settings = ARTICLE_FILE_SETTINGS) {
+  const { requestAssets,config } = await import(pathToFileURL(path.join(settings.progressRepo,'scripts/Assets/BridgeClient.mjs')).href)
+  const registry = JSON.parse(await fs.readFile(path.join(config.storage.stateDir,'Projects.json'),'utf8'))
+  const project = registry.projects.find(project=>project.id===article.projectId)
+  if (!project) throw new Error('Register the actual Assets project before publishing its article')
+  const source = project.sources.find(source=>source.id==='workshop' && source.namespace==='tmp')
+  if (!source) throw new Error('Registered project workshop required')
+  const relativeFolder = `Articles/${path.basename(article.folder)}`
+  for (const file of files) {const target=path.join(source.localPath,relativeFolder,file.name);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,file.bytes)}
+  const reference = {fileId:`${source.id}:${relativeFolder}/index.html`,title:article.title,sha256:article.sha256,thumbnailUrl:article.thumbnailUrl}
+  await requestAssets({action:'register',project:{...project,article:reference}})
+  const sync = spawnSync('bash',[settings.syncScript,'zenray-edit'],{encoding:'utf8',timeout:60000})
+  if (sync.status !== 0) throw new Error('Skill filing failed; article sources remain local')
+  await requestAssets({action:'inventory',projectId:project.id})
+  const result = await requestAssets({action:'archive',projectId:project.id})
+  await requestAssets({action:'inventory',projectId:'zenray-edit'})
+  const editArchive = await requestAssets({action:'archive',projectId:'zenray-edit'})
+  return {reference,jobId:result.jobId,editArchiveJobId:editArchive.jobId,backupConfirmed:false}
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [folder,...args]=process.argv.slice(2),options={}
+  for(let i=0;i<args.length;i+=2) {
+    if(!/^--(?:project|title|slug|definition|manifest|thumbnail|approved-sha)$/.test(args[i]) || !args[i+1] || args[i+1].startsWith('--')) throw new Error('Use folder --project id --title title --slug slug --definition file.json --manifest sources.json --thumbnail cover.jpg [--approved-sha exact-html-sha256]')
+    options[args[i].slice(2)]=args[i+1]
+  }
+  const article=await fileArticle({folder,projectId:options.project,title:options.title,slug:options.slug,definition:options.definition,manifest:options.manifest,thumbnail:options.thumbnail,approvedSha:options['approved-sha'],publish:(...args)=>publishArticle(...args)})
+  console.log(JSON.stringify({projectId:article.projectId,title:article.title,status:article.status,path:path.join(article.folder,'index.html'),sha256:article.sha256,files:article.files.length,publication:article.publication || null}))
+}

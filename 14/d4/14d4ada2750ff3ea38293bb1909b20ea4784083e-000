@@ -1,0 +1,54 @@
+// 20 October 2026, 14:55 CEST: one editable article definition embeds its exact local dependencies for portable reading.
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
+
+export const ARTICLE_SETTINGS = {
+  template: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../templates/project-article/article.html'),
+  fontRoot: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayProgress/public/fonts',
+  fonts: [
+    ['InterVariable', 'InterVariable.woff2', 'woff2', '100 900'],
+    ['AnthropicSerif Medium', 'AnthropicSerif-Medium.ttf', 'truetype', '500'],
+    ['AnthropicMono', 'AnthropicMono.woff2', 'woff2', '500'],
+  ],
+}
+const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+const mimeOf = name => ({'.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml'}[path.extname(name).toLowerCase()] || 'application/octet-stream')
+
+export async function renderProjectArticle(configFile, outFile, settings = ARTICLE_SETTINGS) {
+  const root = path.dirname(path.resolve(configFile))
+  const config = JSON.parse(await fs.readFile(configFile, 'utf8'))
+  const sources = JSON.parse(await fs.readFile(path.join(root, config.sources), 'utf8'))
+  const assets = new Map()
+  for (const file of sources.files) {
+    const source = path.resolve(root, file.path)
+    if (!source.startsWith(root + path.sep)) throw new Error('Article resource leaves its source folder')
+    const bytes = await fs.readFile(source)
+    if (createHash('sha256').update(bytes).digest('hex') !== file.sha256) throw new Error(`Source changed: ${file.path}`)
+    assets.set(file.id, { ...file, data:`data:${mimeOf(source)};base64,${bytes.toString('base64')}` })
+  }
+  const image = (id, caption, alt = caption) => {
+    const asset = assets.get(id)
+    if (!asset) throw new Error(`Missing illustration: ${id}`)
+    return `<figure id="figure-${escape(id)}"><a href="#files"><img src="${asset.data}" alt="${escape(alt)}" loading="lazy"></a><figcaption>${caption}</figcaption></figure>`
+  }
+  const sections = config.sections.map(section => {
+    let body = section.html || ''
+    for (const figure of section.figures || []) body += image(figure.id, figure.caption)
+    if (section.prompts) body += section.prompts.map(prompt => `<details class="prompt"${prompt.open ? ' open' : ''}><summary>${escape(prompt.title)} · ${escape(prompt.date)}</summary><p class="prompt-text">${escape(prompt.text)}</p></details>`).join('')
+    if (section.fileIndex) body += `<div class="table-wrap"><table><thead><tr><th>Fichier</th><th>Ce qu’il apporte</th><th>Original conservé</th></tr></thead><tbody>${sources.files.map(file => `<tr><td><a href="#${escape(config.fileAnchors?.[file.id] || `figure-${file.id}`)}">${escape(config.fileLabels[file.id])}</a><br><code>${escape(file.path)}</code></td><td>${escape(config.fileRoles[file.id])}</td><td><code>${escape(file.originalPath)}</code><br>${file.bytes.toLocaleString('fr-FR')} octets · SHA-256 dans le manifeste</td></tr>`).join('')}</tbody></table></div>`
+    return `<section id="${escape(section.id)}"><div class="eyebrow">${escape(section.eyebrow || '')}</div><h2>${escape(section.title)}</h2>${body}</section>`
+  }).join('\n')
+  const fonts = (await Promise.all(settings.fonts.map(async ([family, name, format, weight]) => `@font-face{font-family:'${family}';font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/${format === 'truetype' ? 'ttf' : format};base64,${(await fs.readFile(path.join(settings.fontRoot,name))).toString('base64')}) format('${format}')}`))).join('\n')
+  const values = Object.fromEntries(['title','eyebrow','lead','date','subtitle','status','heroAlt','heroText','heroCaption','footer'].map(key=>[key.replace(/[A-Z]/g,c=>'_'+c).toUpperCase(),escape(config[key])]))
+  Object.assign(values,{FONTS:fonts,HERO:assets.get(config.hero).data,NAV:config.sections.map(section=>`<a href="#${escape(section.id)}">${escape(section.nav || section.title)}</a>`).join(''),SECTIONS:sections})
+  const template = await fs.readFile(settings.template,'utf8')
+  const html = template.replace(/\{\{([A-Z_]+)\}\}/g,(_,key)=>{if (!(key in values)) throw new Error(`Unknown template value ${key}`);return values[key]})
+  await fs.writeFile(outFile,html)
+  return {path:path.resolve(outFile),bytes:Buffer.byteLength(html),sha256:createHash('sha256').update(html).digest('hex'),illustrations:sources.files.filter(file => mimeOf(file.path).startsWith('image/')).length}
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (!process.argv[2] || !process.argv[3]) throw new Error('Usage: render-project-article.mjs <definition.json> <index.html>')
+  console.log(JSON.stringify(await renderProjectArticle(process.argv[2],process.argv[3])))
+}

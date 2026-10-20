@@ -1,0 +1,41 @@
+// 20 October 2026, 15:25 CEST: draft filing never publishes; stale approval and modified source files are refused.
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import {createHash} from 'node:crypto'
+import {fileArticle,ARTICLE_FILE_SETTINGS} from './file-article.mjs'
+const sha=bytes=>createHash('sha256').update(bytes).digest('hex')
+async function fixture(t) {
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'zr-article-test-'));t.after(()=>fs.rm(root,{recursive:true,force:true}))
+  const folder=path.join(root,'source');await fs.mkdir(folder)
+  await fs.writeFile(path.join(folder,'index.html'),'<h1>UV-Match Height</h1>')
+  await fs.writeFile(path.join(folder,'config.json'),'{}')
+  await fs.writeFile(path.join(folder,'image.png'),'source-image')
+  await fs.writeFile(path.join(folder,'cover.jpg'),'tiny-thumbnail')
+  await fs.writeFile(path.join(folder,'Sources.json'),JSON.stringify({files:[{path:'image.png',bytes:12,sha256:sha('source-image')}]}))
+  const calls=[]
+  return {folder,projectId:'uv-match-height-20-october-2026',title:'UV-Match Height',slug:'uv-match-height',definition:'config.json',manifest:'Sources.json',thumbnail:'cover.jpg',settings:{...ARTICLE_FILE_SETTINGS,root:path.join(root,'skill')},publish:async()=>{calls.push('publish');return{jobId:'test',backupConfirmed:false}},calls}
+}
+test('stages all exact dependencies in the skill without any publishing call',async t=>{
+  const f=await fixture(t),article=await fileArticle(f)
+  assert.equal(article.status,'draft');assert.equal(f.calls.length,0);assert.equal(article.files.length,5)
+  assert.equal(await fs.readFile(path.join(article.folder,'image.png'),'utf8'),'source-image')
+})
+test('publishes only the exact approved HTML version and reports a queued archive honestly',async t=>{
+  const f=await fixture(t),article=await fileArticle({...f,approvedSha:sha('<h1>UV-Match Height</h1>')})
+  assert.equal(article.status,'approved');assert.equal(f.calls.length,1);assert.equal(article.publication.backupConfirmed,false)
+})
+test('refuses stale approval before writing or publishing',async t=>{
+  const f=await fixture(t)
+  await assert.rejects(fileArticle({...f,approvedSha:'0'.repeat(64)}),/Approved HTML changed/)
+  assert.equal(f.calls.length,0)
+  await assert.rejects(fs.stat(f.settings.root),/ENOENT/)
+})
+test('refuses modified dependencies and paths outside the article bundle',async t=>{
+  const f=await fixture(t)
+  await fs.writeFile(path.join(f.folder,'image.png'),'changed')
+  await assert.rejects(fileArticle(f),/dependency changed/)
+  await assert.rejects(fileArticle({...f,manifest:'../outside.json'}),/Unsafe/)
+})
