@@ -2,6 +2,7 @@
 # Verify routing, real template files and browser isolation. (7 October 2026, 17:00 Europe/Paris)
 # 14 October 2026: designs/ is a LIVING register (every new design index is filed there by scripts/file-design.mjs), so it is outside the attested bundle.
 # FR : designs/ est un registre vivant, hors du lot atteste.
+# 20 October 2026, 15:16 CEST: articles/ is also a living content register, independent of the software release.
 import argparse
 import hashlib
 import json

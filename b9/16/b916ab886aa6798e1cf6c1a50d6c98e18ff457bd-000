@@ -1,4 +1,4 @@
-// 20 October 2026, 15:25 CEST: file a portable project article locally; only an explicit approved hash can publish it through Assets.
+// 20 October 2026, 15:16 CEST: file a portable project article locally; only an explicit approved hash can publish it through Assets.
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
@@ -33,7 +33,7 @@ export async function fileArticle({ folder, projectId, title, slug, definition, 
   const html = await exactFile(root, 'index.html')
   if (html.bytes.length > settings.maxHtmlBytes) throw new Error('Article exceeds the 32 MiB limit')
   const digest = sha(html.bytes)
-  // 20 October 2026, 15:25 CEST: the exact reviewed HTML must still be current before any publishing side effect.
+  // 20 October 2026, 15:16 CEST: the exact reviewed HTML must still be current before any publishing side effect.
   if (approvedSha && approvedSha !== digest) throw new Error('Approved HTML changed; review the new article before publishing')
   const manifestFile = await exactFile(root, manifest)
   const sources = JSON.parse(manifestFile.bytes.toString('utf8'))
@@ -54,7 +54,7 @@ export async function fileArticle({ folder, projectId, title, slug, definition, 
   const date = `${now.getDate()} ${month} ${now.getFullYear()}`
   const bundleName = `${now.getDate()}-${month}-${now.getFullYear()}-${slug}`
   const dest = path.join(settings.root,'articles',bundleName)
-  // A changed draft gets a version folder; the original article is retained.
+  // 20 October 2026, 15:16 CEST: a changed draft gets a version folder; the original article is retained.
   let target = dest, version = 1
   while (true) {
     try {
@@ -90,7 +90,7 @@ export async function publishArticle(article, files, settings = ARTICLE_FILE_SET
   const reference = {fileId:`${source.id}:${relativeFolder}/index.html`,title:article.title,sha256:article.sha256,thumbnailUrl:article.thumbnailUrl}
   await requestAssets({action:'inventory',projectId:project.id})
   await requestAssets({action:'set-article',projectId:project.id,article:reference})
-  const sync = spawnSync('bash',[settings.syncScript,'zenray-edit'],{encoding:'utf8',timeout:60000})
+  const sync = spawnSync('zsh',[settings.syncScript,'zenray-edit'],{encoding:'utf8',timeout:60000})
   if (sync.status !== 0) throw new Error('Skill filing failed; article sources remain local')
   await requestAssets({action:'inventory',projectId:project.id})
   const result = await requestAssets({action:'archive',projectId:project.id})
