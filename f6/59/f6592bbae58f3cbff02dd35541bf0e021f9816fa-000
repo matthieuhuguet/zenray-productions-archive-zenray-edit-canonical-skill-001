@@ -1,0 +1,192 @@
+{
+  "title": "UV-Match Height",
+  "eyebrow": "Texturing procédural",
+  "date": "20 October 2026",
+  "subtitle": "zenray-uv / zenray-height",
+  "status": "Essai Height sur cet atlas à réaliser",
+  "lead": "Méthode de création de textures à partir d’un atlas UV, de six vues indexées et d’un concept visuel.",
+  "hero": "scifi-concept",
+  "heroAlt": "Concept science-fiction du RubberToy, case inférieure gauche de la planche de quatre propositions.",
+  "heroText": "Résultat attendu : une référence Height alignée sur les UV, puis un matériau paramétrable reconstruit dans Copernicus.",
+  "heroCaption": "Concept science-fiction fourni par Matthieu, généré avec ChatGPT Image.",
+  "sources": "Sources-20-October-2026.json",
+  "footer": "UV-Match Height · 20 October 2026 · Prompts et sources conservés.",
+  "fileLabels": {
+    "uv-islands": "Planche UV numérotée",
+    "six-views": "Six vues indexées",
+    "four-concepts": "Quatre explorations",
+    "scifi-concept": "Concept science-fiction",
+    "top-right-concept": "Concept supérieur droit",
+    "height-prompt-example": "Exemple de demande dans ChatGPT",
+    "assets-interface-before": "Assets avant intégration de l’article",
+    "original-mesh": "Maillage et UV d’origine",
+    "island-catalog": "Catalogue comparatif des îlots",
+    "original-segments": "Index original des surfaces"
+  },
+  "fileRoles": {
+    "uv-islands": "Position, forme et numéro des 33 îlots.",
+    "six-views": "Correspondance des mêmes numéros sur six vues du modèle.",
+    "four-concepts": "Planche de recherche de style ; choisir une seule case pour la Height.",
+    "scifi-concept": "Crop inférieur gauche, 627 × 627 px, référence retenue dans l’exemple.",
+    "top-right-concept": "Crop supérieur droit, 627 × 627 px, autre proposition conservée.",
+    "height-prompt-example": "Les trois images jointes et le prompt adapté, tels que fournis.",
+    "assets-interface-before": "Référence de la vue Fichiers à laquelle l’article doit précéder.",
+    "original-mesh": "12 874 points, 12 854 faces, UV par sommet exportées.",
+    "island-catalog": "Original : 33 îlots et 9,2156 m de coutures ; autre dépliage : 15 îlots.",
+    "original-segments": "Données de segmentation de la version originale, à conserver avec ses numéros."
+  },
+  "sections": [
+    {
+      "id": "method",
+      "eyebrow": "01 / Le chemin complet",
+      "title": "Étapes",
+      "nav": "Étapes",
+      "html": "<div class=\"steps\"><div class=\"step\"><span class=\"step-no\">01</span><h3>Géométrie</h3><p>Modèle propre, échelle fixée.</p></div><div class=\"step\"><span class=\"step-no\">02</span><h3>ZenRay UV</h3><p>Dépliage, densité et repères.</p></div><div class=\"step\"><span class=\"step-no\">03</span><h3>Concept + Height</h3><p>Concept choisi et référence de relief.</p></div><div class=\"step\"><span class=\"step-no\">04</span><h3>ZenRay Height</h3><p>Reconstruction Copernicus et cartes PBR.</p></div><div class=\"step\"><span class=\"step-no\">05</span><h3>Itération</h3><p>Contrôle du modèle texturé et corrections.</p></div></div><p>Les références sont générées avec <a href=\"https://chatgpt.com\" target=\"_blank\" rel=\"noopener noreferrer\">ChatGPT Image sur chatgpt.com</a>. Une modification de silhouette nécessite une mise à jour de la géométrie, des UV et des guides.</p>"
+    },
+    {
+      "id": "inputs",
+      "eyebrow": "02 / Le contrat spatial",
+      "title": "Données d’entrée",
+      "nav": "Données d’entrée",
+      "html": "<p>L’atlas UV et les six vues utilisent les mêmes numéros pour identifier les surfaces. Le dépliage original de l’artiste contient <strong>33 îlots</strong> et 9,2156 m de coutures. La variante à 15 îlots utilise d’autres guides.</p>",
+      "figures": [
+        {
+          "id": "uv-islands",
+          "caption": "Atlas UV numéroté. Les couleurs identifient les îlots, pas les matières."
+        },
+        {
+          "id": "six-views",
+          "caption": "Six vues avec les mêmes numéros. Quadrillage et éclairage sont exclus de la Height."
+        }
+      ],
+      "prompts": [
+        {
+          "title": "Préparer une référence en six vues, template canonique",
+          "text": "Entrée = [référence] ; cible = [asset / composant] ; retirer = [cloches / autres éléments explicitement exclus] ; sortie = 6 views 3D, grille [3 × 2 / 2 × 3], 4096 × 4096 ; vues = face / profil / dos / dessus / [profil opposé si asymétrique, sinon dessous] / trois-quarts perspective ; affichage = [viewport gris / matériaux actuels], fond neutre ; un seul modèle figé, seules les caméras changent ; cinq vues orthographiques avec la même échelle en pixels par unité, même repère et proportions largeur / hauteur / profondeur verrouillées ; mêmes dimensions, positions et espacements de tous les composants ; seules projection et occultation changent leur apparence ; trois-quarts en perspective modérée pour lire les volumes ; conserver les couleurs et l’échelle des textures en mode matériaux ; asset entier dans chaque case, éclairage uniforme ; sans éléments exclus ; sans étirement ; sans redimensionnement indépendant des vues orthographiques ; sans déplacement ni duplication ; sans réinterprétation ; sans décor ; sans ombre portée ; sans texte ; sans légende.",
+          "date": "11 October 2026",
+          "open": false
+        }
+      ]
+    },
+    {
+      "id": "explore",
+      "eyebrow": "03 / La direction visuelle",
+      "title": "Exploration visuelle",
+      "nav": "Exploration",
+      "html": "<p>Les six vues servent à générer quatre styles distincts. Une seule proposition est retenue pour la Height. L’exemple utilise le concept science-fiction en bas à gauche.</p>",
+      "figures": [
+        {
+          "id": "four-concepts",
+          "caption": "Quatre directions visuelles pour le même asset."
+        },
+        {
+          "id": "top-right-concept",
+          "caption": "Autre proposition conservée : surfaces claires, bois et liserés métalliques.",
+          "collapsed": true,
+          "label": "Voir le second crop"
+        }
+      ],
+      "prompts": [
+        {
+          "title": "Explorer quatre styles depuis les six vues",
+          "text": "Entrée = [référence de l’asset en 6 vues] ; cible = [asset / composant] ; sortie = 4 propositions de styles visuels différents du même asset, grille 2 × 2, résolution totale 4096 × 4096 ; styles par case = architecture du passé, médiévale ou historique / architecture contemporaine / architecture futuriste / hybridation futuriste et médiévale ou civilisation alternative ; chaque case montre l’asset entier en trois-quarts, avec un concept complet et un langage visuel nettement distinct ; utiliser les six vues pour comprendre les volumes et les assemblages ; explorer librement silhouette, géométrie, matériaux, palette et détails, en conservant [éléments verrouillés] ; même cadrage et même échelle de présentation pour comparer les propositions ; sans quatre déclinaisons du même design ; sans simple recoloration ; sans modification des éléments verrouillés ; sans décor ; sans texte ; sans légende.",
+          "date": "20 October 2026",
+          "open": false
+        },
+        {
+          "title": "Variante : éditer les textures en gardant le design",
+          "text": "Entrée = [image de référence : asset 3D / environnement / texture / matériau] ; cible = [élément à retravailler] ; problème = [ce qui ne fonctionne pas visuellement] ; mode = [textures / géométrie légère / textures + géométrie légère] ; paramètres libres = [matière / couleur / motif / échelle / relief / usure / formes locales] ; objectif = explorer quatre variations originales et cohérentes sur le design actuel ; sortie = grille 2 × 2, résolution totale 4096 × 4096 ; directions = exploration libre / évolution progressive / variation paramétrique / innovation expérimentale ; reprendre la référence entière avec quatre variations nettement différentes selon une logique HDA paramétrique ; conserver l’architecture générale, la silhouette principale et les proportions globales ; autoriser des modifications géométriques locales et légères dans la cible ; même cadrage et même éclairage dans les quatre cases ; sans refonte du modèle ; sans simple recoloration comme seule variation ; sans modification hors cible ; sans décor ajouté ; sans texte ; sans légende.",
+          "date": "9 October 2026",
+          "open": false
+        }
+      ]
+    },
+    {
+      "id": "height",
+      "eyebrow": "04 / La référence de relief",
+      "title": "Génération de la Height",
+      "nav": "Prompt Height",
+      "html": "<p>Entrées : <strong>six vues numérotées + atlas UV correspondant + concept choisi</strong>. Un tableau d’attribution est utile si une matière reste ambiguë ; un îlot peut contenir plusieurs matières.</p>",
+      "prompts": [
+        {
+          "title": "Height adaptée aux îlots, aux six vues et au concept",
+          "text": "Entrées = [six vues de l’asset avec îlots numérotés] + [planche UV avec les mêmes numéros] + [concept visuel choisi, une seule proposition] ; sortie = carte Height adaptée exactement au dépliage UV fourni, aspect export brut Substance Designer ; résolution cible = [2048 × 2048 ou 4096 × 4096] ; encodage cible = niveaux de gris linéaires, 16 bits ; utiliser les numéros pour identifier chaque surface et le concept pour déterminer ses matières et ses détails ; verrouiller positions, orientations, proportions et contours des îlots ; représenter uniquement le relief de surface : gris moyen = niveau neutre, blanc = relief, noir = creux ; conserver une échelle de hauteur cohérente ; ne pas reproduire dans la height les volumes déjà présents dans le maillage ; assurer la continuité des motifs et du relief entre les bords qui se rejoignent sur le modèle ; remplir les îlots et prolonger leurs bordures dans les marges ; sans réorganisation des UV ; sans quadrillage ; sans numéros ; sans éclairage ; sans ombres ; sans AO ; sans reflets ; sans couleur ; sans perspective ; sans texte ; sans légende.",
+          "date": "20 October 2026",
+          "open": true
+        }
+      ],
+      "figures": [
+        {
+          "id": "height-prompt-example",
+          "caption": "Exemple fourni : trois images jointes et prompt de génération. Aucune Height produite n’est montrée."
+        }
+      ]
+    },
+    {
+      "id": "procedural",
+      "eyebrow": "05 / La matière éditable",
+      "title": "Reconstruction et cartes PBR",
+      "nav": "Copernicus et PBR",
+      "html": "<p>La référence Height est reproduite dans un graphe Copernicus paramétrable, avec masques d’îlots, amplitude et marges. Les corrections concernent les bords qui se rejoignent sur le modèle ; un raccord entre les quatre côtés de l’atlas ne corrige pas ses coutures internes.</p><div class=\"table-wrap\"><table><thead><tr><th>Cartes</th><th>Source</th></tr></thead><tbody><tr><td>Height, Normal, AO</td><td>Relief reconstruit.</td></tr><tr><td>Base Color, Roughness, Metallic</td><td>Concept et masques de matières.</td></tr><tr><td>Emission, Opacity</td><td>Masques dédiés selon le design.</td></tr></tbody></table></div><p>Le contrôle sur le modèle porte sur les raccords, l’échelle et l’orientation des motifs, et les reflets convertis à tort en relief.</p><p class=\"muted\">Essai sur cet atlas à réaliser. Résolution, 16 bits et continuité restent à vérifier dans le fichier produit.</p>"
+    },
+    {
+      "id": "history",
+      "eyebrow": "06 / Les prompts retrouvés",
+      "title": "Prompts Height d’origine",
+      "nav": "Prompts d’origine",
+      "html": "<p>Prompts d’origine pour une texture répétable ou une trim sheet. Leur application à un atlas d’îlots nécessite une adaptation.</p>",
+      "prompts": [
+        {
+          "title": "Prompt Height court",
+          "text": "From this reference image / asset, generate the seamless 16-bit greyscale height map texture, 1:1, 4096x4096, no lighting, no color, no shadows.",
+          "date": "4 October 2026",
+          "open": false
+        },
+        {
+          "title": "Template Height brut et prompts génériques",
+          "text": "Entrée = [référence] ; sortie = [trim sheet / texture répétable] Height de [matériau], aspect export brut Substance Designer AAA ; résolution = 4096 × 4096, format carré 1:1 ; encodage cible = niveaux de gris linéaires, 16 bits ; représenter uniquement la hauteur : blanc = haut, noir = creux ; conserver la même échelle de hauteur partout ; respecter la référence ; remplir entièrement le cadre ; si trim sheet : profils déroulés à plat, raccord gauche-droite de chaque bande ; si texture répétable : raccord sur les quatre bords ; sans éclairage ; sans ombres ; sans AO ; sans reflets ; sans couleur ; sans perspective ; sans texte ; sans légende.",
+          "date": "8 October 2026",
+          "open": false
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "eyebrow": "07 / Les fichiers qui rendent la reprise possible",
+      "title": "Fichiers sources",
+      "nav": "Fichiers",
+      "html": "<p>HTML autonome, illustrations et polices intégrées. Textes modifiables dans <code>Article-20-October-2026.json</code> ; chemins et empreintes dans <code>Sources-20-October-2026.json</code>.</p>",
+      "fileIndex": true,
+      "fileIndexCollapsed": true
+    },
+    {
+      "id": "assets",
+      "eyebrow": "08 / La page du projet",
+      "title": "Présentation dans Assets",
+      "nav": "Dans Assets",
+      "html": "<p>La vue Article précède Fichiers. Sa miniature correspond au début du document. Fichiers, conversations, historique et emplacements restent accessibles.</p>",
+      "figures": [
+        {
+          "id": "assets-interface-before",
+          "caption": "Vue Fichiers avant l’intégration de l’article.",
+          "collapsed": true,
+          "label": "Voir la vue Assets d’origine"
+        }
+      ]
+    },
+    {
+      "id": "writing",
+      "eyebrow": "",
+      "title": "Règles de rédaction",
+      "nav": "Règles de rédaction",
+      "html": "<p><strong>Ton neutre court.</strong> Présentation de type article, contenu factuel, descriptif et bref. Explications simples, sans figures de style, accroches ni commentaires éditoriaux. Les prompts sont reproduits mot pour mot. Le sommaire reste accessible, masquable et épinglable ; il ne recouvre pas le texte par défaut. Ces règles s’appliquent aux articles descriptifs ZenRay Assets.</p><p class=\"muted\">Consigne de Matthieu, 20 October 2026.</p>"
+    }
+  ],
+  "fileAnchors": {
+    "original-mesh": "inputs",
+    "island-catalog": "inputs",
+    "original-segments": "inputs",
+    "scifi-concept": "article-opening"
+  },
+  "writingStyle": "ton neutre court"
+}

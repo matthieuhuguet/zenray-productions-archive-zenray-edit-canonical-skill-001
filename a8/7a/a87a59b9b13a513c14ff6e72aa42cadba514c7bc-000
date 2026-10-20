@@ -1,0 +1,76 @@
+{
+  "date": "20 October 2026",
+  "projectId": "uv-match-height-20-october-2026",
+  "files": [
+    {
+      "id": "uv-islands",
+      "originalPath": "/var/folders/r2/wh6ygv490dqbrs2mb51g39jm0000gn/T/codex-clipboard-a9d04b0e-89d0-44e6-8ab8-75a2eceaf989.png",
+      "path": "assets/uv-islands-20-October-2026.png",
+      "bytes": 2689466,
+      "sha256": "36bd3e7872eb5022619db6b19dfc77b1a08369d443d538fcae5c03abbdaaa6e1"
+    },
+    {
+      "id": "six-views",
+      "originalPath": "/var/folders/r2/wh6ygv490dqbrs2mb51g39jm0000gn/T/codex-clipboard-a694621c-4b8e-4396-b3f2-d1fc8558845a.png",
+      "path": "assets/six-views-20-October-2026.png",
+      "bytes": 1103685,
+      "sha256": "a746e8cbb4bf15f06167a9fc0ae93b8f31bba7b042c75c674a80d4fc7436a871"
+    },
+    {
+      "id": "four-concepts",
+      "originalPath": "/var/folders/r2/wh6ygv490dqbrs2mb51g39jm0000gn/T/codex-clipboard-1f5b6e2e-13bd-4cf4-80c0-474411da8af9.png",
+      "path": "assets/four-concepts-20-October-2026.png",
+      "bytes": 2608724,
+      "sha256": "b716a0013f00b582e4de18aa1e08285ce05f1accf10054df1e5ab18473169fe0"
+    },
+    {
+      "id": "scifi-concept",
+      "originalPath": "/Users/zenray/Downloads/Concept_SciFi_BottomLeft_20-October-2026.png",
+      "path": "assets/scifi-concept-20-October-2026.png",
+      "bytes": 583376,
+      "sha256": "14b34a21c513ec4c0a3ed475ed7dc1b0e6e88c0a4a7ce7860e47a4edde70383d"
+    },
+    {
+      "id": "top-right-concept",
+      "originalPath": "/Users/zenray/Downloads/Concept_FuturisticMedieval_TopRight_20-October-2026.png",
+      "path": "assets/top-right-concept-20-October-2026.png",
+      "bytes": 545797,
+      "sha256": "dda9812f05554f83074e730760c3bbfa9843a064734f02ca74e8925464e8af48"
+    },
+    {
+      "id": "height-prompt-example",
+      "originalPath": "/var/folders/r2/wh6ygv490dqbrs2mb51g39jm0000gn/T/codex-clipboard-9e58a2d1-32fb-4098-80b5-8c5cca36fa14.png",
+      "path": "assets/height-prompt-example-20-October-2026.png",
+      "bytes": 929806,
+      "sha256": "385b88263c86d546e75648417b9e2945be17ae7b54f055bd30cf3296a46a1a13"
+    },
+    {
+      "id": "assets-interface-before",
+      "originalPath": "/var/folders/r2/wh6ygv490dqbrs2mb51g39jm0000gn/T/codex-clipboard-262c8752-e1b5-4469-9785-7dd20119fb0e.png",
+      "path": "assets/assets-interface-before-20-October-2026.png",
+      "bytes": 2994243,
+      "sha256": "54d2ce8df52f53397d0f866ff04c2ada88c5bfc14a4ac0fd498239c2ffa7dc4e"
+    },
+    {
+      "id": "original-mesh",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/03_work/uv/ZenRayUV_5Methods_19-October-2026/runs/reference/original/rubbertoy.json",
+      "path": "assets/original-mesh-20-October-2026.json",
+      "bytes": 3429648,
+      "sha256": "9d443131f82649967df2fabeff75be0b3ab6f014cf9a623796f767ec086ab210"
+    },
+    {
+      "id": "island-catalog",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/03_work/uv/ZenRayUV_5Methods_19-October-2026/runs/reference/study/ZRUV_RubberToy/catalog.json",
+      "path": "assets/island-catalog-20-October-2026.json",
+      "bytes": 29974,
+      "sha256": "7aa2b76c1d0c3811ae3ee544fbbbca1f4dc6fb50320f6ccf5651cefb462d0bb8"
+    },
+    {
+      "id": "original-segments",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/03_work/uv/ZenRayUV_5Methods_19-October-2026/runs/reference/study/ZRUV_RubberToy/segments_orig.json",
+      "path": "assets/original-segments-20-October-2026.json",
+      "bytes": 40060,
+      "sha256": "0d765a5eff7422cb352a73f258f68f7eb61388c2762e9a20f76f8ac681f23401"
+    }
+  ]
+}
