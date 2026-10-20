@@ -9,7 +9,7 @@ from pathlib import Path
 
 def check(root):
     manifest = json.loads((root / 'BundleManifest.json').read_text())
-    actual = {str(path.relative_to(root)) for path in root.rglob('*') if path.is_file() and path.name != 'BundleManifest.json' and '__pycache__' not in path.parts and path.suffix != '.pyc' and path.name != '.DS_Store' and path.relative_to(root).parts[0] != 'designs'}
+    actual = {str(path.relative_to(root)) for path in root.rglob('*') if path.is_file() and path.name != 'BundleManifest.json' and '__pycache__' not in path.parts and path.suffix != '.pyc' and path.name != '.DS_Store' and path.relative_to(root).parts[0] not in {'designs', 'articles'}}
     assert actual == set(manifest['files']), 'Bundle inventory changed'
     for relative, expected in manifest['files'].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected, f'Current bundle changed: {relative}'

@@ -88,7 +88,8 @@ export async function publishArticle(article, files, settings = ARTICLE_FILE_SET
   const relativeFolder = `Articles/${path.basename(article.folder)}`
   for (const file of files) {const target=path.join(source.localPath,relativeFolder,file.name);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,file.bytes)}
   const reference = {fileId:`${source.id}:${relativeFolder}/index.html`,title:article.title,sha256:article.sha256,thumbnailUrl:article.thumbnailUrl}
-  await requestAssets({action:'register',project:{...project,article:reference}})
+  await requestAssets({action:'inventory',projectId:project.id})
+  await requestAssets({action:'set-article',projectId:project.id,article:reference})
   const sync = spawnSync('bash',[settings.syncScript,'zenray-edit'],{encoding:'utf8',timeout:60000})
   if (sync.status !== 0) throw new Error('Skill filing failed; article sources remain local')
   await requestAssets({action:'inventory',projectId:project.id})
