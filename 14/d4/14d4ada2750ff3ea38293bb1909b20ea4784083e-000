@@ -35,9 +35,16 @@ export async function renderProjectArticle(configFile, outFile, settings = ARTIC
   }
   const sections = config.sections.map(section => {
     let body = section.html || ''
-    for (const figure of section.figures || []) body += image(figure.id, figure.caption)
+    // 20 October 2026, 18:28 CEST: compact figure groups retain optional references without lengthening the reading.
+    if (section.figures?.length) body += '<div class="figure-grid">' + section.figures.map(figure => {
+      const markup = image(figure.id, figure.caption)
+      return figure.collapsed ? `<details class="reference"><summary>${escape(figure.label || 'Voir la référence')}</summary>${markup}</details>` : markup
+    }).join('') + '</div>'
     if (section.prompts) body += section.prompts.map(prompt => `<details class="prompt"${prompt.open ? ' open' : ''}><summary>${escape(prompt.title)} · ${escape(prompt.date)}</summary><p class="prompt-text">${escape(prompt.text)}</p></details>`).join('')
-    if (section.fileIndex) body += `<div class="table-wrap"><table><thead><tr><th>Fichier</th><th>Ce qu’il apporte</th><th>Original conservé</th></tr></thead><tbody>${sources.files.map(file => `<tr><td><a href="#${escape(config.fileAnchors?.[file.id] || `figure-${file.id}`)}">${escape(config.fileLabels[file.id])}</a><br><code>${escape(file.path)}</code></td><td>${escape(config.fileRoles[file.id])}</td><td><code>${escape(file.originalPath)}</code><br>${file.bytes.toLocaleString('fr-FR')} octets · SHA-256 dans le manifeste</td></tr>`).join('')}</tbody></table></div>`
+    if (section.fileIndex) {
+      const table = `<div class="table-wrap"><table><thead><tr><th>Fichier</th><th>Ce qu’il apporte</th><th>Original conservé</th></tr></thead><tbody>${sources.files.map(file => `<tr><td><a href="#${escape(config.fileAnchors?.[file.id] || `figure-${file.id}`)}">${escape(config.fileLabels[file.id])}</a><br><code>${escape(file.path)}</code></td><td>${escape(config.fileRoles[file.id])}</td><td><code>${escape(file.originalPath)}</code><br>${file.bytes.toLocaleString('fr-FR')} octets · SHA-256 dans le manifeste</td></tr>`).join('')}</tbody></table></div>`
+      body += section.fileIndexCollapsed ? `<details><summary>Voir les ${sources.files.length} fichiers et leur provenance</summary>${table}</details>` : table
+    }
     return `<section id="${escape(section.id)}"><div class="eyebrow">${escape(section.eyebrow || '')}</div><h2>${escape(section.title)}</h2>${body}</section>`
   }).join('\n')
   const fonts = (await Promise.all(settings.fonts.map(async ([family, name, format, weight]) => `@font-face{font-family:'${family}';font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/${format === 'truetype' ? 'ttf' : format};base64,${(await fs.readFile(path.join(settings.fontRoot,name))).toString('base64')}) format('${format}')}`))).join('\n')
