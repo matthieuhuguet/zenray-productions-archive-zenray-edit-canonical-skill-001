@@ -9,7 +9,8 @@ export const ARTICLE_SETTINGS = {
   fontRoot: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayProgress/public/fonts',
   fonts: [
     ['InterVariable', 'InterVariable.woff2', 'woff2', '100 900'],
-    ['AnthropicSerif Medium', 'AnthropicSerif-Medium.ttf', 'truetype', '500'],
+    // 23 October 2026 : body and numbers in AnthropicSerif Regular 400 (typography rule of 21 October 2026, Medium 500 replaced)
+    ['AnthropicSerif', 'AnthropicSerif-Romans.woff2', 'woff2', '300 800'],
     ['AnthropicMono', 'AnthropicMono.woff2', 'woff2', '500'],
   ],
 }
