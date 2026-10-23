@@ -5,6 +5,14 @@ description: Créer et éditer textes, photos, compositions HTML, carrousels, PD
 
 # ZenRay Edit (7 October 2026)
 
+## PRIORITÉ 0 : chaque HTML fait avec zenray-edit est rangé dans le skill ET poussé dans Assets (23 October 2026)
+
+- Question de Matthieu (23 October 2026) : « chaque ZenRay Edit est directement lié au skill ZenRay Edit, chaque HTML est relié à ZenRay Edit et ensuite tout est push dans Assets du projet zenray-edit ? » Réponse : oui, et c'est obligatoire. (23 October 2026)
+- Tout HTML de design produit sous ce skill (maquette, galerie de propositions, planche) se termine par `node /Users/zenray/.claude/skills/zenray-edit/scripts/file-design.mjs <atelier> --slug <slug> --title "<titre>" --module <module> --project <id-assets-du-chantier>` : copie dans `designs/<date>-<slug>/`, ligne dans `designs/INDEX.md`, copie dans le projet Assets `zenray-edit` (`Memory1/Projects/zenray-edit/Designs/` et `~/.claude/tmp/tmp-zenray-edit/Designs/`), copie dans le projet du chantier, puis inventaire et archive Assets. Sans cette commande le design n'est pas fini. (23 October 2026)
+- Le choix de Matthieu s'ajoute par `file-design.mjs --decide <slug> --choice <n> --note "<texte>"`, jamais en réécrivant une ligne. (23 October 2026)
+- Piège payé le 23 October 2026 : relancer `file-design.mjs` pour « vérifier » refile un doublon (`-v2`) ; pour contrôler, lire `designs/INDEX.md` et lister `Memory1/Projects/zenray-edit/Designs/`. Les deux designs du Plan de ce jour ont d'abord été livrés sans la commande, puis rangés. (23 October 2026)
+
+
 Atelier de création et d’édition, de la demande à un média vérifié et modifiable. Lire [ActiveContract.md](references/ActiveContract.md), puis seulement les références du mode utile. (7 October 2026)
 
 - Reprendre l’identité Assets existante, son contexte et son feedback avec zenray-assets ; travailler dans l’atelier ou les sources effectivement liées. Une conversation ne se réattribue jamais implicitement. (7 October 2026)
