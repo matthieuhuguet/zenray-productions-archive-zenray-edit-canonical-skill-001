@@ -1,0 +1,13 @@
+{
+  "date": "23 October 2026",
+  "projectId": "zenray-calendar-plan-23-october-2026",
+  "files": [
+    {
+      "id": "day",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-zenray-calendar-plan-23-october-2026/Scripts/MakeHero.mjs",
+      "path": "assets/journee-2026-10-24.png",
+      "bytes": 75298,
+      "sha256": "e0102769257056eca5e2869030a22af405f90711b06242d85d9f720789da3647"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "title": "ZenRay Calendar Plan",
+  "eyebrow": "Organisation des journées",
+  "date": "23 October 2026",
+  "subtitle": "zenray-calendar-plan",
+  "status": "Version du 23 October 2026",
+  "lead": "Skill qui place les tâches d’une journée dans ZenRay Plan et Google Calendar, en blocs de 15 minutes, sans deux événements à la même heure.",
+  "hero": "day",
+  "heroAlt": "Frise horaire du 24 October 2026 : rendez-vous à 9 h, prospection à 10 h 40 et 13 h 40, sport à 17 h.",
+  "heroText": "Une journée placée par le skill, relue dans le Plan et dans Google Calendar.",
+  "heroCaption": "Rendu par Scripts/MakeHero.mjs depuis CalendarPlan.mjs check.",
+  "sources": "Sources-23-October-2026.json",
+  "footer": "ZenRay Calendar Plan · 23 October 2026.",
+  "fileLabels": {
+    "day": "Journée du 24 October 2026"
+  },
+  "fileRoles": {
+    "day": "Image d’ouverture, générée depuis les données réelles du Plan."
+  },
+  "sections": [
+    {
+      "id": "demande",
+      "eyebrow": "01 / Demande",
+      "title": "Demande",
+      "nav": "Demande",
+      "html": "<p>Le 23 October 2026, Matthieu a demandé un skill qui organise ses journées dans ZenRay Plan et dans Google Calendar à partir des tâches qu’il annonce : sport, rendez-vous, envoi de messages aux studios.</p><p>Règles données : chaque tâche se découpe en blocs de 15 minutes, en général quatre, avec 5 minutes de pause entre deux blocs ; 5 à 15 minutes séparent deux événements ; deux événements ne doivent jamais se chevaucher ; les temps libres restent possibles. Le skill remplace l’ancien skill zenray-plan, supprimé le même jour.</p>"
+    },
+    {
+      "id": "fonctionnement",
+      "eyebrow": "02 / Fonctionnement",
+      "title": "Fonctionnement",
+      "nav": "Fonctionnement",
+      "html": "<p>Le skill écrit uniquement dans le fichier du Plan, sur le drive ZenRayProgress. Le Worker zenray-plan-gcal recopie le Plan dans Google Calendar en une minute environ ; les événements créés dans Google reviennent dans le Plan.</p><ul><li>Une session de travail vaut 4 blocs de 15 minutes et 3 pauses de 5 minutes, soit 75 minutes.</li><li>Une tâche de plus de 60 minutes de travail est coupée en plusieurs sessions.</li><li>La pause déjeuner, de 12 h 30 à 13 h 30, reste libre et n’est pas écrite.</li><li>Les tâches fixes (rendez-vous, sport) sont placées d’abord ; les tâches flexibles occupent ensuite le premier créneau libre.</li><li>La note de chaque tâche flexible reçoit le détail des blocs et des pauses.</li></ul>"
+    },
+    {
+      "id": "commandes",
+      "eyebrow": "03 / Commandes",
+      "title": "Commandes",
+      "nav": "Commandes",
+      "html": "<ul><li><code>CalendarPlan.mjs day --date</code> : affiche le Plan et Google Calendar fusionnés.</li><li><code>CalendarPlan.mjs check --date</code> : renvoie le code de sortie 1 si deux événements se chevauchent.</li><li><code>CalendarPlan.mjs fit --spec jour.json --apply</code> : place les tâches, puis relit et vérifie.</li><li><code>CalendarPlan.mjs selftest</code> : contrôle le placement et le vérificateur sur un cas correct et un cas en défaut.</li><li><code>PlanTool.mjs</code> : list, series, rename, times, repris de l’ancien skill.</li></ul><p>Tous les réglages (début et fin de journée, bloc, pause, marge, déjeuner) sont regroupés en tête de CalendarPlan.mjs.</p>"
+    },
+    {
+      "id": "journee",
+      "eyebrow": "04 / Résultat",
+      "title": "Première journée placée",
+      "nav": "Résultat",
+      "html": "<p>Avant le placement, le 24 October 2026 comptait un chevauchement : « Nibir Khan RDV » et la série « 10 mails par jour aux studios » commençaient tous deux à 9 h. La commande check l’a signalé.</p><ul><li>09:00-10:30 : Nibir Khan RDV, laissé en place (heure non vérifiée dans les mails).</li><li>10:40-11:55 : 10 mails par jour aux studios, 4 blocs.</li><li>13:40-14:55 : prospection et contacts missions, 4 blocs.</li><li>17:00-18:00 : sport.</li></ul><p>Après écriture, la relecture du Plan donne 0 chevauchement, et Google Calendar affiche les mêmes heures.</p>"
+    },
+    {
+      "id": "contexte",
+      "eyebrow": "05 / Contexte",
+      "title": "Contexte",
+      "nav": "Contexte",
+      "html": "<p>L’objectif fixé avec Andreas pour octobre et novembre 2026 est d’environ 10 000 € de chiffre d’affaires, avec moins de développement et plus de prospection. La prospection passe donc en premier dans la journée, les règles de vente restant dans le skill zenray-sales.</p><p>Limites : la session n’avait pas accès à Gmail ; l’heure des rendez-vous reprise du Plan n’a pas été comparée aux invitations reçues.</p>"
+    }
+  ]
+}
