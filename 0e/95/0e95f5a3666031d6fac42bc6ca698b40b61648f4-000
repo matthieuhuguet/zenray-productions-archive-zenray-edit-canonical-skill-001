@@ -40,6 +40,7 @@ Atelier de création et d’édition, de la demande à un média vérifié et mo
 | Montage et motion design | ~/.claude/skills/zenray-motion-design/SKILL.md (analyse, storyboard, HyperFrames, contrat de vérification) | 10 October 2026 |
 | Animatique et inventaire d'assets | ~/.claude/skills/zenray-motion-design/SKILL.md, section Passe 2 (caméra mesurée, emplacements nommés, prompts, son, fiche) | 11 October 2026 |
 | Titre animé Vogun jaune ou blanc | templates/vogun-yellow-title/README.md (gabarit paramétrique, rendu `RenderTitle.cjs`, preuve) ; règles dans ~/.claude/skills/zenray-houdini/references/shorts/VogunTitles.md | 14 October 2026 |
+| Photo de profil | references/StudioPhotos.md ; skill zenray-studio-photos | 23 October 2026 |
 
 Les 15 blocs historiques, les corpus d’origine et leur provenance restent consultables par [INDEX.md](references/INDEX.md). Les anciennes consignes sont des recettes historiques ; ActiveContract.md gouverne les commandes actuelles et tranche leurs contradictions. (7 October 2026)
 

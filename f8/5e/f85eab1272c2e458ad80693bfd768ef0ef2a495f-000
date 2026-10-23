@@ -1,0 +1,31 @@
+# Studio photos : mode photo de profil (23 October 2026)
+
+Mode de ZenRay Edit pour retoucher une photo de profil (peau, fond, formats). La définition, les scripts et le protocole vivent dans le skill `zenray-studio-photos` ; ce fichier est l'index mapping qui permet à ZenRay Edit de tout refaire sans le relire en entier. Une seule source de code : `/Users/zenray/.claude/skills/zenray-studio-photos/`. (23 October 2026)
+
+## Carte des fichiers (23 October 2026)
+
+| Besoin | Fichier ou commande | Rôle |
+|---|---|---|
+| Ouvrir un atelier | `python3 /Users/zenray/.claude/skills/zenray-studio-photos/scripts/NewStudioPhoto.py <atelier> <photo...> [--ids ...] [--bg-mode ...]` | dossiers, scripts copiés, masques, visage, valeurs de départ, outil à curseurs |
+| Découper une planche de portraits | `.../scripts/SplitGrid.py <grille.png> <dossier> --rows 2 --cols 2` | séparateurs blancs mesurés, une case par PNG |
+| Outil à curseurs | `<atelier>/Index/index.html` (gabarit `.../templates/SkinBgPicker.template.html`) | peau, chemise, recadrage, fonds, formats, « Copier les valeurs » |
+| Reconstruire l'outil | `python3 <atelier>/Scripts/BuildPicker.py --sources <ids> --out Index/<nom>.html --presets <Presets>.json` | aperçus, masques et polices embarqués |
+| Rendre en pleine résolution | `python3 <atelier>/Scripts/Compose.py '<valeurs copiées>' [sortie.png]` | mêmes formules que l'outil, tous les formats si `formats` est présent |
+| Étalonnage « photographe » | `.../scripts/Grade2.py` avec `.../templates/Grades-v2.json` | looks Chaud, Froid, Ardoise, Taupe (historique, avant l'outil à curseurs) |
+| Mesurer un teint | `.../scripts/SkinStats.py` | médiane L, chroma, teinte dans la boîte du visage |
+| Planche de comparaison | `.../scripts/Grid.py` | grille à résolution native |
+| Ranger l'index | `node /Users/zenray/.claude/skills/zenray-edit/scripts/file-design.mjs <atelier> --slug <slug> --title "<titre>" --module skin-bg-picker --project <id-assets>` | registre des designs et projet Assets |
+| Prompt de génération IA | `.../references/PromptGeneration.md` | grille 2 × 2 et éclairage de référence |
+
+## Valeurs (HDA) à connaître (23 October 2026)
+
+- Peau : `skin.blue_to_natural` (1 = teinte naturelle), `hue_fine_deg`, `saturation` (1,28 retenu pour la photo 5, 1,5 pour la photo 10), `light` ; chemise : `shirt.cast_to_neutral` (1) ; cadre : `frame.crop_bottom` (0,04 pour la photo 5). (23 October 2026)
+- Fond : `bg.mode` parmi `red`, `gray`, `color`, `radial` ; radial = `color` (centre), `color_edge`, `grad_cx` (0,5), `grad_cy` (0,4), `grad_radius` (0,9 hauteur), `grad_curve` (1), `color_light`, `color_gradient`. Exemple : `.../templates/Presets-radial-example.json` (centre `#ffa000`, extérieur `#ff5c02`). (23 October 2026)
+- Formats : 1:1, 4:5, 16:9, 9:16 ; `formats.zoom`, `eye_line` (0,38), `x_shift`. (23 October 2026)
+
+## Règles du mode (23 October 2026)
+
+- Atelier TMP daté et projet Assets ouvert avant toute production ; photos d'origine dans `Sources/`, jamais modifiées. (23 October 2026)
+- Peau ancrée sur l'original (mesurer avant et après) ; le champ `source` des valeurs copiées doit être celui de l'image affichée. (21 October 2026)
+- Le rendu se montre à Matthieu à chaque essai ; l'outil s'ouvre dans le navigateur interne, en localhost. (20 October 2026)
+- Mise en ligne sur le site : skill `zenray-website` ; archivage cloud : skill `zenray-assets`. Protocole complet : `/Users/zenray/.claude/skills/zenray-studio-photos/references/Protocol.md`. (23 October 2026)
