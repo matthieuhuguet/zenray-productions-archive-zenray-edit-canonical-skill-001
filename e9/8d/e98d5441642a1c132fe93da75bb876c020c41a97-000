@@ -1,0 +1,134 @@
+#!/usr/bin/env node
+// refresh-articles.mjs (24 October 2026, 00:20 Paris): keep EVERY ZenRay Assets article in step with its sources, automatically.
+// FR : tient chaque article ZenRay Assets à jour avec ses sources, automatiquement. Un article est une source de vérité comme le skill (Matthieu, 23 October 2026).
+//
+// The list of articles lives in ../articles/Registry.json (one entry per article: inputs, steps, publish). Kinds:
+//   skill       -> refresh-skill-article.mjs <skill> (article generated from SKILL.md, ARTICLE.json in the skill)
+//   definition  -> render-project-article.mjs on the draft definition, then file-article.mjs (Assets + cloud)
+//   build       -> run the entry's steps (e.g. BuildDocs.py, BuildArticles.py), then archive the project (cloud)
+// An article is rebuilt when the fingerprint of its inputs (path, size, mtime of every file) changes.
+//
+// Usage:
+//   node refresh-articles.mjs              # refresh what changed (sync-skill.sh and the LaunchAgent run this)
+//   node refresh-articles.mjs --check      # exit 1 if any article is older than its sources or its cloud copy is not done
+//   node refresh-articles.mjs --only <id> [--force]
+//   node refresh-articles.mjs --baseline   # record current fingerprints without rebuilding (first install only)
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
+import { createHash } from 'node:crypto'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { cover } from './refresh-skill-article.mjs'
+
+// Parameters, one place. / Paramètres, un seul endroit.
+const SET = {
+  registry: path.join(path.dirname(new URL(import.meta.url).pathname), '../articles/Registry.json'),
+  stateDir: path.join(os.homedir(), 'Library/Application Support/ZenRayArticles'),   // outside every synced folder / hors des dossiers synchronisés
+  editScripts: path.dirname(new URL(import.meta.url).pathname),
+  progressRepo: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayProgress',
+  lockStaleMs: 30 * 60 * 1000,
+  stepTimeoutMs: 15 * 60 * 1000,
+}
+const statePath = path.join(SET.stateDir, 'state.json'), lockPath = path.join(SET.stateDir, 'refresh.lock'), logPath = path.join(SET.stateDir, 'refresh.log')
+const sha = (b) => createHash('sha256').update(b).digest('hex')
+const log = (m) => { const line = `${new Date().toISOString()} ${m}`; console.log(m); fs.appendFileSync(logPath, line + '\n') }
+
+function walk(p, exclude, out) {
+  if (exclude.some((x) => p.includes(x)) || !fs.existsSync(p)) return
+  const st = fs.statSync(p)
+  if (st.isDirectory()) { for (const n of fs.readdirSync(p).sort()) walk(path.join(p, n), exclude, out); return }
+  out.push(`${p}\t${st.size}\t${Math.round(st.mtimeMs)}`)
+}
+function inputsOf(e) {
+  const base = e.workshop || '/'
+  const list = []
+  for (const i of e.inputs || []) {
+    if (i === '@articles.json:sources') { const a = JSON.parse(fs.readFileSync(e.articlesJson, 'utf8')); list.push(e.articlesJson, ...a.articles.map((x) => x.source)) }
+    else list.push(path.isAbsolute(i) ? i : path.join(base, i))
+  }
+  return list
+}
+export function fingerprint(e) {
+  if (e.kind === 'skill') return null // the skill script compares SKILL.md itself / le script du skill compare lui-même
+  const out = []; for (const p of inputsOf(e)) walk(p, e.exclude || [], out)
+  return sha(out.join('\n'))
+}
+
+async function assets(action, projectId) {
+  const { requestAssets } = await import(path.join(SET.progressRepo, 'scripts/Assets/BridgeClient.mjs'))
+  return requestAssets({ action, projectId })
+}
+async function jobState(jobId) {
+  if (!jobId) return 'no job'
+  const { requestAssets } = await import(path.join(SET.progressRepo, 'scripts/Assets/BridgeClient.mjs'))
+  const all = JSON.stringify(await requestAssets({ action: 'status' })), i = all.indexOf(`"id":"${jobId}"`)
+  if (i < 0) return 'done (no longer listed)'
+  const m = all.slice(i, i + 400).match(/"state":"([a-z-]+)".*?"error":(null|"[^"]*")/)
+  return m ? `${m[1]}${m[2] !== 'null' ? ' ' + m[2] : ''}` : 'unknown'
+}
+
+async function refreshOne(e, state, force) {
+  if (e.kind === 'skill') {
+    const args = [path.join(SET.editScripts, 'refresh-skill-article.mjs'), e.skill, ...(force ? ['--force'] : [])]
+    const r = spawnSync('node', args, { encoding: 'utf8', env: { ...process.env, ZR_SKILL_ARTICLE: '1' }, timeout: SET.stepTimeoutMs })
+    log(`${e.id}: ${(r.stdout || r.stderr).trim().split('\n').pop()}`)
+    if (r.status !== 0) throw new Error(`${e.id}: skill article not refreshed`)
+    return
+  }
+  const fp = fingerprint(e), prev = state[e.id] || {}
+  if (fp === prev.fingerprint && !force) return
+  if (e.kind === 'definition') {
+    const dir = path.join(e.workshop, e.draft)
+    execFileSync('node', [path.join(SET.editScripts, 'render-project-article.mjs'), e.definition, 'index.html'], { cwd: dir, stdio: 'ignore' })
+    await cover(dir); fs.renameSync(path.join(dir, 'ArticleCover.jpg'), path.join(dir, e.thumbnail))
+    const htmlSha = sha(fs.readFileSync(path.join(dir, 'index.html')))
+    const r = spawnSync('node', [path.join(SET.editScripts, 'file-article.mjs'), dir, '--project', e.project, '--title', e.title, '--slug', e.slug, '--definition', e.definition,
+      '--manifest', e.manifest, '--thumbnail', e.thumbnail, '--approved-sha', htmlSha], { encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, ZR_SKILL_ARTICLE: '1' } })
+    if (r.status !== 0) throw new Error(`${e.id}: file-article failed ${(r.stderr || '').split('\n').slice(-3).join(' ')}`)
+    const res = JSON.parse(r.stdout.trim().split('\n').pop())
+    state[e.id] = { fingerprint: fingerprint(e), jobId: res.publication?.jobId, path: res.path, at: new Date().toISOString() }
+  } else if (e.kind === 'build') {
+    for (const s of e.steps) {
+      const r = spawnSync(s.cmd[0], s.cmd.slice(1), { cwd: s.cwd, encoding: 'utf8', timeout: SET.stepTimeoutMs, maxBuffer: 64 << 20 })
+      if (r.status !== 0) throw new Error(`${e.id}: step ${s.cmd.join(' ')} failed ${(r.stderr || '').split('\n').slice(-3).join(' ')}`)
+    }
+    let jobId = null
+    if (e.publish === 'archive') { await assets('inventory', e.project); jobId = (await assets('archive', e.project)).jobId }
+    state[e.id] = { fingerprint: fingerprint(e), jobId, at: new Date().toISOString() }
+  }
+  log(`${e.id}: rebuilt${state[e.id].jobId ? ', cloud job ' + state[e.id].jobId : ''}`)
+}
+
+async function main() {
+  const args = process.argv.slice(2), only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
+  const force = args.includes('--force'), reg = JSON.parse(fs.readFileSync(SET.registry, 'utf8'))
+  fs.mkdirSync(SET.stateDir, { recursive: true })
+  const state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : {}
+  const entries = reg.articles.filter((e) => !only || e.id === only)
+  if (only && !entries.length) throw new Error(`no article "${only}" in Registry.json`)
+
+  if (args.includes('--check')) {
+    let bad = 0
+    for (const e of entries) {
+      let line
+      if (e.kind === 'skill') { const r = spawnSync('node', [path.join(SET.editScripts, 'refresh-skill-article.mjs'), e.skill, '--check'], { encoding: 'utf8' }); line = r.stdout.trim(); if (r.status !== 0) bad++ }
+      else { const fresh = fingerprint(e) === state[e.id]?.fingerprint, cloud = await jobState(state[e.id]?.jobId); line = `${e.id}: ${fresh ? 'up to date' : 'OLDER than its sources'} ; cloud ${cloud}`; if (!fresh || !/^(done|no job)/.test(cloud)) bad++ }
+      console.log(line)
+    }
+    console.log(bad ? `${bad} article(s) not up to date` : 'all articles up to date'); process.exit(bad ? 1 : 0)
+  }
+  if (args.includes('--baseline')) { for (const e of entries) if (e.kind !== 'skill') state[e.id] = { ...(state[e.id] || {}), fingerprint: fingerprint(e), at: new Date().toISOString() }; fs.writeFileSync(statePath, JSON.stringify(state, null, 2)); console.log('baseline recorded'); return }
+
+  // One run at a time (sync-skill and the LaunchAgent may meet). / une seule exécution à la fois.
+  if (fs.existsSync(lockPath) && Date.now() - fs.statSync(lockPath).mtimeMs < SET.lockStaleMs) { console.log('another refresh is running, skipped'); return }
+  fs.writeFileSync(lockPath, String(process.pid))
+  let failed = 0
+  try {
+    for (const e of entries) {
+      try { await refreshOne(e, state, force) } catch (err) { failed++; log('ARTICLE NOT REFRESHED: ' + err.message) }
+      fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
+    }
+  } finally { fs.rmSync(lockPath, { force: true }) }
+  process.exit(failed ? 3 : 0)
+}
+main().catch((e) => { console.error('ARTICLE NOT REFRESHED: ' + e.message); process.exit(1) })

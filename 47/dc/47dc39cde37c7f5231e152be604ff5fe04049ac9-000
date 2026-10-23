@@ -1,0 +1,22 @@
+{
+  "_doc": "24 October 2026 : every article shown in ZenRay Assets, with what it reads (inputs), how it is rebuilt (steps) and how it reaches the cloud (publish). refresh-articles.mjs rebuilds and republishes an article as soon as one of its inputs changes; sync-skill.sh and the LaunchAgent com.zenray.articles-refresh run it. A new article is not finished until it has an entry here. Order matters: an entry that feeds another comes first. FR : chaque article Assets, ses sources, sa construction, sa publication.",
+  "articles": [
+    { "id": "zenray-calendar-plan", "project": "zenray-calendar-plan-23-october-2026", "kind": "skill", "skill": "zenray-calendar-plan" },
+    { "id": "zenray-sales", "project": "zenray-sales-23-october-2026", "kind": "skill", "skill": "zenray-sales" },
+    { "id": "uv-match-height", "project": "uv-match-height-20-october-2026", "kind": "definition",
+      "workshop": "/Users/zenray/.claude/tmp/tmp-uv-match-height-20-october-2026", "draft": "Drafts/Article",
+      "title": "UV-Match Height", "slug": "uv-match-height", "definition": "Article-20-October-2026.json", "manifest": "Sources-20-October-2026.json", "thumbnail": "ArticleCover-20-October-2026.jpg",
+      "inputs": ["Drafts/Article/Article-20-October-2026.json", "Drafts/Article/Sources-20-October-2026.json", "Drafts/Article/assets", "Drafts/Article/ArticleOpening-20-October-2026.png"] },
+    { "id": "zenray-houdini-docs", "project": "louisiana-bayou", "kind": "build",
+      "inputs": ["/Users/zenray/.claude/skills/zenray-houdini", "/Users/zenray/.claude/Memory1/Houdini/MCP/zrhoudini.py"],
+      "exclude": ["/docs/zenray-height/", "/docs/zenray-houdini/", "/docs/designs/", "__pycache__", ".DS_Store"],
+      "steps": [{ "cwd": "/Users/zenray/.claude/skills/zenray-houdini/docs", "cmd": ["python3", "BuildDocs.py"] }],
+      "publish": "none" },
+    { "id": "louisiana-bayou", "project": "louisiana-bayou", "kind": "build",
+      "inputs": ["@articles.json:sources", "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/Scripts/Articles"],
+      "articlesJson": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/Scripts/Articles/articles.json",
+      "exclude": ["__pycache__", ".DS_Store", "build.log"],
+      "steps": [{ "cwd": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/Scripts/Articles", "cmd": ["/Users/zenray/.venvs/zenray-uv/bin/python", "BuildArticles.py"] }],
+      "publish": "archive" }
+  ]
+}

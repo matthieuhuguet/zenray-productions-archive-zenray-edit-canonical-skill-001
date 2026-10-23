@@ -62,7 +62,7 @@ export function sectionsOf(skillMd, skip = []) {
       title: s.title, nav: s.title.replace(/\s*\(\d{1,2} \w+ \d{4}[^)]*\)\s*$/, '').slice(0, 40), html: mdToHtml(s.md) }))
 }
 
-async function cover(dir) {
+export async function cover(dir) {
   const { chromium } = await import(path.join(SET.progressRepo, 'node_modules/playwright/index.mjs'))
   const b = await chromium.launch({ executablePath: SET.chromium })
   const p = await b.newPage({ viewport: SET.coverViewport }); await p.goto('file://' + path.join(dir, 'index.html')); await p.waitForTimeout(800)
@@ -128,4 +128,5 @@ async function main() {
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
   console.log(`${name}: article republished from SKILL.md ${skillSha.slice(0, 12)} -> ${res.path} ; cloud job ${state.jobId} queued (check: --check)`)
 }
-main().catch((e) => { console.error('ARTICLE NOT REFRESHED: ' + e.message); process.exit(1) })
+// Run only as a command, so refresh-articles.mjs can import cover(). / exécuté seulement en ligne de commande (24 October 2026)
+if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) main().catch((e) => { console.error('ARTICLE NOT REFRESHED: ' + e.message); process.exit(1) })
