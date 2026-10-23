@@ -49,3 +49,12 @@
 - La règle typographique a une seule source : `/Users/zenray/.claude/rules/Typography1.md`, sections du 23 October 2026 (13:45 et 13:50), résumée dans `/Users/zenray/.claude/CLAUDE.md`. Le gabarit `templates/project-article/article.html` et `render-project-article.mjs` l'appliquent sans la redéclarer : variables `--title` (titres), `--serif` (corps et chiffres), `--sans` (interface) ; les chiffres d'un titre reçoivent `.num` automatiquement. (23 October 2026)
 - Correction de la version précédente de cette section (23 October 2026, matin) : elle mettait les titres en Anthropic Serif ; c'était contraire à la règle courante, les titres sont en GT Sectra LCG Regular droit. (23 October 2026)
 - Les articles de documentation de zenray-houdini (`skills/zenray-houdini/docs/BuildDocs.py`) passent par ce gabarit ; leurs designs ne changent que les jetons de couleur et la largeur, jamais la typographie. (23 October 2026)
+
+## 23 October 2026 : option « titleStyle » (test des titres en italique)
+
+- 23 October 2026 : demande de Matthieu : tester les titres d'article en GT Sectra LCG italique, à consigner dans les règles typographiques seulement s'il valide le résultat. Option du renderer : `"titleStyle": "italic"` dans la définition JSON de l'article (défaut : droit). Elle charge `designs/_shared/fonts/GT-Sectra-LCGV-Regular-Italic.woff2` et passe h1, h2 et h3 en italique ; les chiffres d'un titre restent droits en Anthropic Serif (`.num`), le corps reste droit. (23 October 2026)
+- 23 October 2026 : premier essai : brouillon du projet `zenray-sales-23-october-2026`, `/Users/zenray/.claude/tmp/tmp-zenray-sales-23-october-2026/Drafts/Article/index.html`, rendu vérifié (italique chargé, `Sales1.md` garde son « 1 » droit, aucun débordement). La règle de `Typography1.md` du 23 October 2026 (« jamais d'italique ») reste en vigueur tant que Matthieu n'a pas validé. (23 October 2026)
+
+## 23 October 2026, 18:20 : titres en italique validés, valeur par défaut
+
+- 23 October 2026 : Matthieu a validé les titres en GT Sectra LCG italique (« Oui consigne dans toutes les occurrences »). `titleStyle` vaut désormais `italic` par défaut dans `render-project-article.mjs` ; `"titleStyle": "normal"` rend des titres droits. La section de test ci-dessus est conservée comme historique ; la règle courante est `rules/Typography1.md`, section du 23 October 2026, 18:20. (23 October 2026)

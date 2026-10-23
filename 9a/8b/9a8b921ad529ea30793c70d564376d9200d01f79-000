@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- 20 October 2026, 18:28 CEST: native toggles keep the article contents accessible without scripts. -->
-<!-- 23 October 2026 : typography from /Users/zenray/.claude/rules/Typography1.md (23 October 2026, 13:45 and 13:50) : titles --title (GT Sectra LCG Regular, upright), body and numbers --serif (Anthropic Serif Regular 400), interface --sans (InterVariable). -->
+<!-- 23 October 2026 : typography from /Users/zenray/.claude/rules/Typography1.md (23 October 2026, 13:45 and 13:50) : titles --title (GT Sectra LCG Regular, italic by default since 23 October 2026 18:20, injected by the renderer; "titleStyle": "normal" for upright), body and numbers --serif (Anthropic Serif Regular 400), interface --sans (InterVariable). -->
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{TITLE}}</title>
 <style>
 {{FONTS}}
