@@ -1,0 +1,131 @@
+#!/usr/bin/env node
+// refresh-skill-article.mjs (23 October 2026, 23:40 Paris): the Assets article of a skill is REBUILT from its SKILL.md, so the two can never disagree.
+// FR : l'article Assets d'un skill est reconstruit depuis son SKILL.md, les deux ne peuvent plus diverger. Appelé par sync-skill.sh à chaque consignation.
+//
+// A skill opts in with <skill>/ARTICLE.json (its parameter interface):
+//   { "projectId": "...", "title": "...", "slug": "...", "eyebrow": "...", "lead": "...",
+//     "workshop": "/Users/zenray/.claude/tmp/tmp-...",            // registered Assets workshop
+//     "hero": { "make": "Scripts/MakeHero.mjs", "image": "Drafts/Article/assets/x.png", "alt": "...", "text": "...", "caption": "..." },
+//     "skipSections": ["..."] }                                  // exact "## " titles left out of the article
+//
+// Usage:
+//   node refresh-skill-article.mjs <skill>            # rebuild, render, publish through Assets if SKILL.md changed
+//   node refresh-skill-article.mjs <skill> --force    # publish even if unchanged
+//   node refresh-skill-article.mjs <skill> --check    # exit 1 if the published article is older than SKILL.md, prints the cloud job state
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
+import { createHash } from 'node:crypto'
+import { execFileSync, spawnSync } from 'node:child_process'
+
+// Parameters, one place. / Paramètres, un seul endroit.
+const SET = {
+  skillsRoot: path.join(os.homedir(), '.claude/skills'),
+  editScripts: path.join(os.homedir(), '.claude/skills/zenray-edit/scripts'),
+  progressRepo: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayProgress',
+  draftDir: 'Drafts/Article',               // inside the workshop / dans l'atelier
+  stateFile: 'LastFiled.json',              // what was published last / dernière publication
+  chromium: path.join(os.homedir(), 'Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell'),
+  coverViewport: { width: 1440, height: 900 },
+  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+}
+const sha = (b) => createHash('sha256').update(b).digest('hex')
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const today = () => { const d = new Date(); return `${d.getDate()} ${SET.months[d.getMonth()]} ${d.getFullYear()}` }
+
+// Minimal Markdown -> HTML for SKILL.md bodies (lists, code blocks, tables, inline code, bold). / Markdown minimal.
+const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code style="overflow-wrap:anywhere">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+export function mdToHtml(md) {
+  const out = [], lines = md.split('\n'); let list = null, para = []
+  const flush = () => { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = [] } if (list) { out.push(`<ul>${list.map((x) => `<li>${inline(x)}</li>`).join('')}</ul>`); list = null } }
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]
+    if (l.startsWith('```')) { flush(); const code = []; while (++i < lines.length && !lines[i].startsWith('```')) code.push(lines[i]); out.push(`<pre style="overflow-x:auto;max-width:100%"><code>${esc(code.join('\n'))}</code></pre>`); continue } // code scrolls inside, never widens the page (23 October 2026)
+    if (/^\|.*\|$/.test(l.trim())) { flush(); const rows = []; while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) rows.push(lines[i++].trim()); i--
+      const cells = (r) => r.slice(1, -1).split('|').map((c) => c.trim()); const body = rows.filter((r) => !/^\|[\s:|-]+\|$/.test(r))
+      out.push(`<div style="overflow-x:auto;max-width:100%"><table>${body.map((r, k) => `<tr>${cells(r).map((c) => k ? `<td>${inline(c)}</td>` : `<th>${inline(c)}</th>`).join('')}</tr>`).join('')}</table></div>`); continue }
+    const m = l.match(/^\s*(?:[-*]|\d+\.)\s+(.*)$/)
+    if (m) { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = [] } (list ||= []).push(m[1]); continue }
+    if (!l.trim()) { flush(); continue }
+    if (list && /^\s+\S/.test(l)) { list[list.length - 1] += ' ' + l.trim(); continue }
+    if (list) flush()
+    para.push(l.trim())
+  }
+  flush(); return out.join('')
+}
+export function sectionsOf(skillMd, skip = []) {
+  const body = skillMd.replace(/^---\n[\s\S]*?\n---\n/, '')
+  const parts = body.split(/^## /m).slice(1)
+  return parts.map((p, i) => { const nl = p.indexOf('\n'), title = p.slice(0, nl).trim(); return { title, md: p.slice(nl + 1) } })
+    .filter((s) => !skip.includes(s.title) && s.md.trim())
+    .map((s, i) => ({ id: `s${String(i + 1).padStart(2, '0')}`, eyebrow: `${String(i + 1).padStart(2, '0')} / ${s.title.replace(/\s*\(\d{1,2} \w+ \d{4}[^)]*\)\s*$/, '')}`.slice(0, 80),
+      title: s.title, nav: s.title.replace(/\s*\(\d{1,2} \w+ \d{4}[^)]*\)\s*$/, '').slice(0, 40), html: mdToHtml(s.md) }))
+}
+
+async function cover(dir) {
+  const { chromium } = await import(path.join(SET.progressRepo, 'node_modules/playwright/index.mjs'))
+  const b = await chromium.launch({ executablePath: SET.chromium })
+  const p = await b.newPage({ viewport: SET.coverViewport }); await p.goto('file://' + path.join(dir, 'index.html')); await p.waitForTimeout(800)
+  const overflow = await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+  await p.screenshot({ path: path.join(dir, 'ArticleCover.jpg'), type: 'jpeg', quality: 82 })
+  const m = await b.newPage({ viewport: { width: 390, height: 844 } }); await m.goto('file://' + path.join(dir, 'index.html')); await m.waitForTimeout(500)
+  const mobile = await m.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+  await b.close()
+  if (overflow > 0 || mobile > 0) throw new Error(`article overflows horizontally: desktop ${overflow}px, mobile ${mobile}px`)
+}
+
+async function jobState(jobId) {
+  if (!jobId) return 'no job'
+  const { requestAssets } = await import(path.join(SET.progressRepo, 'scripts/Assets/BridgeClient.mjs'))
+  const all = JSON.stringify(await requestAssets({ action: 'status' })), i = all.indexOf(`"id":"${jobId}"`)
+  if (i < 0) return 'not listed (old job)'
+  const m = all.slice(i, i + 400).match(/"state":"([a-z-]+)".*?"error":(null|"[^"]*")/)
+  return m ? `${m[1]}${m[2] !== 'null' ? ' ' + m[2] : ''}` : 'unknown'
+}
+
+async function main() {
+  const [name, ...flags] = process.argv.slice(2)
+  if (!name) { console.log('usage: refresh-skill-article.mjs <skill> [--force|--check]'); process.exit(2) }
+  const skillDir = path.join(SET.skillsRoot, name), cfgPath = path.join(skillDir, 'ARTICLE.json')
+  if (!fs.existsSync(cfgPath)) { console.log(`${name}: no ARTICLE.json, nothing to refresh`); return }
+  const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+  for (const k of ['projectId', 'title', 'slug', 'workshop', 'hero']) if (!cfg[k]) throw new Error(`ARTICLE.json: missing "${k}"`)
+  const skillMd = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8'), skillSha = sha(skillMd)
+  const dir = path.join(cfg.workshop, SET.draftDir), statePath = path.join(dir, SET.stateFile)
+  const last = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : {}
+
+  if (flags.includes('--check')) {
+    const fresh = last.skillSha256 === skillSha, state = await jobState(last.jobId)
+    console.log(`${name}: article ${fresh ? 'matches' : 'is OLDER than'} SKILL.md ; last published ${last.publishedAt || 'never'} ; cloud job ${state}`)
+    process.exit(fresh && /^done/.test(state) ? 0 : 1)
+  }
+  if (last.skillSha256 === skillSha && !flags.includes('--force')) { console.log(`${name}: article already matches SKILL.md (${skillSha.slice(0, 12)})`); return }
+
+  fs.mkdirSync(path.join(dir, 'assets'), { recursive: true })
+  // An optional hero script rebuilds the opening image from live data first. / script optionnel qui refait l'image (23 October 2026)
+  if (cfg.hero.make) execFileSync('node', [path.join(cfg.workshop, cfg.hero.make)], { stdio: 'ignore' })
+  const heroSrc = path.join(cfg.workshop, cfg.hero.image), heroRel = 'assets/' + path.basename(heroSrc)
+  if (path.resolve(heroSrc) !== path.resolve(dir, heroRel)) fs.copyFileSync(heroSrc, path.join(dir, heroRel))
+  const heroBytes = fs.readFileSync(path.join(dir, heroRel))
+  const date = today()
+  const sources = { date, projectId: cfg.projectId, files: [{ id: 'hero', originalPath: heroSrc, path: heroRel, bytes: heroBytes.length, sha256: sha(heroBytes) }] }
+  const sections = sectionsOf(skillMd, cfg.skipSections || [])
+  const def = { title: cfg.title, eyebrow: cfg.eyebrow || 'Skill', date, subtitle: name, status: `Version du ${date}, générée depuis SKILL.md`,
+    lead: cfg.lead || '', hero: 'hero', heroAlt: cfg.hero.alt || '', heroText: cfg.hero.text || '', heroCaption: cfg.hero.caption || '',
+    sources: 'Sources.json', footer: `${cfg.title} · ${date} · SKILL.md ${skillSha.slice(0, 12)}`, fileLabels: { hero: cfg.hero.alt || 'Image' }, fileRoles: { hero: 'Image d’ouverture.' },
+    skillSha256: skillSha, sections }
+  fs.writeFileSync(path.join(dir, 'Sources.json'), JSON.stringify(sources, null, 2))
+  fs.writeFileSync(path.join(dir, 'Article.json'), JSON.stringify(def, null, 2))
+  execFileSync('node', [path.join(SET.editScripts, 'render-project-article.mjs'), 'Article.json', 'index.html'], { cwd: dir, stdio: 'ignore' })
+  if (/[—–]/.test(fs.readFileSync(path.join(dir, 'index.html'), 'utf8').replace(/<style[\s\S]*?<\/style>/g, ''))) throw new Error('article text contains an em or en dash')
+  await cover(dir)
+  const htmlSha = sha(fs.readFileSync(path.join(dir, 'index.html')))
+  const r = spawnSync('node', [path.join(SET.editScripts, 'file-article.mjs'), dir, '--project', cfg.projectId, '--title', cfg.title, '--slug', cfg.slug,
+    '--definition', 'Article.json', '--manifest', 'Sources.json', '--thumbnail', 'ArticleCover.jpg', '--approved-sha', htmlSha], { encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, ZR_SKILL_ARTICLE: '1' } })
+  if (r.status !== 0) throw new Error('file-article failed: ' + (r.stderr || '').split('\n').slice(-6).join(' '))
+  const res = JSON.parse(r.stdout.trim().split('\n').pop())
+  const state = { skillSha256: skillSha, htmlSha256: res.sha256, articlePath: res.path, jobId: res.publication?.jobId, editJobId: res.publication?.editArchiveJobId, publishedAt: new Date().toISOString() }
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
+  console.log(`${name}: article republished from SKILL.md ${skillSha.slice(0, 12)} -> ${res.path} ; cloud job ${state.jobId} queued (check: --check)`)
+}
+main().catch((e) => { console.error('ARTICLE NOT REFRESHED: ' + e.message); process.exit(1) })
