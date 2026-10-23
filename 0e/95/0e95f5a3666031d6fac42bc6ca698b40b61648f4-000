@@ -103,3 +103,8 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 ## 20 October 2026 : articles de projet
 
 - Contrat, commande et validation : [ProjectArticles.md](references/ProjectArticles.md). (20 October 2026)
+
+## 23 October 2026 : thème Liquid Glass
+
+- Référence visuelle : `references/liquid-glass/liquid-glass-claude.png`. Gabarit vérifié : `templates/liquid-glass/` (README : jetons, onglet de verre unique par `clip-path: path()`, alignement mesuré, poids 315 Ko). Instance d'origine : ZenRay Knowledge V5, `/Users/zenray/.claude/tmp/tmp-zenray-knowledge-23-october-2026/ZenRayKnowledgeDesignsV5.html`. (23 October 2026)
+- Fond du verre : le wallpaper de Create (`ZenRayProgress/public/wallpaper.webp`) dans `body::before`, jamais sur un ancêtre ; jamais deux `backdrop-filter` imbriqués. (23 October 2026)

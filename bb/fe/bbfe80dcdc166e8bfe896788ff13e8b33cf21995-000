@@ -1,0 +1,29 @@
+# Liquid Glass theme (23 October 2026)
+
+Theme validated on the ZenRay Knowledge V5 mockup (B2, folder tab). Visual reference: `/Users/zenray/.claude/skills/zenray-edit/references/liquid-glass/liquid-glass-claude.png` (translucent cards over a colourful photo, bright top rim, soft white tint, white text). (23 October 2026)
+
+## Files (23 October 2026)
+
+| File | Role |
+|---|---|
+| `index.html` | the definition: tokens in `:root`, `.lg` glass class, glass tab shape, parameters panel |
+| `wallpaper-1280.avif` / `wallpaper.webp` | background of ZenRayProgress Create (`public/wallpaper.webp`), AVIF first through `image-set` |
+| `fonts/*-latin*.woff2` | Latin subsets pinned to the one weight used: GT Sectra LCG Regular (titles), Anthropic Serif 400 (body, numbers), Inter 500 (UI) |
+| `Optimize.py` | rebuilds the subsets and the AVIF from the originals |
+| `ShootV5.mjs` | checker: alignment on every row and on a 60-row thread, mobile overflow, fonts, bytes |
+
+## Tokens, 8 parameters (23 October 2026)
+
+`--lg-blur` 22px, `--lg-sat` 170%, `--lg-tint-top` .20, `--lg-tint-bottom` .07, `--lg-rim` .60, `--lg-radius` 26px, `--lg-veil` .34, `--bg-blur` 4px. Derived and never edited: `--lg-fill`, `--lg-filter`, `--lg-edge`, `--lg-shadow`. The panel « Paramètres » writes only these variables and copies them for the prompt. (23 October 2026)
+
+## Rules paid for (23 October 2026)
+
+- The wallpaper lives in `body::before`, a sibling layer: an ancestor with `filter` or `backdrop-filter` would kill every glass below it (SilentBugs1.md). Never nest a `backdrop-filter` inside another one. (23 October 2026)
+- Tab and answer are ONE glass element: `.shape` gets `clip-path: path()` computed by `outline()` (top edge continuous, concave fillet at the join), and an SVG `.rim` strokes the same path with a white gradient. Two adjacent glass boxes always show a seam. (23 October 2026)
+- The answer panel top equals the selected row top (`row.offsetTop`), recomputed on click, resize (ResizeObserver plus requestAnimationFrame) and fonts loaded. Measured: 0 px gap on all 12 rows and on a 60-row thread. Under 900 px the answer moves right under its question. (23 October 2026)
+- French spacing: a thin no-break space before `? ! : ;` so a lone « ? » never wraps. (23 October 2026)
+- Weight: 1.33 MB before, 315 KB after (HTML 17 KB, fonts 100 KB, AVIF 197 KB), same render. (23 October 2026)
+
+## Reuse (23 October 2026)
+
+Copy the folder into the atelier, replace `QUESTIONS` (or the list markup) and the wallpaper, then run `node ShootV5.mjs <out-dir>` against a local server on port 4196. (23 October 2026)
