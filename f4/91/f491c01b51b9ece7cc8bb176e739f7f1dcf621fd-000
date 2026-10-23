@@ -58,3 +58,7 @@
 ## 23 October 2026, 18:20 : titres en italique validés, valeur par défaut
 
 - 23 October 2026 : Matthieu a validé les titres en GT Sectra LCG italique (« Oui consigne dans toutes les occurrences »). `titleStyle` vaut désormais `italic` par défaut dans `render-project-article.mjs` ; `"titleStyle": "normal"` rend des titres droits. La section de test ci-dessus est conservée comme historique ; la règle courante est `rules/Typography1.md`, section du 23 October 2026, 18:20. (23 October 2026)
+
+## 23 October 2026 : article de skill généré, jamais écrit à la main
+
+- 23 October 2026 : un article Assets qui décrit un SKILL est une SOURCE DE VÉRITÉ au même titre que le skill, donc il ne s'écrit plus à la main : le skill porte `ARTICLE.json`, et `node /Users/zenray/.claude/skills/zenray-edit/scripts/refresh-skill-article.mjs <skill>` reconstruit l'article depuis SKILL.md, le contrôle (tiret long, débordement desktop et mobile), le publie dans Assets et l'envoie au cloud. `sync-skill.sh` l'appelle à chaque consignation et sort en code 3 si la mise à jour échoue ; `--check` sort 0 seulement si l'article correspond au SKILL.md actuel et que son envoi cloud est `done`. Cause corrigée : l'article ZenRay Calendar Plan V1, écrit à la main, disait encore « déjeuner jamais écrit » après la correction. (23 October 2026)
