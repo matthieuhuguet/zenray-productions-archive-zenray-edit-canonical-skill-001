@@ -46,5 +46,6 @@
 
 ## Typographie du gabarit (23 October 2026)
 
-- Le gabarit `templates/project-article/article.html` et `render-project-article.mjs` suivent la règle du 21 October 2026 : corps, titres et nombres en AnthropicSerif Regular 400 (`AnthropicSerif-Romans.woff2`), interface en InterVariable Medium 500, code en AnthropicMono. La prescription AnthropicSerif Medium 500 du 20 October 2026 est remplacée. (23 October 2026)
-- Les articles de documentation de zenray-houdini (`skills/zenray-houdini/docs/BuildDocs.py`) passent par ce gabarit ; leurs trois designs ne changent que les jetons de couleur et la largeur, jamais la typographie. (23 October 2026)
+- La règle typographique a une seule source : `/Users/zenray/.claude/rules/Typography1.md`, sections du 23 October 2026 (13:45 et 13:50), résumée dans `/Users/zenray/.claude/CLAUDE.md`. Le gabarit `templates/project-article/article.html` et `render-project-article.mjs` l'appliquent sans la redéclarer : variables `--title` (titres), `--serif` (corps et chiffres), `--sans` (interface) ; les chiffres d'un titre reçoivent `.num` automatiquement. (23 October 2026)
+- Correction de la version précédente de cette section (23 October 2026, matin) : elle mettait les titres en Anthropic Serif ; c'était contraire à la règle courante, les titres sont en GT Sectra LCG Regular droit. (23 October 2026)
+- Les articles de documentation de zenray-houdini (`skills/zenray-houdini/docs/BuildDocs.py`) passent par ce gabarit ; leurs designs ne changent que les jetons de couleur et la largeur, jamais la typographie. (23 October 2026)
