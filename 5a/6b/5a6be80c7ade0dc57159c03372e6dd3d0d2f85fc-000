@@ -78,7 +78,7 @@ async function jobState(jobId) {
   if (!jobId) return 'no job'
   const { requestAssets } = await import(path.join(SET.progressRepo, 'scripts/Assets/BridgeClient.mjs'))
   const all = JSON.stringify(await requestAssets({ action: 'status' })), i = all.indexOf(`"id":"${jobId}"`)
-  if (i < 0) return 'not listed (old job)'
+  if (i < 0) return 'done (no longer listed)' // finished jobs leave the status list (25 October 2026) / un envoi fini quitte la liste
   const m = all.slice(i, i + 400).match(/"state":"([a-z-]+)".*?"error":(null|"[^"]*")/)
   return m ? `${m[1]}${m[2] !== 'null' ? ' ' + m[2] : ''}` : 'unknown'
 }
