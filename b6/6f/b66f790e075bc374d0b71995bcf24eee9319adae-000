@@ -1,0 +1,20 @@
+{
+  "date": "25 October 2026",
+  "projectId": "zenray-dictate",
+  "files": [
+    {
+      "id": "app-icon",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/AppIcon.svg",
+      "path": "assets/app-icon-25-October-2026.svg",
+      "bytes": 4578,
+      "sha256": "5200a365ec0c3a382b9bef8bf0a47e8b216b5020c3f38e3da707d7e170ff49e0"
+    },
+    {
+      "id": "scores",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-claude-stt-probe-25-october-2026/bench/SCORES.txt",
+      "path": "assets/scores-25-October-2026.txt",
+      "bytes": 609,
+      "sha256": "3d53c7797c988da653154173bd644c2a1e1fea7a9058dc221a383a07cfed7b9f"
+    }
+  ]
+}

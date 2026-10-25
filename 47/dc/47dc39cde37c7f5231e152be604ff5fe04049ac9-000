@@ -87,6 +87,23 @@
     }
    ],
    "publish": "archive"
+  },
+  {
+   "id": "zenray-dictate-claude-engine",
+   "project": "zenray-dictate",
+   "kind": "definition",
+   "workshop": "/Users/zenray/.claude/tmp/tmp-zenray-dictate",
+   "draft": "Drafts/Article",
+   "title": "ZenRay Dictate, moteur Claude",
+   "slug": "zenray-dictate-claude-engine",
+   "definition": "Article-25-October-2026.json",
+   "manifest": "Sources-25-October-2026.json",
+   "thumbnail": "ArticleCover-25-October-2026.jpg",
+   "inputs": [
+    "Drafts/Article/Article-25-October-2026.json",
+    "Drafts/Article/Sources-25-October-2026.json",
+    "Drafts/Article/assets"
+   ]
   }
  ]
 }

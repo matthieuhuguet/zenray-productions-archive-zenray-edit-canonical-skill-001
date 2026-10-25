@@ -1,0 +1,10 @@
+langue  moteur    clips erreur %  modèle annoncé
+en_us   harmonic     25     2.96  harmonic/harmonic-asr-8 (WER)
+en_us   nova3        25     9.63  nova3/nova-3 (WER)
+en_us   whisper      25     5.56  local/whisper-large-v3-turbo (WER)
+fr_fr   harmonic     25     4.40  harmonic/harmonic-asr-8 (WER)
+fr_fr   nova3        25    10.51  nova3/nova-3 (WER)
+fr_fr   whisper      25     6.82  local/whisper-large-v3-turbo (WER)
+ja_jp   harmonic     25     1.22  harmonic/harmonic-asr-8 (CER)
+ja_jp   nova3        25     8.28  nova3/nova-3 (CER)
+ja_jp   whisper      25     5.03  local/whisper-large-v3-turbo (CER)
