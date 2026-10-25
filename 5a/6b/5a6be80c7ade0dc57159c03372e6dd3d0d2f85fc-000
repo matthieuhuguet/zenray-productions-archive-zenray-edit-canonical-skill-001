@@ -113,7 +113,7 @@ async function main() {
   const def = { title: cfg.title, eyebrow: cfg.eyebrow || 'Skill', date, subtitle: name, status: `Version du ${date}, générée depuis SKILL.md`,
     lead: cfg.lead || '', hero: 'hero', heroAlt: cfg.hero.alt || '', heroText: cfg.hero.text || '', heroCaption: cfg.hero.caption || '',
     sources: 'Sources.json', footer: `${cfg.title} · ${date} · SKILL.md ${skillSha.slice(0, 12)}`, fileLabels: { hero: cfg.hero.alt || 'Image' }, fileRoles: { hero: 'Image d’ouverture.' },
-    skillSha256: skillSha, sections }
+    skillSha256: skillSha, sections, theme: cfg.theme } // 25 October 2026 : theme from ARTICLE.json ; absent = papier (render-project-article.mjs)
   fs.writeFileSync(path.join(dir, 'Sources.json'), JSON.stringify(sources, null, 2))
   fs.writeFileSync(path.join(dir, 'Article.json'), JSON.stringify(def, null, 2))
   execFileSync('node', [path.join(SET.editScripts, 'render-project-article.mjs'), 'Article.json', 'index.html'], { cwd: dir, stdio: 'ignore' })

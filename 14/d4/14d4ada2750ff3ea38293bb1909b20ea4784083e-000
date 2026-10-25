@@ -16,7 +16,17 @@ export const ARTICLE_SETTINGS = {
     ['AnthropicMono', 'AnthropicMono.woff2', 'woff2', '500'],
   ],
   // 23 October 2026 : titles in italic by default (Matthieu validated, rules/Typography1.md 18:20). Loaded unless the definition sets "titleStyle": "normal". / titres en italique par défaut, droits avec titleStyle normal.
+  // 25 October 2026 : article theme. "papier" (QLMarkdown B, chosen by Matthieu) is the default for NEW definitions ; definitions that existed before are pinned with "theme": "galerie" (the template as it was). / thème Papier par défaut, anciens articles épinglés sur galerie.
+  defaultTheme: 'papier',
+  qlThemeEngine: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../templates/qlmarkdown-themes/ThemeEngine.js'),
   italicTitleFont: ['GT Sectra LCG', path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../designs/_shared/fonts/GT-Sectra-LCGV-Regular-Italic.woff2'), 'woff2', '400', 'italic'],
+}
+// 25 October 2026 : the papier theme reads its values from ThemeEngine.js (design B), one source for Quick Look and articles. / une seule source pour Quick Look et les articles.
+async function papierCss(settings) {
+  const engine = new Function(await fs.readFile(settings.qlThemeEngine, 'utf8') + '\nreturn ZRQL;')()
+  const p = engine.DESIGNS.B.params
+  const pal = d => `--paper:${p[d+'bg']||p[d+'Bg']};--ink:${p[d+'ink']||p[d+'Ink']};--muted:${p[d+'muted']||p[d+'Muted']};--accent:${p[d+'accent']||p[d+'Accent']};--line:${p[d+'rule']||p[d+'Rule']};--panel:${p[d+'block']||p[d+'Block']}`
+  return `<style>/* theme papier, ThemeEngine.js design B, 25 October 2026 */:root{${pal('')};--body:${p.baseSize}px;--width:${p.measure}ch}@media(prefers-color-scheme:dark){:root{${pal('d')}}}body{line-height:${p.lineHeight}}header{text-align:${p.h1Align}}header .meta{justify-content:${p.h1Align}}header .lead{margin-left:auto;margin-right:auto}</style>`
 }
 // 23 October 2026 : digits wrapped in .num so a title in GT Sectra keeps its numbers in Anthropic Serif
 const numbers = text => String(text).replace(/(\d+(?:[.,:]\d+)*)/g, '<span class="num">$1</span>')
@@ -66,7 +76,10 @@ export async function renderProjectArticle(configFile, outFile, settings = ARTIC
   // Italic titles only; every number keeps its upright Anthropic Serif through `.num` (higher specificity). / titres seuls en italique, les chiffres restent droits.
   const finalHtml = titleItalic ? titled.replace('</head>', '<style>h1,h2,h3{font-style:italic}</style></head>') : titled
   if (titleItalic && finalHtml === titled) throw new Error('titleStyle italic: template has no </head>')
-  await fs.writeFile(outFile,finalHtml)
+  const theme = config.theme || settings.defaultTheme
+  if (!['papier', 'galerie'].includes(theme)) throw new Error(`Unknown article theme "${theme}" (papier or galerie)`)
+  const themed = theme === 'papier' ? finalHtml.replace('</head>', (await papierCss(settings)) + '</head>') : finalHtml
+  await fs.writeFile(outFile,themed)
   return {path:path.resolve(outFile),bytes:Buffer.byteLength(html),sha256:createHash('sha256').update(html).digest('hex'),illustrations:sources.files.filter(file => mimeOf(file.path).startsWith('image/')).length}
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
