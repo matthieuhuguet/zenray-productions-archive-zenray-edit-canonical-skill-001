@@ -1,0 +1,173 @@
+{
+  "title": "ZenRay Dictate, moteur Claude",
+  "eyebrow": "Reconnaissance vocale",
+  "date": "25 October 2026",
+  "subtitle": "harmonic-asr-8 / voice_stream",
+  "status": "Version 3.10 publiée, interface B1 et icône I1",
+  "lead": "Ajout d’un moteur de dictée qui envoie l’audio au même service de reconnaissance vocale que claude.ai, Claude Desktop et Claude Code.",
+  "hero": "app-icon-claude",
+  "heroAlt": "Icône I1 de ZenRay Dictate : carré arrondi terracotta et micro blanc.",
+  "heroText": "Le moteur claude est le moteur par défaut. Fn ouvre une capsule à droite au milieu de l’écran ; le texte apparaît ensuite en bas au centre, déjà copié.",
+  "heroCaption": "Icône I1, symbole SF mic.fill, rendue par Scripts/RenderClaudeIcon.swift.",
+  "sources": "Sources-25-October-2026.json",
+  "footer": "ZenRay Dictate · 25 October 2026 · Prompts et sources conservés.",
+  "writingStyle": "ton neutre court",
+  "fileLabels": {
+    "app-icon": "Icône de l’application",
+    "scores": "Scores du banc d’essai",
+    "app-icon-claude": "Icône I1",
+    "capsule": "Capsule d’enregistrement",
+    "card": "Carte de résultat"
+  },
+  "fileRoles": {
+    "app-icon": "Ancienne icône Gemini, remplacée en version 3.10.",
+    "scores": "Sortie de ScoreBench.py sur 75 extraits FLEURS, 25 October 2026.",
+    "app-icon-claude": "Icône de l’application depuis la version 3.10.",
+    "capsule": "Capture de la capsule, 300 × 60 pt.",
+    "card": "Capture de la carte, 640 pt de large."
+  },
+  "fileAnchors": {
+    "app-icon": "article-opening",
+    "scores": "measures",
+    "app-icon-claude": "article-opening",
+    "capsule": "interface",
+    "card": "interface"
+  },
+  "sections": [
+    {
+      "id": "summary",
+      "eyebrow": "01 / Résumé",
+      "title": "Résumé",
+      "nav": "Résumé",
+      "html": "<p>ZenRay Dictate est une application macOS de dictée. La version 3.9 ajoute le moteur <code>claude</code> : chaque enregistrement est converti en PCM 16 bits, 16 kHz, mono, puis envoyé au WebSocket <code>wss://api.anthropic.com/api/ws/speech_to_text/voice_stream</code>. Ce point d’accès est celui qu’utilisent la dictée de claude.ai, de Claude Desktop et de Claude Code. Avec le paramètre <code>announce_provider=true</code>, le serveur indique le modèle utilisé : <code>harmonic</code> / <code>harmonic-asr-8</code>.</p><p>Le nom harmonic-asr-8 n’apparaît dans aucune source publique consultée le 25 October 2026. ASR signifie Automatic Speech Recognition, la reconnaissance automatique de la parole. Le même serveur peut aussi utiliser Deepgram Nova-3 lorsque le paramètre <code>stt_provider=nova3</code> est envoyé.</p>"
+    },
+    {
+      "id": "operation",
+      "eyebrow": "02 / Fonctionnement",
+      "title": "Fonctionnement",
+      "nav": "Fonctionnement",
+      "html": "<ol><li>L’application enregistre le micro en WAV, comme pour Whisper et Parakeet.</li><li><code>ClaudeVoiceTranscriber.swift</code> convertit le fichier en PCM 16 bits, 16 kHz, mono.</li><li>Le jeton OAuth de Claude Code est lu dans l’élément de trousseau <code>Claude Code-credentials</code> par <code>/usr/bin/security</code>.</li><li>L’audio part par paquets de 100 ms, suivi du message <code>CloseStream</code>.</li><li>Les messages <code>TranscriptText</code> donnent le texte, <code>TranscriptEndpoint</code> clôt chaque segment.</li><li>Le texte passe ensuite par le vocabulaire, les remplacements et le mode actif, puis il est inséré.</li></ol><p>Un jeton refusé est renouvelé une fois par la commande <code>claude -p ok --model haiku</code>, puis la requête est relancée. La langue <code>auto</code> n’envoie aucun paramètre <code>language</code> : le serveur refuse la valeur <code>auto</code> et détecte seul le français, l’anglais et le japonais.</p>"
+    },
+    {
+      "id": "interface",
+      "eyebrow": "03 / Interface",
+      "title": "Interface",
+      "nav": "Interface",
+      "html": "<p>Version 3.10, design B1 « Papier crème » en Liquid Glass. Un appui sur Fn affiche une capsule de 300 × 60 pt, à 16 pt du bord droit et centrée verticalement : bouton terracotta <code>mic.fill</code>, onde en direct, minuteur. Un second appui arrête l’enregistrement.</p><p>Le texte apparaît dans une carte de 640 pt en bas au centre, à 24 pt au-dessus du Dock. Il est toujours copié. Les actions sont Copié, Insérer (colle dans le champ actif au moment de l’appui sur Fn) et Refaire. Un clic ailleurs fait disparaître la carte. Le réglage <code>autoInsert</code> colle le texte automatiquement ; il est désactivé par défaut.</p>",
+      "figures": [
+        {
+          "id": "capsule",
+          "caption": "Capsule d’enregistrement, capture de la fenêtre réelle."
+        },
+        {
+          "id": "card",
+          "caption": "Carte de résultat, capture de la fenêtre réelle."
+        }
+      ]
+    },
+    {
+      "id": "measures",
+      "eyebrow": "04 / Mesures",
+      "title": "Mesures",
+      "nav": "Mesures",
+      "html": "<p>Banc d’essai du 25 October 2026 : 25 premiers extraits du jeu de test FLEURS par langue, lus par des personnes, avec leur transcription de référence. WER : pourcentage de mots erronés. CER : pourcentage de caractères erronés, utilisé pour le japonais.</p><div class=\"table-wrap\"><table><thead><tr><th>Langue</th><th>harmonic-asr-8</th><th>Deepgram Nova-3</th><th>Whisper large-v3-turbo, local</th></tr></thead><tbody><tr><td>Anglais, WER</td><td>2,96 %</td><td>9,63 %</td><td>5,56 %</td></tr><tr><td>Français, WER</td><td>4,40 %</td><td>10,51 %</td><td>6,82 %</td></tr><tr><td>Japonais, CER</td><td>1,22 %</td><td>8,28 %</td><td>5,03 %</td></tr><tr><td>Premier texte, médiane</td><td>1,3 à 1,5 s</td><td>1,6 à 2,3 s</td><td>sans objet</td></tr></tbody></table></div><p>Dans l’application, un extrait français et un extrait japonais de 4 s sont transcrits en 1,8 s, un extrait anglais de FLEURS en 3,0 s.</p>"
+    },
+    {
+      "id": "settings",
+      "eyebrow": "05 / Réglages",
+      "title": "Réglages",
+      "nav": "Réglages",
+      "html": "<div class=\"table-wrap\"><table><thead><tr><th>Réglage</th><th>Défaut</th><th>Effet</th></tr></thead><tbody><tr><td>Engine</td><td>claude</td><td>Choix entre claude, gemini, whisper et parakeet.</td></tr><tr><td>Claude provider</td><td>vide</td><td>Vide : harmonic-asr-8. <code>nova3</code> : Deepgram Nova-3.</td></tr><tr><td>Claude keyterms</td><td>Houdini, Unreal Engine, Copernicus, ZenRay, Claude Code</td><td>Mots à privilégier. Les formes écrites du vocabulaire sont ajoutées, 50 au plus.</td></tr><tr><td>Claude voice server</td><td>wss://api.anthropic.com</td><td>Adresse du serveur.</td></tr><tr><td>Claude CLI</td><td>~/.local/bin/claude</td><td>Programme utilisé pour renouveler le jeton.</td></tr><tr><td>Whisper fallback</td><td>désactivé</td><td>Bascule sur Whisper local si Claude échoue.</td></tr></tbody></table></div><p>Les réglages se modifient dans l’onglet Settings de la bibliothèque, sans recompiler l’application.</p>"
+    },
+    {
+      "id": "verification",
+      "eyebrow": "06 / Vérification",
+      "title": "Vérification",
+      "nav": "Vérification",
+      "html": "<ul><li><code>ZenRayDictate --transcribe &lt;fichier audio&gt;</code> lance le moteur sans interface et affiche le modèle et le texte.</li><li>Trois extraits français, japonais et anglais sont transcrits sans erreur.</li><li>Un fichier audio invalide renvoie un message d’erreur et le code de sortie 1.</li><li><code>swift test</code> : 15 tests réussis, dont le moteur par défaut et le dédoublonnage des mots-clés.</li><li>Commit <code>d6016a3</code> poussé sur <code>main</code> et sur <code>codex/gemini-dictation-library</code>.</li><li><code>ZenRayDictate --overlay-preview</code> : positions mesurées, capsule à 16 pt du bord droit et centrée, carte centrée à 24 pt au-dessus du Dock.</li><li>Commit <code>da74697</code> (version 3.10) poussé sur <code>main</code>.</li></ul>"
+    },
+    {
+      "id": "limits",
+      "eyebrow": "07 / Limites",
+      "title": "Limites",
+      "nav": "Limites",
+      "html": "<ul><li>Le point d’accès n’est pas une API publique documentée ; Anthropic peut le modifier sans préavis.</li><li>FLEURS est un jeu de données public ; le modèle a pu l’utiliser pendant son entraînement.</li><li>Aucune mesure sur de l’audio bruité, une conversation à plusieurs ou un vocabulaire technique.</li><li>La transcription commence après la fin de l’enregistrement ; le texte n’apparaît pas pendant la dictée.</li><li>La dictée réelle par la touche Fn avec l’interface 3.10 n’a pas encore été contrôlée à la main.</li></ul>"
+    },
+    {
+      "id": "prompts",
+      "eyebrow": "08 / Demandes",
+      "title": "Demandes de Matthieu",
+      "nav": "Demandes",
+      "prompts": [
+        {
+          "title": "Recherche du moteur",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "Est-ce que tu peux me dire très précisément via un via des debugs et du prompt engineering ou du reverse engineering pour savoir exactement à date et aujourd'hui quelle solution utilise Claude.ai, Claude.ai ou AI, pour savoir exactement quelle solution de traitement speech to text Claude utilise actuellement. Mais à date, il faut vérifier. Et donc, il faut run des tests, etc. ? /dont-stop fais des tests pour prouver."
+        },
+        {
+          "title": "Inspection du bouton audio",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "tu peux aussi chercher directement via l'app claude desktop ou claude code desktop via lle bouton audio et ce qu'il call comme fonction via inspect etc"
+        },
+        {
+          "title": "Benchmarks",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "Maintenant, tu peux pas essayer de trouver sur Google si ce modèle a pas été annoncé quelque part ou s'il n'y a pas des benchmarks, etc. Tu peux peut-être essayer de chercher par mots-clés en cherchant par exemple Nova 3 ou Harmonic ASR 8, qu'est-ce que ça veut dire ASR, qu'est-ce que ça veut dire Harmonic, et voilà, essaie de voir et de trouver un peu à peu près comment le truc fonctionne. Bon, surtout, ce que je veux dire, c'est s'il n'aurait pas été benchmarké quelque part et s'il n'y aurait pas des résultats actuels. Parce que d'autres providers de speech-to-text existent. Ce que je veux, c'est comparer et savoir si leur modèle est bon."
+        },
+        {
+          "title": "Mise à jour de ZenRay Dictate",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "Bah maintenant, du coup, tu vas update directement via Claude App mon application Zenray Dictate afin de l'update avec ce nouveau protocole qui part de Claude AI. Ça va être beaucoup mieux du coup. /zenray-resume-coordinator"
+        },
+        {
+          "title": "Publication et article",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "tu repusheras l'app via le bind /zenray-assets sur ZenRay Dictate et tu crées un article ton neutre... attention le projet existe déjà right. cette conversation se lit du coup à zenray dictate"
+        },
+        {
+          "title": "Interface et icône",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "Non, ça marche pas du tout. il me faut une ui sleek sur le côté et je t'avais Je t'avais déjà expliqué comment ça marche, du coup. D'abord, tu utilises... D'abord, tu appuies sur FN. Tu as un petit widget qui prend l'enregistrement à droite, au milieu de l'écran. Et ensuite, une fois que tu as fini, en bas, au milieu de l'écran, tu obtiens ton texte. /zenray-edit"
+        },
+        {
+          "title": "Propositions",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "3 propositions d'UI"
+        },
+        {
+          "title": "Icône",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "l'icone aussi à changer car c'est claude maintenant pas gemini"
+        },
+        {
+          "title": "Choix intermédiaire",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "1 · Terracotta, micro et rayons\nmais 3 propals beaucoup plus simple et via les icones apple SF symbols\n\nB · Papier\n\n* theme liquid glass à ajouter\n\n\nrefais trois propositions à partir de mes choix"
+        },
+        {
+          "title": "Choix final",
+          "date": "25 October 2026",
+          "open": false,
+          "text": "theme B1 · Papier crème\net I1 · mic.fill seul\ngo code déploie et consigne"
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "eyebrow": "09 / Fichiers",
+      "title": "Fichiers",
+      "nav": "Fichiers",
+      "html": "<p>Code : <code>/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/Sources/ZenRayDictate/ClaudeVoiceTranscriber.swift</code>. Banc d’essai et sonde : <code>/Users/zenray/.claude/tmp/tmp-claude-stt-probe-25-october-2026/</code>.</p>",
+      "fileIndex": true
+    }
+  ]
+}

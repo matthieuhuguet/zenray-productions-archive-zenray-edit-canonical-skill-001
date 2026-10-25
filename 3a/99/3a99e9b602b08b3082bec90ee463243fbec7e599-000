@@ -1,0 +1,41 @@
+{
+  "date": "25 October 2026",
+  "projectId": "zenray-dictate",
+  "files": [
+    {
+      "id": "app-icon",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/AppIcon.svg",
+      "path": "assets/app-icon-25-October-2026.svg",
+      "bytes": 4578,
+      "sha256": "5200a365ec0c3a382b9bef8bf0a47e8b216b5020c3f38e3da707d7e170ff49e0"
+    },
+    {
+      "id": "scores",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-claude-stt-probe-25-october-2026/bench/SCORES.txt",
+      "path": "assets/scores-25-October-2026.txt",
+      "bytes": 609,
+      "sha256": "3d53c7797c988da653154173bd644c2a1e1fea7a9058dc221a383a07cfed7b9f"
+    },
+    {
+      "id": "app-icon-claude",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/AppIcon-claude-1024.png",
+      "path": "assets/app-icon-claude-25-October-2026.png",
+      "bytes": 652763,
+      "sha256": "80f9cb908697a1ea4e9628914123c75176e7f24d2a2a9a71331d8fecd0e92f07"
+    },
+    {
+      "id": "capsule",
+      "originalPath": "ZenRayDictate --overlay-preview, screencapture -l",
+      "path": "assets/capsule-25-October-2026.png",
+      "bytes": 40442,
+      "sha256": "747fb787bcd4ecd8120f9e71d737e62654c98b7b68dec17b4b21c2a71949cc46"
+    },
+    {
+      "id": "card",
+      "originalPath": "ZenRayDictate --overlay-preview, screencapture -l",
+      "path": "assets/card-25-October-2026.png",
+      "bytes": 94193,
+      "sha256": "0494b116406cc4c62c1f8b97829295dbb3bce9f263c1c660133003b25632dcab"
+    }
+  ]
+}
