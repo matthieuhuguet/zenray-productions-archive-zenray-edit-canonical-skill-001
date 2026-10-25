@@ -3,3 +3,4 @@
 - `ThemeEngine.js` is the single definition of the three QLMarkdown themes (A Ivoire, B Papier éditorial, C Graphite). Matthieu chose B at baseSize 18 on 25 October 2026 ; it is the active QLMarkdown theme. (25 October 2026)
 - `scripts/render-project-article.mjs` reads `DESIGNS.B.params` from this file for its `papier` theme, so the article and the Quick Look preview share the same colours, measure and body size. (25 October 2026)
 - Workshop with the slider page and `Scripts/BuildThemes.mjs --install / --activate X` : `/Users/zenray/.claude/tmp/tmp-qlmarkdown-designs-25-october-2026/`. Keep both copies of ThemeEngine.js identical (this one is canonical). (25 October 2026)
+- Piège payé (25 October 2026) : après `--activate`, Quick Look garde l'ancien thème tant que le processus « Markdown QL Extension » tourne (il lit les réglages au démarrage). `BuildThemes.mjs --activate` doit être suivi de `pkill -f 'Markdown QL Extension'; qlmanage -r`. (25 October 2026)
