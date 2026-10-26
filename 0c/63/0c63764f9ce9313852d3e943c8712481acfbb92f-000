@@ -18,3 +18,8 @@ Gabarit tiré du montage final de ZenRay Meshes (`/Users/zenray/.claude/tmp/tmp-
 - `index` : `Index.md`, l'index mapping de tous les fichiers avec sha256. (26 October 2026)
 
 Prérequis : ffmpeg avec libx264 (pas besoin de libass), Python 3, le moteur ZenRay Motion Design (`/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign/motion`) pour la carte de fin. (26 October 2026)
+
+## Versions d'un même montage et options de la musique (26 October 2026)
+
+- Une version = un autre fichier de paramètres (`Params/montage-yana-example.json`) avec son propre `output.dir`, `output.name` et `output.index` ; `python3 Scripts/Montage.py build --params <fichier>` n'écrit que dans ce dossier. (26 October 2026)
+- Bloc `audio.music` : `startAt` (secondes dans la piste, nombre ou `m:ss`, ex. `2:28`), `placeAfter` (id d'un clip : la musique démarre quand il se termine, avec son fondu d'entrée) ou `placeAt` (secondes sur la ligne de temps, 0 par défaut), `loop` et `loopCrossfade` (si la piste n'a pas assez de secondes après `startAt`, le même passage est répété, chaque raccord en fondu enchaîné `acrossfade` pour ne pas claquer), `lra` (au moins le LRA mesuré, sinon `loudnorm` sort du mode linéaire), `trimHead` (`auto` coupe le silence de tête quand `startAt` est absent). (26 October 2026)
