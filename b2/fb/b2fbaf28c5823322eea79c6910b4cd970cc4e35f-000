@@ -1,0 +1,62 @@
+{
+  "date": "25 October 2026",
+  "projectId": "zenray-dictate",
+  "files": [
+    {
+      "id": "app-icon",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/AppIcon.svg",
+      "path": "assets/app-icon-25-October-2026.svg",
+      "bytes": 4578,
+      "sha256": "5200a365ec0c3a382b9bef8bf0a47e8b216b5020c3f38e3da707d7e170ff49e0"
+    },
+    {
+      "id": "scores",
+      "originalPath": "/Users/zenray/.claude/tmp/tmp-claude-stt-probe-25-october-2026/bench/SCORES.txt",
+      "path": "assets/scores-25-October-2026.txt",
+      "bytes": 609,
+      "sha256": "3d53c7797c988da653154173bd644c2a1e1fea7a9058dc221a383a07cfed7b9f"
+    },
+    {
+      "id": "app-icon-claude",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/AppIcon-claude-1024.png",
+      "path": "assets/app-icon-claude-25-October-2026.png",
+      "bytes": 658550,
+      "sha256": "72ae139d10451b07e496a5484c7cb7db504b88f84179946344764abd4156b0cd"
+    },
+    {
+      "id": "capsule",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/widgets/capsule-claude-orange.png",
+      "path": "assets/capsule-25-October-2026.png",
+      "bytes": 41080,
+      "sha256": "9a0cf13437f8b0fde64f539cee6f70430c71e1e82113164e4a4c8112f34baef9"
+    },
+    {
+      "id": "card",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/widgets/card-claude-orange.png",
+      "path": "assets/card-25-October-2026.png",
+      "bytes": 53525,
+      "sha256": "9c3ad2259b8de9d8e1bdc9fccd10bbddb8069ae18dcc4af8d34f121520abea41"
+    },
+    {
+      "id": "capsule-red",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/widgets/capsule-whisper-red.png",
+      "path": "assets/capsule-red-25-October-2026.png",
+      "bytes": 42967,
+      "sha256": "2e7914545e2a5593623a34d5ef699b7028e111f960b74ce5664640615dd3c768"
+    },
+    {
+      "id": "card-red",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/widgets/card-whisper-red.png",
+      "path": "assets/card-red-25-October-2026.png",
+      "bytes": 55181,
+      "sha256": "70b725c2d77e4d7a4373d7839daaf68e3ffd3cc7946eba96d1f8ab639e972092"
+    },
+    {
+      "id": "sheet",
+      "originalPath": "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayDictate/docs/ZenRayDictate-sheet.png",
+      "path": "assets/sheet-25-October-2026.png",
+      "bytes": 2879692,
+      "sha256": "7038c72ade5645075d3348560f1307d35c0fe0920acf2118592a4f1b1ffbb444"
+    }
+  ]
+}
