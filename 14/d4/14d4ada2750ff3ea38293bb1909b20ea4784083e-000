@@ -56,6 +56,10 @@ const numbers = text => String(text).replace(/(\d+(?:[.,:]\d+)*)/g, '<span class
 // 26 October 2026 : fontSet gtultra sets EVERY number in GT Ultra (rule of 26 October 2026, 15:10), so digits are wrapped in .num across the whole body,
 // except in code, preformatted text, scripts, styles, svg and form fields. / gtultra : tous les nombres en GT Ultra, sauf code, script, style, svg.
 const SKIP_NUMBERS = new Set(['script', 'style', 'code', 'pre', 'svg', 'title', 'kbd', 'samp', 'textarea'])
+// 26 October 2026, 14:30 Paris: Keep whole dates, times and units in GT Ultra, including the month.
+const VALUE_MONTHS = 'January|February|March|April|May|June|July|August|September|October|November|December|janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre'
+const VALUE_PATTERN = new RegExp(`(\\d{1,2}\\s+(?:${VALUE_MONTHS})(?:\\s+\\d{4})?|(?:${VALUE_MONTHS})\\s+\\d{4}|\\d{1,2}:\\d{2}(?:\\s*[AP]M)?|\\d+(?:[.,]\\d+)?\\s*(?:€|%|MiB|Ko|px|kg|cm|minutes?|hours?)|\\d+(?:[.,:]\\d+)*)`, 'giu')
+export const wholeNumericValues = text => String(text).replace(VALUE_PATTERN, '<span class="num">$1</span>')
 const numbersInBody = html => {
   const at = html.search(/<body[\s>]/)
   if (at < 0) throw new Error('fontSet gtultra: template has no <body>')
@@ -63,7 +67,7 @@ const numbersInBody = html => {
   const body = html.slice(at).split(/(<[^>]+>|&#?\w+;)/).map(part => {
     const tag = /^<(\/?)([a-zA-Z][a-zA-Z0-9]*)/.exec(part)
     if (tag) { if (SKIP_NUMBERS.has(tag[2].toLowerCase()) && !part.endsWith('/>')) depth = Math.max(0, depth + (tag[1] ? -1 : 1)); return part }
-    return part.startsWith('&') || depth > 0 ? part : numbers(part)
+    return part.startsWith('&') || depth > 0 ? part : wholeNumericValues(part)
   }).join('')
   return html.slice(0, at) + body
 }
