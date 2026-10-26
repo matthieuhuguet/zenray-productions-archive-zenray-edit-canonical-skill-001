@@ -5,6 +5,15 @@ description: Créer et éditer textes, photos, compositions HTML, carrousels, PD
 
 # ZenRay Edit (7 October 2026)
 
+## PRIORITÉ 0 : typographie, Literata et GT Standard L (26 October 2026, ordre de Matthieu)
+
+- Mots de Matthieu (26 October 2026) : « update claude code et zenray edit avec simplement les nouvelles font : Literata et GT Standard L, en priorité par rapport à corps, titres, nombres. » Règle complète : `/Users/zenray/.claude/rules/Typography1.md`, section du 26 October 2026. Elle remplace les polices citées plus bas (InterVariable, AnthropicSerif, GT Sectra, Medium 500) pour tout NOUVEAU travail. (26 October 2026)
+- CORPS Literata 400 ; TITRES GT Standard L Bold 700, capitales, `.06em` ; INTERFACE et TOUS LES NOMBRES GT Standard L Regular 400 ; code AnthropicMono. Fichiers woff2 déjà dans `designs/_shared/fonts/` : `GT-Standard-L-Regular.woff2`, `GT-Standard-L-Bold.woff2`, `Literata-latin.woff2`. (26 October 2026)
+- Articles : `render-project-article.mjs` accepte `"fontSet": "gtstandard"` dans la définition (et `fontSet` dans `ARTICLE.json` d'un skill, transmis par `refresh-skill-article.mjs`). Toute définition NOUVELLE le met ; sans cette clé le rendu reste « sectra », l'ancien, octet pour octet (prouvé le 26 October 2026 sur la définition de ZenRay Dictate : sortie identique avant et après, donc aucun article existant ne change à la reconstruction). Un nom inconnu lève une erreur. Le bloc de surcharge tient dans `ARTICLE_SETTINGS.gtStandardCss` et agit sur les variables du gabarit (`--sans`, `--serif`, `--title`). (26 October 2026)
+- Maquettes et pages HTML : mêmes trois rôles, un jeton par rôle, jamais un nom de police en dur ; au moins une proposition de design peut garder un autre accent seulement si Matthieu le demande. Exemple de référence : `designs/2026-10-26-freelance-gt-standard/index.html`. (26 October 2026)
+- Preuve (26 October 2026) : article de test rendu avec `fontSet: gtstandard` : titres 700 en capitales, corps Literata, interface GT Standard L, `document.fonts.check` vrai pour les trois faces, aucun débordement à 1280 et 375 px. Les articles existants (Registry.json) ne sont pas reconstruits en masse. (26 October 2026)
+- Contrôle connu, non lié : `python3 scripts/CheckContract.py` échoue déjà (« Bundle inventory changed », inventaire du bundle ancien) ; il n'a pas été réenregistré ici. (26 October 2026)
+
 ## PRIORITÉ 0 : chaque HTML fait avec zenray-edit est rangé dans le skill ET poussé dans Assets (23 October 2026)
 
 - Question de Matthieu (23 October 2026) : « chaque ZenRay Edit est directement lié au skill ZenRay Edit, chaque HTML est relié à ZenRay Edit et ensuite tout est push dans Assets du projet zenray-edit ? » Réponse : oui, et c'est obligatoire. (23 October 2026)
