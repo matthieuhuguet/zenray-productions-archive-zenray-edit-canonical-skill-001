@@ -1,0 +1,20 @@
+# Montage 1:1 de bout en bout : clips, musique normalisée, carte de fin ZenRay Motion Design (26 October 2026)
+
+Gabarit tiré du montage final de ZenRay Meshes (`/Users/zenray/.claude/tmp/tmp-zenray-meshes/Montage/`, projet Assets `zenray-meshes`). Une définition (les deux scripts), une interface de paramètres (`Params/montage.json`), des instances (un atelier par montage). (26 October 2026)
+
+## Instancier (trois gestes)
+
+1. Copier ce dossier dans l'atelier du projet : `cp -R templates/montage-1x1 <atelier>/Montage`, puis créer `Sources/` et y copier chaque clip et la musique (l'atelier reste autonome et Assets les archive). (26 October 2026)
+2. Éditer `Params/montage.json` : la séquence (un objet par clip : `id`, `role`, `src`, `origin`, `inMatrix`, `audio`), la carte de fin (`endTitle` : `text`, `hold`, `base`), la musique (`targetLufs`, fondus) et le master (`targetLufs`, `limiterCeilingDb`). Rien d'autre à toucher. (26 October 2026)
+3. `python3 Scripts/EndTitle.py` (carte de fin, PNG sans perte) puis `python3 Scripts/Montage.py build` (plan, audio, vidéo, MOV, vérification, test rouge et vert, Index.md). (26 October 2026)
+
+## Ce que fait chaque étape
+
+- `plan` : sonde chaque clip, calcule les images de sortie (`round(durée x fps)`), écrit `Out/plan.json`. (26 October 2026)
+- `audio` : musique (silence de tête coupé, `loudnorm` en deux passes linéaire vers sa propre cible, fondus) + le son des clips marqués `audio` (placé au début de son clip) puis master par UN gain constant et un limiteur rapide sur les crêtes, gain corrigé jusqu'à la cible mesurée. (26 October 2026)
+- `video` : une seule passe ffmpeg, chaque clip mis à l'échelle dans le carré (jamais recadré), matrice de couleur ramenée à bt709 (`inMatrix` : `bt709`, `bt601` pour les MP4 faits depuis du RGB sans balise, `rgb` pour une suite de PNG), débit ramené à `output.fps` (`tpad` et `trim` donnent le compte exact d'images), concat, x264 et AAC. (26 October 2026)
+- `mov` : les mêmes flux copiés dans un conteneur QuickTime (`-c copy -tag:v avc1`), aucun second encodage. (26 October 2026)
+- `verify` : 35 contrôles indépendants (taille 1:1, débit constant, nombre d'images, balises, audio, loudness, fondus, première, médiane et dernière image de chaque clip comparées à sa source par PSNR) ; `verify --selftest` prouve que le vérificateur passe au rouge sur un mauvais fichier. (26 October 2026)
+- `index` : `Index.md`, l'index mapping de tous les fichiers avec sha256. (26 October 2026)
+
+Prérequis : ffmpeg avec libx264 (pas besoin de libass), Python 3, le moteur ZenRay Motion Design (`/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign/motion`) pour la carte de fin. (26 October 2026)
