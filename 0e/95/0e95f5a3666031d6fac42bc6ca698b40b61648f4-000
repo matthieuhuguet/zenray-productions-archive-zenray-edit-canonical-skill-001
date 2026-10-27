@@ -213,3 +213,7 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 - Sortie et archivage : écrit par défaut dans `/Users/zenray/Downloads/<slug-ou-nom>.pdf` si `--out` n'est pas spécifié ; archive automatiquement le document, sa source, son PDF et sa miniature dans `designs/<date>-<slug>/` et dans ZenRay Assets via `file-design.mjs` dès que `--slug` est fourni. (27 October 2026)
 - Tests unitaires validés : `node /Users/zenray/.claude/skills/zenray-edit/scripts/render-pdf-document.test.mjs` (10/10 tests réussis). (27 October 2026)
 
+
+## 27 October 2026 : correctif du moteur PDF, options non données
+
+- `render-pdf-document.mjs` : une option que l'appelant ne donne pas (`undefined`, comme le CLI les construit) n'efface plus la salutation, le destinataire ni le rôle trouvés dans le texte de la lettre (`...args` filtré). Test ajouté dans `render-pdf-document.test.mjs` (11 réussis). Utilisé aussi par ZenRay Freelance pour le PDF de chaque candidature préparée, sorti dans le dossier du lot et jamais dans `~/Downloads`. (27 October 2026)
