@@ -1,0 +1,45 @@
+# Gabarit HTML Design (27 October 2026)
+
+Gabarit autonome pour concevoir, comparer et valider des propositions d'interfaces (A, B, C...) avec le système typographique de référence ZenRay et une bascule directe entre les thèmes Liquid Glass et Papier.
+
+## Objectif (27 October 2026)
+
+Permettre une itération visuelle immédiate en local, conforme à la doctrine HDA : tout réglage visuel se fait au curseur et se copie pour le prompt en un clic, sans aller-retour fastidieux.
+
+## Structure des fichiers (27 October 2026)
+
+- [/Users/zenray/.claude/skills/zenray-edit/templates/html-design/template.html](/Users/zenray/.claude/skills/zenray-edit/templates/html-design/template.html) : gabarit HTML autonome intégrant navigation par variantes, mode comparaison, curseurs HDA et bascule de thème.
+- [/Users/zenray/.claude/skills/zenray-edit/templates/html-design/tokens.json](/Users/zenray/.claude/skills/zenray-edit/templates/html-design/tokens.json) : définitions des jetons graphiques par défaut (couleurs, polices, élévations, espacements).
+- [/Users/zenray/.claude/skills/zenray-edit/templates/html-design/README.md](/Users/zenray/.claude/skills/zenray-edit/templates/html-design/README.md) : documentation du gabarit.
+
+## Système typographique (27 October 2026)
+
+Conformément à la règle système du 26 October 2026, quatre rôles sont définis par défaut :
+
+1. Titres et tous les nombres : GT Ultra Regular 400.
+2. Corps de texte : Literata 400.
+3. Interface utilisateur (boutons, badges, navigation) : GT Standard L Regular 400.
+4. Code et jetons : AnthropicMono.
+
+## Thèmes disponibles (27 October 2026)
+
+1. Liquid Glass : cartes translucides avec flou d'arrière-plan (`backdrop-filter: blur`), rehaussement supérieur blanc et ombres profondes sur fond sombre ou texturé.
+2. Papier : rendu tactile, chaud et épuré, fond clair naturel (`#f9f8f5`), bordures subtiles et contraste de lecture optimal.
+
+## Fonctionnalités intégrées (27 October 2026)
+
+- Navigation entre 2 et 4 variantes (A, B, C...) et mode côte à côte « Comparer tout ».
+- Bascule instantanée entre Liquid Glass et Papier via l'attribut `data-theme`.
+- Panneau de curseurs HDA rétractable pour ajuster les variables CSS en temps réel (rayon de courbure, flou, saturation, bordures, espacements, taille des titres).
+- Bouton « Copier les valeurs pour le prompt » : génère un bloc de texte propre prêt à coller dans la session Claude, Codex ou Antigravity.
+- Bouton « Plein écran » : bascule en mode immersion totale pour les présentations ou les captures.
+
+## Utilisation via CLI (27 October 2026)
+
+Pour générer un nouveau dossier de design avec ce gabarit :
+
+```bash
+node /Users/zenray/.claude/skills/zenray-edit/scripts/render-html-design.mjs --title "Mon Interface" --slug mon-interface --variants A,B,C --theme liquid-glass
+```
+
+Le script génère les fichiers, configure les propositions et enregistre le design via `file-design.mjs` dans le registre `designs/` et dans ZenRay Assets.

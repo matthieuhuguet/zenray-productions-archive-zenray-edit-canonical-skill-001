@@ -1,0 +1,136 @@
+// zr-edit.test.mjs (27 October 2026): Tests unitaires pour zr-edit.mjs et render-html-design.mjs.
+
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
+import { COMMANDS, ALIASES } from './zr-edit.mjs'
+import { renderHtmlDesign } from './render-html-design.mjs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const ZR_EDIT_SCRIPT = path.join(__dirname, 'zr-edit.mjs')
+
+console.log('=== Test Suite : ZenRay Edit Unified Dispatcher & HTML Design Scaffolder (27 October 2026) ===\n')
+
+// 1. Test de l'aide générale (--help et sans argument)
+{
+  console.log('1. Test de l\'aide principale de zr-edit.mjs...')
+  const resNoArgs = spawnSync(process.execPath, [ZR_EDIT_SCRIPT], { encoding: 'utf8' })
+  assert.equal(resNoArgs.status, 0, 'zr-edit sans argument doit retourner le code 0')
+  assert.match(resNoArgs.stdout, /ZENRAY EDIT : Dispatcher CLI Universel/, 'L\'en-tête doit être présent')
+  for (const cmd of Object.keys(COMMANDS)) {
+    assert.match(resNoArgs.stdout, new RegExp(`\\b${cmd}\\b`), `La commande ${cmd} doit figurer dans l'aide`)
+  }
+
+  const resHelp = spawnSync(process.execPath, [ZR_EDIT_SCRIPT, '--help'], { encoding: 'utf8' })
+  assert.equal(resHelp.status, 0, 'zr-edit --help doit retourner le code 0')
+  assert.match(resHelp.stdout, /Commandes disponibles/, 'La section des commandes doit être présente')
+  console.log('   OK : Aide principale valide.\n')
+}
+
+// 2. Test d'une commande inconnue
+{
+  console.log('2. Test de la gestion des commandes inconnues...')
+  const resInvalid = spawnSync(process.execPath, [ZR_EDIT_SCRIPT, 'inconnue-xyz'], { encoding: 'utf8' })
+  assert.equal(resInvalid.status, 1, 'Une commande inconnue doit retourner le code 1')
+  assert.match(resInvalid.stderr, /Erreur : Commande inconnue "inconnue-xyz"/, 'Le message d\'erreur doit être explicite')
+  console.log('   OK : Commande inconnue rejetée proprement.\n')
+}
+
+// 3. Test de la sous-commande "design" et de son alias "html"
+{
+  console.log('3. Test du dispatch vers render-html-design.mjs via "design" et "html"...')
+  const resDesignHelp = spawnSync(process.execPath, [ZR_EDIT_SCRIPT, 'design', '--help'], { encoding: 'utf8' })
+  assert.equal(resDesignHelp.status, 0, 'zr-edit design --help doit retourner le code 0')
+  assert.match(resDesignHelp.stdout, /--variants <A,B,C>/, 'L\'aide de render-html-design doit être affichée')
+
+  const resAliasHelp = spawnSync(process.execPath, [ZR_EDIT_SCRIPT, 'html', '--help'], { encoding: 'utf8' })
+  assert.equal(resAliasHelp.status, 0, 'zr-edit html --help (alias) doit retourner le code 0')
+  assert.match(resAliasHelp.stdout, /--variants <A,B,C>/, 'L\'aide via alias doit être affichée')
+  console.log('   OK : Dispatch et alias "design" / "html" opérationnels.\n')
+}
+
+// 4. Test d'exécution réelle de scaffolding via zr-edit design
+{
+  console.log('4. Test de scaffolding via "zr-edit design"...')
+  const tmpAtelier = path.join('/Users/zenray/.claude/tmp/tmp-zenray-edit', 'test-zr-edit-run')
+  if (fs.existsSync(tmpAtelier)) fs.rmSync(tmpAtelier, { recursive: true, force: true })
+
+  const resRun = spawnSync(process.execPath, [
+    ZR_EDIT_SCRIPT,
+    'design',
+    '--title', 'Test Dispatcher Run',
+    '--slug', 'test-dispatcher-run',
+    '--variants', 'A,B,C',
+    '--theme', 'paper',
+    '--out', tmpAtelier,
+    '--no-file'
+  ], { encoding: 'utf8' })
+
+  assert.equal(resRun.status, 0, `Scaffolding via CLI doit réussir. stderr: ${resRun.stderr}`)
+  assert.ok(fs.existsSync(path.join(tmpAtelier, 'index.html')), 'index.html doit avoir été généré')
+  assert.ok(fs.existsSync(path.join(tmpAtelier, 'tokens.json')), 'tokens.json doit avoir été copié')
+
+  const content = fs.readFileSync(path.join(tmpAtelier, 'index.html'), 'utf8')
+  assert.match(content, /Test Dispatcher Run/, 'Le titre doit être injecté')
+  assert.match(content, /data-variant="A"/, 'La variante A doit être présente')
+  assert.match(content, /data-variant="B"/, 'La variante B doit être présente')
+  assert.match(content, /data-variant="C"/, 'La variante C doit être présente')
+  assert.match(content, /GT Ultra/, 'La police GT Ultra doit être référencée')
+  assert.match(content, /Literata/, 'La police Literata doit être référencée')
+  assert.match(content, /GT Standard L/, 'La police GT Standard L doit être référencée')
+
+  fs.rmSync(tmpAtelier, { recursive: true, force: true })
+  console.log('   OK : Scaffolding via CLI généré et validé.\n')
+}
+
+// 5. Test programmatique ESM de renderHtmlDesign
+{
+  console.log('5. Test programmatique ESM de renderHtmlDesign()...')
+  const tmpEsmDir = path.join('/Users/zenray/.claude/tmp/tmp-zenray-edit', 'test-esm-scaffold')
+  if (fs.existsSync(tmpEsmDir)) fs.rmSync(tmpEsmDir, { recursive: true, force: true })
+
+  const result = renderHtmlDesign({
+    title: 'Interface Paramétrique ZenRay',
+    slug: 'interface-parametrique-zenray',
+    variants: ['A', 'B', 'C', 'D'],
+    theme: 'liquid-glass',
+    outDir: tmpEsmDir,
+    fileIt: false
+  })
+
+  assert.equal(result.success, true, 'L\'appel programmatique doit renvoyer success: true')
+  assert.equal(result.variants.length, 4, 'Quatre variantes doivent être enregistrées')
+  assert.equal(result.theme, 'liquid-glass', 'Le thème liquid-glass doit être configuré')
+  assert.ok(fs.existsSync(result.indexPath), 'Le fichier index.html doit exister')
+
+  const html = fs.readFileSync(result.indexPath, 'utf8')
+  assert.match(html, /data-theme="liquid-glass"/, 'Le thème doit être liquid-glass')
+  assert.match(html, /data-variant="D"/, 'La quatrième variante doit exister')
+  assert.match(html, /Copier les valeurs pour le prompt/, 'Le bouton de copie de prompt doit être présent')
+  assert.match(html, /Plein écran/, 'Le bouton plein écran doit être présent')
+
+  fs.rmSync(tmpEsmDir, { recursive: true, force: true })
+  console.log('   OK : Module ESM validé avec succès.\n')
+}
+
+// 6. Test de robustesse sur les sous-commandes dont le script est en cours d'écriture
+{
+  console.log('6. Test de robustesse des sous-commandes déclarées...')
+  for (const [cmd, info] of Object.entries(COMMANDS)) {
+    const targetScript = path.join(__dirname, info.script)
+    const exists = fs.existsSync(targetScript)
+    if (exists) {
+      console.log(`   - [PRÊT] Commande "${cmd}" pointe vers ${info.script} (présent)`)
+    } else {
+      console.log(`   - [EN ATTENTE] Commande "${cmd}" pointe vers ${info.script} (en cours de finalisation par sous-agent dédié)`)
+      // Vérifier que zr-edit gère poliment l'absence sans planter brutalement
+      const resMissing = spawnSync(process.execPath, [ZR_EDIT_SCRIPT, cmd], { encoding: 'utf8' })
+      assert.equal(resMissing.status, 1, `Une commande sans script doit renvoyer le code 1`)
+      assert.match(resMissing.stderr, new RegExp(`introuvable dans scripts`), `Erreur propre requise pour ${cmd}`)
+    }
+  }
+  console.log('\n=== Tous les tests sont validés avec succès (100% verts) ===\n')
+}

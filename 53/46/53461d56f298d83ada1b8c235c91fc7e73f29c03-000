@@ -1,0 +1,549 @@
+#!/usr/bin/env node
+// 27 October 2026 : Ultra-fast PDF Document and Cover Letter generator for ZenRay Edit.
+// Builds clean A4 PDFs with ZenRay system typography (GT Ultra 400 + Literata 400/500).
+// Usage: node render-pdf-document.mjs [file] [--text "..."] [--company "..."] [--subject "..."] [--slug "..."] [--out "..."]
+
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileDesign } from './file-design.mjs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const SKILL_ROOT = path.resolve(__dirname, '..')
+const TEMPLATE_DIR = path.join(SKILL_ROOT, 'templates/pdf-document')
+const TEMPLATE_HTML_PATH = path.join(TEMPLATE_DIR, 'template.html')
+const PARAMS_JSON_PATH = path.join(TEMPLATE_DIR, 'params.json')
+
+export const FONT_DIR = '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayWebsite/.cv-build/fonts'
+export const CHROME_PATH = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+export const DOWNLOADS_DIR = path.join(os.homedir(), 'Downloads')
+
+const FONT_MAP = [
+  { file: 'ZRUltra400.otf', family: 'ZRUltra', weight: 400, format: 'opentype' },
+  { file: 'ZRUltra700.otf', family: 'ZRUltra', weight: 700, format: 'opentype' },
+  { file: 'ZRLiterata400.ttf', family: 'ZRLiterata', weight: 400, format: 'truetype' },
+  { file: 'ZRLiterata500.ttf', family: 'ZRLiterata', weight: 500, format: 'truetype' },
+]
+
+export const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+export function formatEnglishDate(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date)
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+export function slugify(text) {
+  return String(text || 'document')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'document'
+}
+
+export function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+export function formatInlineMarkdown(text) {
+  let s = escapeHtml(text)
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  s = s.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  return s
+}
+
+export function getEmbeddedFontFaces(fontDir = FONT_DIR) {
+  const faces = []
+  for (const { file, family, weight, format } of FONT_MAP) {
+    const fullPath = path.join(fontDir, file)
+    if (!fs.existsSync(fullPath)) {
+      continue
+    }
+    const b64 = fs.readFileSync(fullPath).toString('base64')
+    faces.push(`@font-face {
+  font-family: '${family}';
+  font-weight: ${weight};
+  font-style: normal;
+  src: url(data:font/${format === 'opentype' ? 'otf' : 'ttf'};base64,${b64}) format('${format}');
+}`)
+  }
+  return faces.join('\n')
+}
+
+export function parseDocumentInput({ filePath, args = {}, text = '' }) {
+  let content = text
+  let metadata = {}
+
+  if (filePath && fs.existsSync(filePath)) {
+    const raw = fs.readFileSync(filePath, 'utf8')
+    if (filePath.endsWith('.json')) {
+      try {
+        const parsed = JSON.parse(raw)
+        return { ...parsed, ...args }
+      } catch (err) {
+        throw new Error(`Failed to parse JSON file ${filePath}: ${err.message}`)
+      }
+    }
+    content = raw
+  }
+
+  // Parse YAML frontmatter if present
+  if (content.startsWith('---')) {
+    const end = content.indexOf('\n---', 3)
+    if (end !== -1) {
+      const yamlBlock = content.slice(3, end).trim()
+      content = content.slice(end + 4).trim()
+      for (const line of yamlBlock.split('\n')) {
+        const colon = line.indexOf(':')
+        if (colon !== -1) {
+          const key = line.slice(0, colon).trim()
+          let val = line.slice(colon + 1).trim()
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1)
+          }
+          metadata[key] = val
+        }
+      }
+    }
+  }
+
+  // Parse markdown or text content
+  const lines = content.split('\n')
+  const paragraphs = []
+  const bullets = []
+  let currentParagraph = []
+  let detectedSalutation = null
+  let detectedSignoff = null
+  let detectedSignature = null
+  let detectedSubject = null
+
+  const signoffPatterns = [
+    /je vous prie d'agr[ée]er/i,
+    /cordialement/i,
+    /bien [àa] vous/i,
+    /sincerely/i,
+    /best regards/i,
+    /respectueusement/i,
+    /salutations distingu[ée]es/i,
+  ]
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const rawLine = lines[i]
+    const trimmed = rawLine.trim()
+
+    if (!trimmed) {
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(' '))
+        currentParagraph = []
+      }
+      continue
+    }
+
+    // Subject header detection
+    if (/^#+\s+(.+)$/.test(trimmed) || /^(\*\*|__)?objet\s*:\s*(.+)$/i.test(trimmed)) {
+      const match = trimmed.match(/^#+\s+(.+)$/) || trimmed.match(/^(\*\*|__)?objet\s*:\s*(.+)$/i)
+      detectedSubject = match ? match[1].replace(/(\*\*|__)$/, '').trim() : trimmed
+      continue
+    }
+
+    // Bullet points
+    if (/^[-*]\s+(.+)$/.test(trimmed)) {
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(' '))
+        currentParagraph = []
+      }
+      bullets.push(trimmed.replace(/^[-*]\s+/, ''))
+      continue
+    }
+
+    // Salutation detection
+    if (/^(madame,\s*monsieur|dear\s+|ch[eè]re?\s+)/i.test(trimmed) && !detectedSalutation) {
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(' '))
+        currentParagraph = []
+      }
+      detectedSalutation = trimmed
+      continue
+    }
+
+    // Sign-off formula detection
+    const isSignoff = signoffPatterns.some((pattern) => pattern.test(trimmed))
+    if (isSignoff) {
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(' '))
+        currentParagraph = []
+      }
+      detectedSignoff = trimmed
+      // Next non empty line could be the signer name
+      for (let j = i + 1; j < lines.length; j += 1) {
+        const nextTrimmed = lines[j].trim()
+        if (nextTrimmed && !signoffPatterns.some((p) => p.test(nextTrimmed))) {
+          detectedSignature = nextTrimmed
+          i = j
+          break
+        }
+      }
+      continue
+    }
+
+    currentParagraph.push(trimmed)
+  }
+
+  if (currentParagraph.length > 0) {
+    paragraphs.push(currentParagraph.join(' '))
+  }
+
+  return {
+    ...metadata,
+    paragraphs: metadata.paragraphs || paragraphs,
+    bullets: metadata.bullets || bullets,
+    salutation: metadata.salutation || detectedSalutation,
+    signoff: metadata.signoff || detectedSignoff,
+    signature: metadata.signature || detectedSignature,
+    subject: metadata.subject || detectedSubject,
+    ...args,
+  }
+}
+
+export function buildDocumentHtml(docData, params, fontFaces) {
+  let template = fs.readFileSync(TEMPLATE_HTML_PATH, 'utf8')
+
+  const d = { ...params.defaults, ...docData }
+  const c = params.colors
+  const ty = params.type
+  const sp = params.space
+  const pg = params.page
+
+  // Recipient block formatting
+  let recipientHtml = ''
+  if (d.recipient) {
+    if (typeof d.recipient === 'object') {
+      const comp = d.recipient.company || d.company || ''
+      const attn = d.recipient.attn || ''
+      const addr = d.recipient.address || ''
+      recipientHtml = [
+        comp ? `<div class="recipient-company">${escapeHtml(comp)}</div>` : '',
+        attn ? `<div class="recipient-attn">${escapeHtml(attn)}</div>` : '',
+        addr ? `<div class="recipient-address">${escapeHtml(addr)}</div>` : '',
+      ].filter(Boolean).join('\n')
+    } else {
+      const parts = String(d.recipient).split('\n').map((l) => l.trim()).filter(Boolean)
+      recipientHtml = parts.map((part, idx) => {
+        if (idx === 0) return `<div class="recipient-company">${escapeHtml(part)}</div>`
+        if (idx === 1 && /^(à l'attention|attn)/i.test(part)) return `<div class="recipient-attn">${escapeHtml(part)}</div>`
+        return `<div class="recipient-address">${escapeHtml(part)}</div>`
+      }).join('\n')
+    }
+  } else if (d.company) {
+    recipientHtml = `<div class="recipient-company">${escapeHtml(d.company)}</div>`
+    if (d.address) recipientHtml += `\n<div class="recipient-address">${escapeHtml(d.address)}</div>`
+  }
+
+  // Metas chips
+  const metas = Array.isArray(d.metas) ? d.metas : [
+    d.email ? `<span class="meta-item"><a href="mailto:${escapeHtml(d.email)}">${escapeHtml(d.email)}</a></span>` : '',
+    d.site ? `<span class="meta-item"><a href="${escapeHtml(d.site)}">${escapeHtml(d.site.replace(/^https?:\/\//, ''))}</a></span>` : '',
+    d.linkedin ? `<span class="meta-item"><a href="${escapeHtml(d.linkedin)}">${escapeHtml(d.linkedin.replace(/^https?:\/\/(www\.)?/, ''))}</a></span>` : '',
+    d.artstation ? `<span class="meta-item"><a href="${escapeHtml(d.artstation)}">${escapeHtml(d.artstation.replace(/^https?:\/\/(www\.)?/, ''))}</a></span>` : '',
+    d.location ? `<span class="meta-item">${escapeHtml(d.location)}</span>` : '',
+  ].filter(Boolean)
+
+  const metasHtml = Array.isArray(d.metas)
+    ? d.metas.map((m) => `<span class="meta-item">${typeof m === 'object' ? `<a href="${escapeHtml(m.href)}">${escapeHtml(m.label)}</a>` : escapeHtml(m)}</span>`).join('\n')
+    : metas.join('\n')
+
+  // Paragraphs
+  const paragraphsList = Array.isArray(d.paragraphs) ? d.paragraphs : (d.paragraphs ? [d.paragraphs] : [])
+  const contentHtml = paragraphsList.map((p) => `<p>${formatInlineMarkdown(p)}</p>`).join('\n')
+
+  // Bullets
+  const bulletsList = Array.isArray(d.bullets) ? d.bullets : []
+  const bulletsBlock = bulletsList.length > 0
+    ? `<ul class="doc-bullets">\n${bulletsList.map((b) => `<li>${formatInlineMarkdown(b)}</li>`).join('\n')}\n</ul>`
+    : ''
+
+  const dateVal = d.date ? escapeHtml(d.date) : formatEnglishDate()
+  const pageTitle = d.subject ? `${escapeHtml(d.subject)} | ${escapeHtml(d.name || 'Matthieu Huguet')}` : (d.name || 'Matthieu Huguet')
+  const footerLeft = d.footerLeft || `${d.name || 'Matthieu Huguet'} · Cover Letter`
+  const footerRight = d.footerRight || 'matthieuhuguet.com'
+
+  // Apply CSS overrides if tight spacing requested
+  const isTight = Boolean(d.tight)
+  const paragraphGap = isTight ? '2.4mm' : sp.paragraphGap
+  const bodySize = isTight ? '8.5pt' : ty.body
+  const lineHeight = isTight ? ty.lineHeightTight : ty.lineHeight
+
+  template = template
+    .replace('{{PAGE_TITLE}}', pageTitle)
+    .replace('{{FONT_FACES}}', fontFaces)
+    .replace('{{NAME}}', escapeHtml(d.name || 'Matthieu Huguet'))
+    .replace(/\{\{ROLE\}\}/g, escapeHtml(d.role || 'Technical Artist'))
+    .replace('{{METAS}}', metasHtml)
+    .replace('{{RECIPIENT}}', recipientHtml)
+    .replace('{{DATE}}', dateVal)
+    .replace('{{LOCATION}}', escapeHtml(d.location || 'Aix-en-Provence, France'))
+    .replace('{{SUBJECT}}', escapeHtml(d.subject || 'Candidature'))
+    .replace('{{SALUTATION}}', escapeHtml(d.salutation || 'Madame, Monsieur,'))
+    .replace('{{CONTENT}}', contentHtml)
+    .replace('{{BULLETS_BLOCK}}', bulletsBlock)
+    .replace('{{SIGNOFF}}', escapeHtml(d.signoff || params.defaults.signoff))
+    .replace('{{SIGNATURE}}', escapeHtml(d.signature || d.name || 'Matthieu Huguet'))
+    .replace(/\{\{FOOTER_LEFT\}\}/g, escapeHtml(footerLeft))
+    .replace(/\{\{FOOTER_RIGHT\}\}/g, escapeHtml(footerRight))
+
+  // Inject exact HDA params into :root
+  const styleInject = `
+    :root {
+      --bg: ${c.background};
+      --ink: ${c.ink};
+      --muted: ${c.muted};
+      --faint: ${c.faint};
+      --border: ${c.border};
+      --hairline: ${c.hairline};
+      --accent: ${c.accent};
+      --chip: ${c.chip};
+      --page-size: ${pg.size};
+      --margin-top: ${pg.marginTop};
+      --margin-side: ${pg.marginSide};
+      --margin-bottom: ${pg.marginBottom};
+      --font-name: ${ty.name};
+      --font-role: ${ty.role};
+      --font-meta: ${ty.meta};
+      --font-recipient-company: ${ty.recipientCompany};
+      --font-recipient-details: ${ty.recipientDetails};
+      --font-date: ${ty.date};
+      --font-subject: ${ty.subject};
+      --font-salutation: ${ty.salutation};
+      --font-body: ${bodySize};
+      --font-bullet: ${ty.bullet};
+      --font-signoff: ${ty.signoff};
+      --font-sig-name: ${ty.signatureName};
+      --font-sig-role: ${ty.signatureRole};
+      --font-footer: ${ty.footer};
+      --line-height: ${lineHeight};
+      --line-height-tight: ${ty.lineHeightTight};
+      --gap-header: ${sp.headerGap};
+      --gap-meta: ${sp.metaGap};
+      --gap-subject: ${sp.subjectGap};
+      --gap-salutation: ${sp.salutationGap};
+      --gap-paragraph: ${paragraphGap};
+      --gap-bullet: ${sp.bulletGap};
+      --gap-signature: ${sp.signatureGap};
+    }
+  `
+  template = template.replace('</head>', `<style id="hda-injected">${styleInject}</style></head>`)
+
+  return template
+}
+
+export function checkPdfPages(pdfPath) {
+  const pythonScript = `
+import sys, pypdf
+try:
+    reader = pypdf.PdfReader(sys.argv[1])
+    print(len(reader.pages))
+except Exception as e:
+    sys.stderr.write(str(e))
+    sys.exit(1)
+`
+  const res = spawnSync('python3', ['-c', pythonScript, pdfPath], { encoding: 'utf8' })
+  if (res.status !== 0) {
+    throw new Error(`pypdf error: ${res.stderr || 'failed to read pdf pages'}`)
+  }
+  return parseInt(res.stdout.trim(), 10)
+}
+
+export function generatePreviewPng(pdfPath, outPrefix) {
+  const res = spawnSync('pdftoppm', ['-png', '-r', '150', '-f', '1', '-l', '1', pdfPath, outPrefix], { encoding: 'utf8' })
+  if (res.status !== 0) {
+    throw new Error(`pdftoppm error: ${res.stderr || 'failed to generate preview png'}`)
+  }
+  const previewPath = `${outPrefix}-1.png`
+  if (!fs.existsSync(previewPath)) {
+    throw new Error(`Preview PNG was not created at ${previewPath}`)
+  }
+  return previewPath
+}
+
+export async function renderPdfDocument(options = {}) {
+  const startTime = Date.now()
+  const params = options.params || JSON.parse(fs.readFileSync(PARAMS_JSON_PATH, 'utf8'))
+  const fontFaces = getEmbeddedFontFaces(options.fontDir || FONT_DIR)
+
+  // Parse input
+  const docData = parseDocumentInput({
+    filePath: options.filePath,
+    args: options,
+    text: options.text || '',
+  })
+
+  // Build HTML
+  const htmlContent = buildDocumentHtml(docData, params, fontFaces)
+
+  // Determine slug and output filenames
+  const slug = options.slug || slugify(docData.subject || docData.company || 'cover-letter')
+  const defaultFileName = `${slug}.pdf`
+
+  // Destination path
+  let pdfOutPath = options.out
+  if (!pdfOutPath) {
+    fs.mkdirSync(DOWNLOADS_DIR, { recursive: true })
+    pdfOutPath = path.join(DOWNLOADS_DIR, defaultFileName)
+  }
+  fs.mkdirSync(path.dirname(pdfOutPath), { recursive: true })
+
+  // Work directory for standalone Chrome render
+  const workDir = path.join(os.tmpdir(), `zr-pdf-build-${slug}-${Date.now()}`)
+  fs.mkdirSync(workDir, { recursive: true })
+  const htmlWorkPath = path.join(workDir, 'index.html')
+  const pdfWorkPath = path.join(workDir, `${slug}.pdf`)
+
+  fs.writeFileSync(htmlWorkPath, htmlContent, 'utf8')
+
+  // Run headless Chrome
+  const chromeArgs = [
+    '--headless=new',
+    '--disable-gpu',
+    '--no-sandbox',
+    '--no-pdf-header-footer',
+    '--run-all-compositor-stages-before-draw',
+    '--virtual-time-budget=4000',
+    `--print-to-pdf=${pdfWorkPath}`,
+    pathToFileURL(htmlWorkPath).href,
+  ]
+
+  const chromeRes = spawnSync(options.chromeBin || CHROME_PATH, chromeArgs, { encoding: 'utf8' })
+  if (chromeRes.status !== 0 || !fs.existsSync(pdfWorkPath)) {
+    throw new Error(`Chrome failed to render PDF: ${chromeRes.stderr || 'no PDF created'}`)
+  }
+
+  // Copy PDF to destination
+  fs.copyFileSync(pdfWorkPath, pdfOutPath)
+
+  // Generate preview PNG at 150 dpi
+  const previewPrefix = pdfOutPath.replace(/\.pdf$/, '-preview')
+  const previewPngPath = generatePreviewPng(pdfOutPath, previewPrefix)
+
+  // Copy preview to workDir for archiving
+  const workPreviewPath = path.join(workDir, `${slug}-preview-1.png`)
+  fs.copyFileSync(previewPngPath, workPreviewPath)
+
+  // Write document source data in workDir
+  fs.writeFileSync(path.join(workDir, 'document.json'), JSON.stringify(docData, null, 2), 'utf8')
+
+  // Check page count with pypdf
+  const pageCount = checkPdfPages(pdfOutPath)
+  const singlePage = options.singlePage !== false
+  const isOverflow = singlePage && pageCount > 1
+
+  if (isOverflow) {
+    console.warn(`\n[OVERFLOW WARNING] Document generated ${pageCount} pages, but --single-page was requested!`)
+    console.warn('Tip: use --tight or reduce body/paragraphGap in params.json to fit on 1 page.\n')
+  }
+
+  // Automatic archiving if --slug was passed
+  let archiveResult = null
+  if (options.slug) {
+    try {
+      const designTitle = docData.subject || `Cover Letter ${docData.company || docData.name}`
+      archiveResult = fileDesign({
+        atelier: workDir,
+        slug: options.slug,
+        title: designTitle,
+        module: 'cover-letter',
+        note: `Rendered PDF Document, ${pageCount} page(s)`,
+      })
+    } catch (archiveErr) {
+      console.warn(`Archiving notice: ${archiveErr.message}`)
+    }
+  }
+
+  const durationMs = Date.now() - startTime
+
+  // Optional open
+  if (options.open) {
+    spawnSync('open', [pdfOutPath])
+  }
+
+  return {
+    success: true,
+    pdfPath: pdfOutPath,
+    previewPngPath,
+    pageCount,
+    isOverflow,
+    slug,
+    durationMs,
+    archived: archiveResult ? archiveResult.folder : null,
+  }
+}
+
+// CLI Execution
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const rawArgs = process.argv.slice(2)
+  const parsedArgs = { _: [] }
+
+  for (let i = 0; i < rawArgs.length; i += 1) {
+    const arg = rawArgs[i]
+    if (arg.startsWith('--')) {
+      const key = arg.slice(2)
+      const next = rawArgs[i + 1]
+      if (next === undefined || next.startsWith('--')) {
+        parsedArgs[key] = true
+      } else {
+        parsedArgs[key] = next
+        i += 1
+      }
+    } else {
+      parsedArgs._.push(arg)
+    }
+  }
+
+  const filePath = parsedArgs._[0] || parsedArgs.file
+  const options = {
+    filePath,
+    text: parsedArgs.text,
+    company: parsedArgs.company,
+    recipient: parsedArgs.recipient,
+    address: parsedArgs.address,
+    subject: parsedArgs.subject,
+    role: parsedArgs.role,
+    name: parsedArgs.name,
+    date: parsedArgs.date,
+    location: parsedArgs.location,
+    salutation: parsedArgs.salutation,
+    signoff: parsedArgs.signoff,
+    slug: parsedArgs.slug,
+    out: parsedArgs.out,
+    downloads: Boolean(parsedArgs.downloads),
+    singlePage: parsedArgs['single-page'] !== false && parsedArgs.noSinglePage !== true,
+    tight: Boolean(parsedArgs.tight),
+    open: Boolean(parsedArgs.open),
+  }
+
+  try {
+    const result = await renderPdfDocument(options)
+    console.log(`\n✓ PDF rendered successfully in ${result.durationMs} ms!`)
+    console.log(`  PDF:     [${result.pdfPath}](${pathToFileURL(result.pdfPath).href})`)
+    console.log(`  Preview: [${result.previewPngPath}](${pathToFileURL(result.previewPngPath).href})`)
+    console.log(`  Pages:   ${result.pageCount} ${result.isOverflow ? '(OVERFLOW ALERT)' : '(OK single-page)'}`)
+    if (result.archived) {
+      console.log(`  Archive: designs/${result.archived}/`)
+    }
+    process.exit(result.isOverflow && parsedArgs.strict ? 1 : 0)
+  } catch (err) {
+    console.error(`\n✗ Error rendering PDF: ${err.message}`)
+    process.exit(1)
+  }
+}

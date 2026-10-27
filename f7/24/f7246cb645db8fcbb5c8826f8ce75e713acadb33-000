@@ -1,0 +1,51 @@
+# Gabarit PDF Document & Cover Letter ZenRay
+
+Ce gabarit produit des documents A4 et des lettres de motivation ultra-propres, conformes a la charte typographique et visuelle de ZenRay (GT Ultra 400 pour les titres, les chiffres, les dates et metadonnees ; Literata 400 pour le corps de texte ; Literata 500 pour les sous-titres, roles et labels).
+
+Date de creation : 27 October 2026.
+
+## Structure du gabarit
+
+- [template.html](file:///Users/zenray/.claude/skills/zenray-edit/templates/pdf-document/template.html) : gabarit A4 avec pagination paged-media (@page, @bottom-left, @bottom-right) et slots d'injection.
+- [params.json](file:///Users/zenray/.claude/skills/zenray-edit/templates/pdf-document/params.json) : interface de parametres HDA. Toutes les valeurs visuelles (marges, couleurs, polices, interlignes, espacements) y sont centralisees.
+- [render-pdf-document.mjs](file:///Users/zenray/.claude/skills/zenray-edit/scripts/render-pdf-document.mjs) : script CLI de generation ultra-rapide (~1 seconde).
+
+## Parametres HDA (`params.json`)
+
+Toutes les dimensions et couleurs sont editables sans toucher au template :
+
+- `page` : format papier (defaut `A4`), marges `marginTop`, `marginSide`, `marginBottom`.
+- `colors` :
+  - `background` : `#FDFDFC`
+  - `ink` : `#1F1F1E`
+  - `accent` : `#0A84FF`
+  - `muted` : `#6b6b67`
+  - `faint` : `#9a9a96`
+  - `hairline` : `rgba(31, 31, 30, 0.10)`
+- `fonts` : familles GT Ultra (`ZRUltra`) et Literata (`ZRLiterata`) injectees en base64 pour un rendu sans dependance externe.
+- `type` : tailles de police et interlignes pour chaque niveau hierarchique.
+- `space` : ecarts verticaux paramatrees (entete, destinataire, objet, salutation, paragraphes, puces, signature).
+- `defaults` : valeurs par defaut pour l'expediteur (Matthieu Huguet, Technical Artist), contacts et formules de politesse.
+
+## Usage en ligne de commande
+
+Generation depuis un fichier Markdown ou texte :
+```bash
+node /Users/zenray/.claude/skills/zenray-edit/scripts/render-pdf-document.mjs /chemin/vers/lettre.md --company "Remedy Entertainment" --subject "Technical Artist" --slug cover-letter-remedy
+```
+
+Generation directe par arguments CLI :
+```bash
+node /Users/zenray/.claude/skills/zenray-edit/scripts/render-pdf-document.mjs \
+  --company "Quantic Dream" \
+  --subject "Candidature Technical Artist & Pipeline" \
+  --text "Fort d'une double expertise en developpement procedurale sous Houdini et en integration sous Unreal Engine..." \
+  --slug cover-letter-quantic \
+  --downloads
+```
+
+## Regles de validation
+
+1. **Mono-page par defaut** : le script verifie le nombre de pages avec python `pypdf`. Si le texte depasse 1 page, une alerte d'overflow est levee.
+2. **Apercu automatique** : une miniature PNG a 150 dpi est generee automatiquement via `pdftoppm`.
+3. **Archivage automatique** : si l'option `--slug <nom>` est fournie, le document est archive via `file-design.mjs` dans le registre `designs/INDEX.md` et dans ZenRay Assets.

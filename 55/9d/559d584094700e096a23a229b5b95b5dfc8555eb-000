@@ -1,0 +1,146 @@
+#!/usr/bin/env node
+// zr-edit.mjs (27 October 2026): Point d'entree universel et rapide pour ZenRay Edit.
+// Dispatche en 1 seconde vers le bon sous-outil (pdf, design, motion, sfx, article, file).
+
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+export const COMMANDS = {
+  pdf: {
+    script: 'render-pdf-document.mjs',
+    desc: 'Generation de documents A4 PDF (lettres, factures, dossiers) avec typographie vectorielle',
+    examples: [
+      'node scripts/zr-edit.mjs pdf --title "Lettre Eidos" --slug cover-letter-eidos --type letter',
+      'node scripts/zr-edit.mjs pdf --help'
+    ]
+  },
+  design: {
+    script: 'render-html-design.mjs',
+    desc: 'Scaffolding et comparaison de designs HTML (variantes A, B, C, Liquid Glass / Papier)',
+    examples: [
+      'node scripts/zr-edit.mjs design --title "Dashboard Studio" --slug studio-dashboard --variants A,B,C',
+      'node scripts/zr-edit.mjs design --title "Modal Checkout" --slug modal-checkout --theme paper'
+    ]
+  },
+  motion: {
+    script: 'zenray-edit-motion.mjs',
+    desc: 'Pont vers ZenRay Motion Design (coupe de premier plan, templates paramétriques, exports)',
+    examples: [
+      'node scripts/zr-edit.mjs motion --preset premier-plan --input clip.mp4',
+      'node scripts/zr-edit.mjs motion --help'
+    ]
+  },
+  sfx: {
+    script: 'zenray-edit-sfx.mjs',
+    desc: 'Pont vers ZenRay SFX (effets sonores procéduraux sans IA, normalisation et mixage)',
+    examples: [
+      'node scripts/zr-edit.mjs sfx --recipe click-soft --out ./assets/click.wav',
+      'node scripts/zr-edit.mjs sfx --help'
+    ]
+  },
+  article: {
+    script: 'render-project-article.mjs',
+    desc: 'Rendu d\'articles de projet avec typographie système (Literata, GT Ultra / GT Standard L)',
+    examples: [
+      'node scripts/zr-edit.mjs article path/to/article.config.json path/to/output.html',
+      'node scripts/zr-edit.mjs article --help'
+    ]
+  },
+  file: {
+    script: 'file-design.mjs',
+    desc: 'Classement automatique d\'un atelier HTML dans designs/ et ZenRay Assets',
+    examples: [
+      'node scripts/zr-edit.mjs file /chemin/atelier --slug mon-design --title "Mon Titre"',
+      'node scripts/zr-edit.mjs file --decide mon-design --choice A'
+    ]
+  }
+}
+
+// Alias courants pour un accès instantané
+export const ALIASES = {
+  html: 'design',
+  doc: 'pdf',
+  sound: 'sfx',
+  audio: 'sfx',
+  animation: 'motion'
+}
+
+export function printHelp() {
+  console.log(`
+================================================================================
+ZENRAY EDIT : Dispatcher CLI Universel (27 October 2026)
+================================================================================
+
+Point d'entrée unique pour concevoir, éditer, compiler et classer tous les médias
+(PDF, designs HTML, animations, effets sonores, articles et registres).
+
+Usage:
+  node scripts/zr-edit.mjs <commande> [options...]
+
+Commandes disponibles :
+`)
+
+  for (const [cmd, info] of Object.entries(COMMANDS)) {
+    console.log(`  ${cmd.padEnd(10)} : ${info.desc}`)
+    for (const ex of info.examples) {
+      console.log(`               Exemple : ${ex}`)
+    }
+    console.log('')
+  }
+
+  console.log(`Alias disponibles :`)
+  for (const [alias, target] of Object.entries(ALIASES)) {
+    console.log(`  ${alias.padEnd(10)} -> ${target}`)
+  }
+
+  console.log(`
+Documentation et chemins :
+  - Gabarits : /Users/zenray/.claude/skills/zenray-edit/templates/
+  - Scripts  : /Users/zenray/.claude/skills/zenray-edit/scripts/
+  - Registre : /Users/zenray/.claude/skills/zenray-edit/designs/INDEX.md
+`)
+}
+
+export function dispatch(argv = process.argv.slice(2)) {
+  const first = argv[0]
+
+  if (!first || first === '--help' || first === '-h' || first === 'help') {
+    printHelp()
+    return 0
+  }
+
+  const resolvedCmd = ALIASES[first] || first
+  const cmdInfo = COMMANDS[resolvedCmd]
+
+  if (!cmdInfo) {
+    console.error(`Erreur : Commande inconnue "${first}".`)
+    console.error(`Commandes valides : ${Object.keys(COMMANDS).join(', ')}`)
+    console.error(`Tapez "node scripts/zr-edit.mjs --help" pour afficher l'aide.`)
+    return 1
+  }
+
+  const scriptPath = path.join(__dirname, cmdInfo.script)
+  if (!fs.existsSync(scriptPath)) {
+    console.error(`Erreur : Le script cible "${cmdInfo.script}" est introuvable dans scripts/.`)
+    console.error(`Chemin attendu : ${scriptPath}`)
+    return 1
+  }
+
+  const subArgs = argv.slice(1)
+  const child = spawnSync(process.execPath, [scriptPath, ...subArgs], {
+    stdio: 'inherit',
+    cwd: process.cwd()
+  })
+
+  return child.status ?? (child.signal ? 1 : 0)
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const exitCode = dispatch()
+  process.exit(exitCode)
+}

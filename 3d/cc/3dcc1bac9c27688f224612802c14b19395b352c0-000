@@ -1,0 +1,254 @@
+#!/usr/bin/env node
+// render-html-design.mjs (27 October 2026): Scaffolds an autonomous HTML design folder
+// with interactive variants (A, B, C...), theme toggle (Liquid Glass / Paper),
+// parametric HDA sliders, and automatically files the result via file-design.mjs.
+
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { fileDesign } from './file-design.mjs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const SKILL_ROOT = path.resolve(__dirname, '..')
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
+
+function getFormattedDate(now = new Date()) {
+  const day = now.getDate()
+  const month = MONTHS[now.getMonth()]
+  const year = now.getFullYear()
+  const iso = `${year}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const formatted = `${day} ${month} ${year}`
+  return { iso, formatted }
+}
+
+function slugify(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function parseCliArgs(argv) {
+  const args = { _: [] }
+  for (let i = 0; i < argv.length; i += 1) {
+    const item = argv[i]
+    if (item.startsWith('--')) {
+      const key = item.slice(2)
+      const next = argv[i + 1]
+      if (next === undefined || next.startsWith('--')) {
+        args[key] = true
+      } else {
+        args[key] = next
+        i += 1
+      }
+    } else {
+      args._.push(item)
+    }
+  }
+  return args
+}
+
+export function renderHtmlDesign(options = {}) {
+  const now = options.now || new Date()
+  const { iso, formatted: dateLong } = getFormattedDate(now)
+
+  const title = options.title || 'ZenRay Design Explorations'
+  let slug = options.slug ? slugify(options.slug) : slugify(title)
+  if (!slug) slug = `design-${iso}`
+
+  const theme = (options.theme === 'paper') ? 'paper' : 'liquid-glass'
+  const variantsInput = options.variants || 'A,B'
+  const variantsList = Array.isArray(variantsInput)
+    ? variantsInput
+    : String(variantsInput).split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+
+  if (variantsList.length === 0) {
+    variantsList.push('A', 'B')
+  }
+
+  // Dossier atelier
+  const atelierDir = options.outDir
+    ? path.resolve(options.outDir)
+    : path.join('/Users/zenray/.claude/tmp/tmp-zenray-edit', `atelier-${iso}-${slug}`)
+
+  fs.mkdirSync(atelierDir, { recursive: true })
+
+  // Polices : copie des polices partagées pour l'atelier local
+  const fontDir = path.join(atelierDir, 'fonts')
+  fs.mkdirSync(fontDir, { recursive: true })
+
+  const sharedFonts = path.join(SKILL_ROOT, 'designs', '_shared', 'fonts')
+  if (fs.existsSync(sharedFonts)) {
+    const requiredFonts = [
+      'GT-Ultra-Regular.woff2',
+      'GT-Standard-L-Regular.woff2',
+      'GT-Standard-L-Bold.woff2',
+      'Literata-latin.woff2',
+      'Literata-Italic-latin.woff2',
+      'AnthropicMono-Regular.ttf'
+    ]
+    for (const fontFile of requiredFonts) {
+      const src = path.join(sharedFonts, fontFile)
+      const dst = path.join(fontDir, fontFile)
+      if (fs.existsSync(src) && !fs.existsSync(dst)) {
+        try {
+          fs.copyFileSync(src, dst)
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Lecture du template
+  const templatePath = path.join(SKILL_ROOT, 'templates', 'html-design', 'template.html')
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Template html-design introuvable : ${templatePath}`)
+  }
+  let html = fs.readFileSync(templatePath, 'utf8')
+
+  // Génération de la navigation des variantes
+  const navItems = variantsList.map((v, idx) => {
+    const isFirst = idx === 0
+    return `<button type="button" class="nav-btn${isFirst ? ' active' : ''}" data-variant="${v}">Proposition ${v}</button>`
+  }).join('\n      ')
+
+  // Génération du contenu des cartes de variantes
+  const contentItems = variantsList.map((v, idx) => {
+    const numPadded = String(idx + 1).padStart(2, '0')
+    const displayStyle = (idx === 0) ? 'display: flex;' : 'display: none;'
+    return `      <article class="variant-card" data-variant="${v}" style="${displayStyle}">
+        <header class="variant-header">
+          <span class="variant-tag"><span class="num">${numPadded}</span> Proposition ${v}</span>
+          <span class="badge-date">Option ${v}</span>
+        </header>
+        <h2 class="variant-title">${title} : Approche ${v}</h2>
+        <div class="variant-body">
+          <p>Exploration architecturale et graphique de la variante ${v}. Cette proposition met en avant les équilibres visuels, la clarté typographique (GT Ultra et Literata) et une adaptabilité fluide aux environnements clairs et sombres.</p>
+        </div>
+        <footer class="variant-meta">
+          <span>Module : HTML Design</span>
+          <span>Thème : ${theme}</span>
+          <span>Variante : ${v}</span>
+          <span>Date : ${dateLong}</span>
+        </footer>
+      </article>`
+  }).join('\n')
+
+  // Remplacement des placeholders
+  html = html
+    .replaceAll('{{TITLE}}', title)
+    .replaceAll('{{SLUG}}', slug)
+    .replaceAll('{{DATE}}', dateLong)
+    .replaceAll('{{DEFAULT_THEME}}', theme)
+    .replaceAll('{{VARIANTS_NAV}}', navItems)
+    .replaceAll('{{VARIANTS_CONTENT}}', contentItems)
+
+  const indexPath = path.join(atelierDir, 'index.html')
+  fs.writeFileSync(indexPath, html, 'utf8')
+
+  // Copie de tokens.json si présent
+  const tokensSrc = path.join(SKILL_ROOT, 'templates', 'html-design', 'tokens.json')
+  if (fs.existsSync(tokensSrc)) {
+    fs.copyFileSync(tokensSrc, path.join(atelierDir, 'tokens.json'))
+  }
+
+  // Archivage automatique via file-design.mjs si demandé
+  let fileResult = null
+  if (options.fileIt !== false && options.file !== false) {
+    try {
+      fileResult = fileDesign({
+        atelier: atelierDir,
+        slug,
+        title,
+        module: 'html-design',
+        project: options.project || 'zenray-edit',
+        note: options.note || `Généré automatiquement par render-html-design.mjs (${variantsList.join(',')})`,
+        now,
+      })
+    } catch (err) {
+      console.warn(`Avertissement archivage file-design: ${err.message}`)
+    }
+  }
+
+  return {
+    success: true,
+    title,
+    slug,
+    date: dateLong,
+    theme,
+    variants: variantsList,
+    atelierDir,
+    indexPath,
+    fileResult,
+  }
+}
+
+// Mode CLI direct
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const args = parseCliArgs(process.argv.slice(2))
+
+  if (args.help || args.h || args._.includes('help')) {
+    console.log(`
+Usage:
+  node render-html-design.mjs --title "<titre>" --slug <slug> [options]
+
+Options:
+  --title "<titre>"        Titre du design (obligatoire)
+  --slug <slug>            Identifiant unique en minuscules (ex: studio-dashboard)
+  --variants <A,B,C>       Liste des propositions à générer (défaut : A,B)
+  --theme <liquid-glass|paper>
+                           Thème par défaut (défaut : liquid-glass)
+  --out <dir>              Dossier de sortie personnalisé
+  --project <id>           Projet Assets cible (défaut : zenray-edit)
+  --no-file                Ne pas classer automatiquement via file-design.mjs
+  --note "<texte>"         Note d'enregistrement pour le registre
+
+Exemples :
+  node render-html-design.mjs --title "Dashboard Studio" --slug studio-dashboard
+  node render-html-design.mjs --title "Navigation Mobile" --slug nav-mobile --variants A,B,C,D --theme paper
+`)
+    process.exit(0)
+  }
+
+  if (!args.title && args._[0]) {
+    args.title = args._[0]
+  }
+
+  if (!args.title) {
+    console.error('Erreur : l\'option --title "<titre>" est obligatoire.')
+    process.exit(1)
+  }
+
+  try {
+    const result = renderHtmlDesign({
+      title: args.title,
+      slug: args.slug,
+      variants: args.variants,
+      theme: args.theme,
+      outDir: args.out,
+      project: args.project,
+      note: args.note,
+      fileIt: args.file !== false && !args['no-file'],
+    })
+
+    console.log(JSON.stringify({
+      status: 'ok',
+      title: result.title,
+      slug: result.slug,
+      variants: result.variants,
+      theme: result.theme,
+      indexPath: result.indexPath,
+      filedFolder: result.fileResult ? result.fileResult.folder : null,
+      target: result.fileResult ? result.fileResult.target : null,
+    }, null, 2))
+  } catch (error) {
+    console.error(`Erreur render-html-design: ${error.message}`)
+    process.exit(1)
+  }
+}
