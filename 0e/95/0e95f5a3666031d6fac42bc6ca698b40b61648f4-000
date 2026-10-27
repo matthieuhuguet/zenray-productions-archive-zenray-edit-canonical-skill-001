@@ -1,9 +1,13 @@
 ---
 name: zenray-edit
-description: Moteur de création et d'édition instantanée : générer en 1,2 seconde un PDF ou une cover letter de candidature (GT Ultra et Literata, 1 page stricte via scripts/render-pdf-document.mjs ou zr-edit.mjs pdf), composer des maquettes HTML avec tokens HDA, décliner des vidéos Motion Design et normaliser des sons SFX (-14 LUFS). Correction grammaticale fidèle par défaut, archivage Assets.
+description: Moteur de création et d'édition instantanée : générer en 1,2 seconde un PDF ou une cover letter de candidature (GT Ultra et Literata, 1 page stricte via scripts/render-pdf-document.mjs ou zr-edit.mjs pdf), composer des maquettes HTML avec tokens HDA, monter les Shorts et Reels, décliner des vidéos Motion Design et normaliser des sons SFX (-14 LUFS). Correction grammaticale fidèle par défaut, archivage Assets.
 ---
 
 # ZenRay Edit (7 October 2026)
+
+## 27 October 2026 : Shorts, Reels et vidéos verticales
+
+- 27 October 2026 : Pour les Shorts YouTube, Reels et vidéos verticales, lire `references/shorts/HoudiniShortsHistory.md` et `Shorts1.md` ; les moteurs sont `short-editor/` et `short-editor-v4/`, avec leurs paramètres et références d’origine. Les anciens chemins Houdini restent disponibles par liens de compatibilité. (27 October 2026)
 
 ## PRIORITÉ 0 ABSOLUE : GÉNÉRATION IMMÉDIATE DE PDF ET COVER LETTERS EN 1,2 SECONDE (27 October 2026)
 
@@ -98,7 +102,7 @@ Atelier de création et d’édition, de la demande à un média vérifié et mo
 | Post social et vignette | legacy/SocialText.md ; legacy/VignetteWorkflow.md ; legacy/PostEditorContract.md | 7 October 2026 |
 | Montage et motion design | ~/.claude/skills/zenray-motion-design/SKILL.md (analyse, storyboard, HyperFrames, contrat de vérification) | 10 October 2026 |
 | Animatique et inventaire d'assets | ~/.claude/skills/zenray-motion-design/SKILL.md, section Passe 2 (caméra mesurée, emplacements nommés, prompts, son, fiche) | 11 October 2026 |
-| Titre animé Vogun jaune ou blanc | templates/vogun-yellow-title/README.md (gabarit paramétrique, rendu `RenderTitle.cjs`, preuve) ; règles dans ~/.claude/skills/zenray-houdini/references/shorts/VogunTitles.md | 14 October 2026 |
+| Titre animé Vogun jaune ou blanc | templates/vogun-yellow-title/README.md (gabarit paramétrique, rendu `RenderTitle.cjs`, preuve) ; règles dans ~/.claude/skills/zenray-edit/references/shorts/VogunTitles.md | 14 October 2026 |
 | Photo de profil | references/StudioPhotos.md ; skill zenray-studio-photos | 23 October 2026 |
 | Montage final 1:1 (clips, musique normalisée, carte de fin Motion Design, MP4 et MOV) | templates/montage-1x1/README.md ; section du 26 October 2026 de ce SKILL.md | 26 October 2026 |
 
@@ -115,7 +119,7 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 - 8 October 2026 (demande de Matthieu) : un plateau tournant filmé à la main tourne à vitesse variable (départ à l'arrêt, ralentissement, nouvelle poussée). `python3 scripts/UniformTurn.py <src> <out.mp4> --seconds 5 --fps 24 --size 1080x1920 --k 3` rend un tour à vitesse angulaire constante pour la durée voulue. (8 October 2026)
 - 8 October 2026 : méthode mesurée, jamais devinée : corrélation de phase image par image sur une fenêtre centrale (`--win y0,y1,x0,x1` en fractions) donne le décalage horizontal de la surface ; sa somme cumulée est l'angle ; on coupe le début et la fin à l'arrêt (lissage sur 4 images, seuil `--thr`) ; minterpolate mci ×K ; chaque image de sortie prend l'image interpolée dont l'angle tombe sur la droite. Écart-type de vitesse mesuré 2,5 px par image avant, 0,88 après (pot de poterie, 8 October 2026). (8 October 2026)
 - 8 October 2026 : limites : une caméra qui bouge ajoute son décalage à la mesure ; le fond de la fenêtre doit être le pot ; sortie sans audio ; la qualité est celle de la source (une source 1024×576 est agrandie en lanczos). Vérifier en remesurant la sortie avec le même script. (8 October 2026)
-- 8 October 2026 : titre Vogun jaune : recette dans `zenray-houdini/references/shorts/VogunTitles.md` ; exemple de montage complet (grade, titre trois lignes Vogun et Yu Mincho, easeOutBack d'entrée, rendu alpha ProRes 4444) : projet Assets `poisson-gloss-matthieu-poterie-aix-8-octobre-2026`, `Scripts/Montage.py`. (8 October 2026)
+- 8 October 2026 : titre Vogun jaune : recette dans `zenray-edit/references/shorts/VogunTitles.md` ; exemple de montage complet (grade, titre trois lignes Vogun et Yu Mincho, easeOutBack d'entrée, rendu alpha ProRes 4444) : projet Assets `poisson-gloss-matthieu-poterie-aix-8-octobre-2026`, `Scripts/Montage.py`. (8 October 2026)
 
 ## 8 October 2026 : Sound Design / Edit Sound
 

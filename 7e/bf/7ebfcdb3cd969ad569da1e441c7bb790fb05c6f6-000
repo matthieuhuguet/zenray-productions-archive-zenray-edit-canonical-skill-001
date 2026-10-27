@@ -1,0 +1,1048 @@
+#!/usr/bin/env python3
+"""Generate a V4 style exploration sheet and a canonical animated short."""
+
+from __future__ import annotations
+
+# 2026-09-18 23:39: Keep every V4 visual and animation choice in PARAMS for repeatable renders.
+
+import csv
+import json
+import math
+import os
+import random
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+
+V4_DIR = Path(__file__).resolve().parents[1]
+ASSETS_DIR = V4_DIR / "assets"
+SOURCE_BACKGROUND_DIR = ASSETS_DIR / "backgrounds"
+OUTPUT_DIR = ASSETS_DIR / "generated"
+
+
+PARAMS: dict[str, Any] = {
+    "matrix_width": 1536,
+    "matrix_height": 1920,
+    "master_width": 3072,
+    "master_height": 3840,
+    "fps": 30,
+    "movie_seconds": 6,
+    "title_lines": ["Houdini", "Lorem Ipsum"],
+    "active_subtitle_key": "archive_garamond",
+    "title_scale": 1.25,
+    "title_color_keys": ["v3_gradient", "white", "gray"],
+    "title_gradient_stops": [[0.00, [153, 248, 211]], [1.00, [118, 162, 208]]],
+    "title_gradient_angle_deg": -8.0,
+    "title_shadow": {"enabled": False, "color": [0, 0, 0, 230], "offset": 18, "blur": 8},
+    "title_y": [540, 715],
+    "title_line1_size": 170,
+    "title_line2_size": 62,
+    "title_tracking_em": 0.10,
+    "title_word_space_multiplier": 2.20,
+    "title_safe_width": 0.92,
+    "subtitle_lines": [
+        "depending on the shot you want to make,",
+        "even a 3D shot,",
+    ],
+    "subtitle_y": [2960, 3150],
+    "subtitle_size": 120,
+    "subtitle_min_size": 80,
+    "subtitle_max_width": 0.87,
+    "subtitle_word_space": 32,
+    "subtitle_shadow": {"enabled": False, "color": [0, 0, 0, 230], "offset": 36, "blur": 16},
+    "subtitle_fade_in": 0.18,
+    "subtitle_fade_out": 0.40,
+    "subtitle_canon_delay": 0.67,
+    "subtitle_pop_duration": 0.30,
+    "subtitle_segment_start": 0.0,
+    "subtitle_segment_duration": 2.30,
+    "background_reveal_seconds": 0.85,
+    "background_reveal_edge_width": 0.035,
+    "background_fade_seconds": 0.18,
+    "background_glow_blur": 36,
+    "background_glow_opacity": 0.24,
+    "background_particle_count": 0,
+    "background_particle_radius": [2, 10],
+    "background_particle_travel": 90,
+    "background_crossfade_seconds": 0.40,
+    "background_switch_seconds": 3.0,
+    "matrix_sheet_name": "contact-sheet-v4-background-variants.png",
+    "font_variants_sheet_name": "font-variants-v4-4k-contact-sheet.png",
+    "movie_name": "subtitle-background-v4-canon.mov",
+    "mp4_name": "subtitle-background-v4-canon.mp4",
+}
+
+
+FONT_DIR = Path("/Users/zenray/Library/Fonts")
+TITLE_FONTS: dict[str, dict[str, Any]] = {
+    "sf_pro_display": {
+        "label": "SF Pro Display Bold",
+        "path": str(FONT_DIR / "SF-Pro-Display-Bold.otf"),
+        "uppercase": True,
+    },
+    "alize_bold_caps": {
+        "label": "Alize Bold Caps",
+        "path": str(FONT_DIR / "alize-bold.ttf"),
+        "uppercase": True,
+    },
+    "gt_sectra": {
+        "label": "GT Sectra Bold",
+        "path": str(FONT_DIR / "GT-Sectra-LCGV-Bold.otf"),
+        "uppercase": True,
+    },
+}
+
+SUBTITLE_FONTS: dict[str, dict[str, Any]] = {
+    "inter_tight_bold_italic": {
+        "label": "Inter Tight Bold Italic",
+        "path": str(FONT_DIR / "InterTight-Italic-VariableFont_wght.ttf"),
+        "axes": [700],
+    },
+    "yumincho_bold": {
+        "label": "YuMincho Bold",
+        "path": str(FONT_DIR / "YuMincho.ttc"),
+        "index": 2,
+    },
+    "alize_bold": {
+        "label": "Alize Bold",
+        "path": str(FONT_DIR / "alize-bold.ttf"),
+    },
+    "archive_garamond": {
+        "label": "Archive Garamond Bold Italic",
+        "path": str(FONT_DIR / "ArchiveGaramondStd-BoldItalic.ttf"),
+    },
+}
+
+
+ACTIVE_SUBTITLE_KEY = str(PARAMS["active_subtitle_key"])
+
+TITLE_COLOR_SPECS: dict[str, dict[str, Any]] = {
+    "v3_gradient": {"label": "V3 gradient", "rgb": None},
+    "white": {"label": "White", "rgb": (255, 255, 255)},
+    "gray": {"label": "Gray", "rgb": (174, 174, 174)},
+}
+TITLE_COLOR_KEYS: tuple[str, ...] = tuple(PARAMS["title_color_keys"])
+
+SUBTITLE_COLORS: dict[str, tuple[int, int, int]] = {
+    "white": (255, 255, 255),
+    "yellow": (255, 235, 20),
+    "blue_hint": (129, 225, 251),
+    "red_hint": (236, 121, 114),
+}
+
+BACKGROUND_SPECS: dict[str, dict[str, Any]] = {
+    "blue_layer_01": {
+        "label": "Blue layer 01",
+        "path": str(SOURCE_BACKGROUND_DIR / "blue_layer_01.png"),
+        "base_rgb": (8, 20, 30),
+        "particle_rgb": (129, 225, 251),
+        "center_y": 0.79,
+        "seed": 1101,
+    },
+    "red_layer_02": {
+        "label": "Red layer 02",
+        "path": str(SOURCE_BACKGROUND_DIR / "red_layer_02.png"),
+        "base_rgb": (28, 9, 16),
+        "particle_rgb": (236, 121, 114),
+        "center_y": 0.79,
+        "seed": 2202,
+    },
+    "black_layer_04": {
+        "label": "Black layer 04",
+        "path": str(SOURCE_BACKGROUND_DIR / "black_layer_04.png"),
+        "base_rgb": (0, 0, 0),
+        "particle_rgb": (220, 220, 220),
+        "center_y": 0.79,
+        "seed": 4404,
+    },
+}
+
+BACKGROUND_SHORT_NAMES: dict[str, str] = {
+    "blue_layer_01": "BLUE",
+    "red_layer_02": "RED",
+    "black_layer_04": "BLACK",
+}
+
+
+def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
+    return max(minimum, min(maximum, value))
+
+
+def smoothstep(value: float) -> float:
+    value = clamp(value)
+    return value * value * (3.0 - 2.0 * value)
+
+
+def scaled(value: float, width: int) -> int:
+    return max(1, int(round(value * width / PARAMS["master_width"])))
+
+
+def load_font(font_spec: dict[str, Any], size: int) -> ImageFont.FreeTypeFont:
+    font = ImageFont.truetype(
+        font_spec["path"],
+        size=max(1, int(size)),
+        index=int(font_spec.get("index", 0)),
+    )
+    axes = font_spec.get("axes")
+    if axes:
+        font.set_variation_by_axes(axes)
+    return font
+
+
+def baseline_y(draw: ImageDraw.ImageDraw, font: ImageFont.FreeTypeFont, top_y: float) -> float:
+    reference_box = draw.textbbox((0, 0), "Hgj", font=font, anchor="ls")
+    return top_y - reference_box[1]
+
+
+def draw_tracked(
+    draw: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    fill: tuple[int, int, int, int],
+    tracking: float,
+) -> tuple[float, float, float, float]:
+    x, y = position
+    text_baseline = baseline_y(draw, font, y)
+    for character in text:
+        draw.text((x, text_baseline), character, font=font, fill=fill, anchor="ls")
+        x += draw.textlength(character, font=font) + tracking
+    return (position[0], position[1], x - tracking, y + font.size)
+
+
+def draw_justified(
+    draw: ImageDraw.ImageDraw,
+    x: float,
+    y: float,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    fill: tuple[int, int, int, int],
+    target_width: float,
+    word_space_multiplier: float = 2.20,
+) -> tuple[float, float, float, float]:
+    text_baseline = baseline_y(draw, font, y)
+    if len(text) <= 1:
+        draw.text((x, text_baseline), text, font=font, fill=fill, anchor="ls")
+        width = draw.textlength(text, font=font)
+        return (x, y, x + width, y + font.size)
+    words = text.split(" ")
+    glyph_width = sum(
+        sum(draw.textlength(character, font=font) for character in word)
+        for word in words
+    )
+    letter_gaps = sum(max(0, len(word) - 1) for word in words)
+    word_gaps = max(0, len(words) - 1)
+    denominator = letter_gaps + word_space_multiplier * word_gaps
+    tracking = (target_width - glyph_width) / denominator if denominator else 0.0
+    tracking = max(0.0, tracking)
+    current_x = x
+    for word_index, word in enumerate(words):
+        for character in word:
+            draw.text((current_x, text_baseline), character, font=font, fill=fill, anchor="ls")
+            current_x += draw.textlength(character, font=font) + tracking
+        if word_index < word_gaps:
+            current_x += tracking * (word_space_multiplier - 1.0)
+    return (x, y, current_x - tracking, y + font.size)
+
+
+def build_gradient(width: int, height: int) -> Image.Image:
+    stops = PARAMS["title_gradient_stops"]
+    angle = math.radians(PARAMS["title_gradient_angle_deg"])
+    yy, xx = np.mgrid[0:height, 0:width]
+    projection = xx * math.cos(angle) + yy * math.sin(angle)
+    projection -= projection.min()
+    projection /= max(1.0, projection.max())
+    result = np.zeros((height, width, 3), dtype=np.float32)
+    for index in range(len(stops) - 1):
+        start_position, start_color = stops[index]
+        end_position, end_color = stops[index + 1]
+        local = np.clip(
+            (projection - start_position) / max(0.0001, end_position - start_position),
+            0.0,
+            1.0,
+        )
+        mask = (projection >= start_position) & (projection <= end_position)
+        for channel in range(3):
+            channel_values = np.asarray(start_color[channel]) + local * (
+                end_color[channel] - start_color[channel]
+            )
+            result[:, :, channel] = np.where(mask, channel_values, result[:, :, channel])
+    result[projection < stops[0][0]] = np.asarray(stops[0][1])
+    result[projection > stops[-1][0]] = np.asarray(stops[-1][1])
+    return Image.fromarray(np.clip(result, 0, 255).astype(np.uint8), mode="RGB")
+
+
+def fit_title_sizes(
+    title_spec: dict[str, Any],
+    width: int,
+    line1: str,
+    line2: str,
+) -> tuple[int, int, float]:
+    line1_size = scaled(PARAMS["title_line1_size"] * PARAMS["title_scale"], width)
+    line2_size = scaled(PARAMS["title_line2_size"] * PARAMS["title_scale"], width)
+    safe_width = width * PARAMS["title_safe_width"]
+    tracking_em = PARAMS["title_tracking_em"]
+    while line1_size > 12:
+        font = load_font(title_spec, line1_size)
+        tracking = line1_size * tracking_em
+        width_with_tracking = sum(
+            ImageDraw.Draw(Image.new("L", (1, 1))).textlength(character, font=font)
+            for character in line1
+        ) + tracking * max(0, len(line1) - 1)
+        if width_with_tracking <= safe_width:
+            break
+        line1_size -= 1
+    font_line1 = load_font(title_spec, line1_size)
+    scratch = ImageDraw.Draw(Image.new("L", (1, 1)))
+    line1_width = sum(scratch.textlength(character, font=font_line1) for character in line1)
+    line1_width += line1_size * tracking_em * max(0, len(line1) - 1)
+    while line2_size > 12:
+        font = load_font(title_spec, line2_size)
+        line2_width = sum(scratch.textlength(character, font=font) for character in line2)
+        if line2_width <= line1_width:
+            break
+        line2_size -= 1
+    return line1_size, line2_size, line1_width
+
+
+def build_title_layer(
+    title_key: str,
+    width: int,
+    height: int,
+    gradient: Image.Image,
+    title_color_key: str,
+) -> Image.Image:
+    title_spec = TITLE_FONTS[title_key]
+    raw_line1, raw_line2 = PARAMS["title_lines"]
+    line1 = raw_line1.upper() if title_spec.get("uppercase") else raw_line1
+    line2 = raw_line2.upper() if title_spec.get("uppercase") else raw_line2
+    line1_size, line2_size, line1_width = fit_title_sizes(title_spec, width, line1, line2)
+    font_line1 = load_font(title_spec, line1_size)
+    font_line2 = load_font(title_spec, line2_size)
+    mask = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(mask)
+    line1_tracking = line1_size * PARAMS["title_tracking_em"]
+    line1_x = (width - line1_width) / 2.0
+    line1_y = scaled(PARAMS["title_y"][0], width)
+    draw_tracked(draw, (line1_x, line1_y), line1, font_line1, 255, line1_tracking)
+    line2_target_width = line1_width
+    line2_y = scaled(PARAMS["title_y"][1], width)
+    draw_justified(
+        draw,
+        (width - line2_target_width) / 2.0,
+        line2_y,
+        line2,
+        font_line2,
+        255,
+        line2_target_width,
+        word_space_multiplier=PARAMS["title_word_space_multiplier"],
+    )
+
+    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    shadow_spec = PARAMS["title_shadow"]
+    if shadow_spec.get("enabled", False):
+        shadow_mask = Image.new("L", (width, height), 0)
+        shadow_mask.paste(mask, (scaled(shadow_spec["offset"], width), scaled(shadow_spec["offset"], width)))
+        shadow_mask = shadow_mask.filter(ImageFilter.GaussianBlur(scaled(shadow_spec["blur"], width)))
+        shadow = Image.new("RGBA", (width, height), tuple(shadow_spec["color"]))
+        shadow.putalpha(shadow_mask.point(lambda value: int(value * shadow_spec["color"][3] / 255)))
+        layer.alpha_composite(shadow)
+    if title_color_key == "v3_gradient":
+        color_layer = gradient.convert("RGBA")
+    else:
+        color_layer = Image.new(
+            "RGBA",
+            (width, height),
+            (*TITLE_COLOR_SPECS[title_color_key]["rgb"], 255),
+        )
+    color_layer.putalpha(mask)
+    layer.alpha_composite(color_layer)
+    return layer
+
+
+def word_spaced_width(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    word_space: float,
+) -> float:
+    words = text.split(" ")
+    return sum(draw.textlength(word, font=font) for word in words) + word_space * max(0, len(words) - 1)
+
+
+def fit_subtitle(
+    subtitle_spec: dict[str, Any],
+    width: int,
+) -> tuple[ImageFont.FreeTypeFont, int, float]:
+    scratch = ImageDraw.Draw(Image.new("L", (1, 1)))
+    size = scaled(PARAMS["subtitle_size"], width)
+    minimum = scaled(PARAMS["subtitle_min_size"], width)
+    max_width = width * PARAMS["subtitle_max_width"]
+    word_space = scaled(PARAMS["subtitle_word_space"], width)
+    while size >= minimum:
+        font = load_font(subtitle_spec, size)
+        widest = max(
+            word_spaced_width(scratch, line, font, word_space)
+            for line in PARAMS["subtitle_lines"]
+        )
+        if widest <= max_width:
+            return font, size, word_space
+        size -= 1
+    return load_font(subtitle_spec, minimum), minimum, word_space
+
+
+def draw_word_spaced(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    fill: tuple[int, int, int, int],
+    center_x: float,
+    y: float,
+    word_space: float,
+) -> None:
+    words = text.split(" ")
+    total_width = word_spaced_width(draw, text, font, word_space)
+    current_x = center_x - total_width / 2.0
+    text_baseline = baseline_y(draw, font, y)
+    for index, word in enumerate(words):
+        draw.text((current_x, text_baseline), word, font=font, fill=fill, anchor="ls")
+        current_x += draw.textlength(word, font=font)
+        if index < len(words) - 1:
+            current_x += word_space
+
+
+def build_subtitle_layers(
+    subtitle_key: str,
+    color_key: str,
+    width: int,
+    height: int,
+) -> tuple[Image.Image, Image.Image, dict[str, Any]]:
+    subtitle_spec = SUBTITLE_FONTS[subtitle_key]
+    font, font_size, word_space = fit_subtitle(subtitle_spec, width)
+    line_layers: list[Image.Image] = []
+    for line, y_value in zip(PARAMS["subtitle_lines"], PARAMS["subtitle_y"]):
+        mask = Image.new("L", (width, height), 0)
+        draw = ImageDraw.Draw(mask)
+        draw_word_spaced(
+            draw,
+            line,
+            font,
+            255,
+            width / 2.0,
+            scaled(y_value, width),
+            word_space,
+        )
+        layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        shadow_spec = PARAMS["subtitle_shadow"]
+        if shadow_spec.get("enabled", False):
+            shadow_mask = Image.new("L", (width, height), 0)
+            shadow_mask.paste(mask, (scaled(shadow_spec["offset"], width), scaled(shadow_spec["offset"], width)))
+            shadow_mask = shadow_mask.filter(ImageFilter.GaussianBlur(scaled(shadow_spec["blur"], width)))
+            shadow = Image.new("RGBA", (width, height), tuple(shadow_spec["color"]))
+            shadow.putalpha(shadow_mask.point(lambda value: int(value * shadow_spec["color"][3] / 255)))
+            layer.alpha_composite(shadow)
+        color_layer = Image.new("RGBA", (width, height), (*SUBTITLE_COLORS[color_key], 255))
+        color_layer.putalpha(mask)
+        layer.alpha_composite(color_layer)
+        line_layers.append(layer)
+    return line_layers[0], line_layers[1], {
+        "font": subtitle_spec["label"],
+        "color": color_key,
+        "font_size": font_size,
+        "word_space": word_space,
+    }
+
+
+def set_opacity(layer: Image.Image, opacity: float) -> Image.Image:
+    result = layer.copy()
+    alpha = result.getchannel("A")
+    alpha = alpha.point(lambda value: int(value * clamp(opacity)))
+    result.putalpha(alpha)
+    return result
+
+
+def prepare_background(
+    background_key: str,
+    width: int,
+    height: int,
+) -> dict[str, Any]:
+    spec = BACKGROUND_SPECS[background_key]
+    source = Image.open(spec["path"]).convert("RGBA")
+    target_width = int(width * 1.18)
+    scale_factor = target_width / source.width
+    target_height = max(1, int(round(source.height * scale_factor)))
+    resized = source.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    x = int((width - target_width) / 2)
+    y = int(height * spec["center_y"] - target_height / 2)
+    canvas.alpha_composite(resized, (x, y))
+    alpha = canvas.getchannel("A")
+    rng = random.Random(spec["seed"])
+    particles: list[dict[str, float]] = []
+    for _ in range(PARAMS["background_particle_count"]):
+        particles.append(
+            {
+                "y": height * (spec["center_y"] + rng.uniform(-0.17, 0.17)),
+                "offset": rng.uniform(-PARAMS["background_particle_travel"], PARAMS["background_particle_travel"]),
+                "delay": rng.uniform(-0.08, 0.12),
+                "radius": rng.uniform(*PARAMS["background_particle_radius"]),
+                "opacity": rng.uniform(0.25, 0.90),
+            }
+        )
+    return {
+        "key": background_key,
+        "spec": spec,
+        "canvas": canvas,
+        "alpha": alpha,
+        "particles": particles,
+        "width": width,
+        "height": height,
+    }
+
+
+def reveal_background(background: dict[str, Any], progress: float) -> Image.Image:
+    progress = clamp(progress)
+    width = background["width"]
+    height = background["height"]
+    asset = background["canvas"].copy()
+    alpha_array = np.asarray(background["alpha"], dtype=np.float32)
+    x_values = np.arange(width, dtype=np.float32)[None, :]
+    edge_x = width * (-0.08 + progress * 1.16)
+    edge_width = max(1.0, width * PARAMS["background_reveal_edge_width"])
+    sweep = smoothstep_array((edge_x - x_values) / edge_width)
+    fade_portion = max(0.001, PARAMS["background_fade_seconds"] / PARAMS["background_reveal_seconds"])
+    overall = smoothstep(progress / fade_portion)
+    revealed_alpha = np.clip(alpha_array * sweep * overall, 0, 255).astype(np.uint8)
+    asset.putalpha(Image.fromarray(revealed_alpha, mode="L"))
+
+    spec = background["spec"]
+    glow_alpha = Image.fromarray(np.clip(revealed_alpha * PARAMS["background_glow_opacity"], 0, 255).astype(np.uint8), mode="L")
+    glow_alpha = glow_alpha.filter(ImageFilter.GaussianBlur(scaled(PARAMS["background_glow_blur"], width)))
+    glow = Image.new("RGBA", (width, height), (*spec["particle_rgb"], 255))
+    glow.putalpha(glow_alpha)
+    result = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    result.alpha_composite(glow)
+    result.alpha_composite(asset)
+
+    if background["particles"]:
+        particle_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        particle_draw = ImageDraw.Draw(particle_layer)
+        particle_edge = width * (-0.08 + progress * 1.16)
+        for particle in background["particles"]:
+            particle_progress = clamp((progress - particle["delay"]) / 0.18)
+            if particle_progress <= 0.0:
+                continue
+            x = particle_edge + particle["offset"] * (1.0 - particle_progress)
+            radius = particle["radius"] * (0.5 + 0.5 * particle_progress)
+            alpha = int(255 * particle["opacity"] * smoothstep(particle_progress))
+            particle_draw.ellipse(
+                (x - radius, particle["y"] - radius, x + radius, particle["y"] + radius),
+                fill=(*spec["particle_rgb"], alpha),
+            )
+        particle_glow = particle_layer.filter(ImageFilter.GaussianBlur(scaled(12, width)))
+        particle_glow.putalpha(particle_glow.getchannel("A").point(lambda value: int(value * 0.45)))
+        result.alpha_composite(particle_glow)
+        result.alpha_composite(particle_layer)
+    return result
+
+
+def smoothstep_array(values: np.ndarray) -> np.ndarray:
+    values = np.clip(values, 0.0, 1.0)
+    return values * values * (3.0 - 2.0 * values)
+
+
+def subtitle_animation_state(local_time: float, line_index: int) -> tuple[float, float]:
+    start = PARAMS["subtitle_segment_start"] + line_index * PARAMS["subtitle_canon_delay"]
+    end = start + PARAMS["subtitle_segment_duration"]
+    pop_duration = PARAMS["subtitle_pop_duration"]
+    fade_out = PARAMS["subtitle_fade_out"]
+    if local_time < start or local_time > end:
+        return 0.50, 0.0
+
+    elapsed = local_time - start
+    if elapsed < pop_duration:
+        progress = clamp(elapsed / pop_duration)
+        if progress < 0.18:
+            scale = 0.50 + (1.02 - 0.50) * smoothstep(progress / 0.18)
+        elif progress < 0.34:
+            scale = 1.02 + (1.18 - 1.02) * smoothstep((progress - 0.18) / 0.16)
+        elif progress < 0.70:
+            scale = 1.18 + (0.98 - 1.18) * smoothstep((progress - 0.34) / 0.36)
+        else:
+            scale = 0.98 + (1.00 - 0.98) * smoothstep((progress - 0.70) / 0.30)
+        opacity = smoothstep(min(1.0, progress / 0.18))
+    else:
+        scale = 1.00
+        opacity = 1.00
+
+    fade_start = end - fade_out
+    if local_time > fade_start:
+        opacity *= smoothstep((end - local_time) / fade_out)
+    return scale, opacity
+
+
+def scale_layer_about_center(layer: Image.Image, scale: float) -> Image.Image:
+    if abs(scale - 1.0) < 0.001:
+        return layer
+    bbox = layer.getbbox()
+    if bbox is None:
+        return layer
+    crop = layer.crop(bbox)
+    new_width = max(1, int(round(crop.width * scale)))
+    new_height = max(1, int(round(crop.height * scale)))
+    resized = crop.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    center_x = (bbox[0] + bbox[2]) / 2.0
+    center_y = (bbox[1] + bbox[3]) / 2.0
+    position = (
+        int(round(center_x - new_width / 2.0)),
+        int(round(center_y - new_height / 2.0)),
+    )
+    result = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+    result.alpha_composite(resized, position)
+    return result
+
+
+def animate_subtitle_layer(layer: Image.Image, local_time: float, line_index: int) -> Image.Image:
+    scale, opacity = subtitle_animation_state(local_time, line_index)
+    return set_opacity(scale_layer_about_center(layer, scale), opacity)
+
+
+def compose_static(
+    background: dict[str, Any],
+    title_layer: Image.Image,
+    subtitle_layers: tuple[Image.Image, Image.Image],
+) -> Image.Image:
+    width = background["width"]
+    height = background["height"]
+    spec = background["spec"]
+    frame = Image.new("RGBA", (width, height), (*spec["base_rgb"], 255))
+    frame.alpha_composite(reveal_background(background, 1.0))
+    frame.alpha_composite(title_layer)
+    frame.alpha_composite(subtitle_layers[0])
+    frame.alpha_composite(subtitle_layers[1])
+    return frame
+
+
+def compose_video_frame(
+    time_value: float,
+    backgrounds: dict[str, dict[str, Any]],
+    title_layer: Image.Image,
+    subtitle_variants: dict[str, tuple[Image.Image, Image.Image]],
+) -> Image.Image:
+    width = PARAMS["matrix_width"]
+    height = PARAMS["matrix_height"]
+    switch_time = PARAMS["background_switch_seconds"]
+    crossfade = PARAMS["background_crossfade_seconds"]
+    blue_background = backgrounds["blue_layer_01"]
+    red_background = backgrounds["red_layer_02"]
+    blue_layer = reveal_background(blue_background, 1.0)
+    red_layer = reveal_background(red_background, 1.0)
+    if time_value < switch_time - crossfade:
+        blue_opacity, red_opacity = 1.0, 0.0
+    elif time_value <= switch_time:
+        crossfade_value = (time_value - (switch_time - crossfade)) / crossfade
+        blue_opacity, red_opacity = 1.0 - crossfade_value, crossfade_value
+    else:
+        blue_opacity, red_opacity = 0.0, 1.0
+    base_spec = blue_background["spec"] if time_value < switch_time else red_background["spec"]
+    frame = Image.new("RGBA", (width, height), (*base_spec["base_rgb"], 255))
+    frame.alpha_composite(set_opacity(blue_layer, blue_opacity))
+    frame.alpha_composite(set_opacity(red_layer, red_opacity))
+    title_opacity = smoothstep(time_value / PARAMS["subtitle_fade_in"])
+    frame.alpha_composite(set_opacity(title_layer, title_opacity))
+
+    active_key = "blue_layer_01" if time_value < switch_time else "red_layer_02"
+    local_time = time_value if active_key == "blue_layer_01" else time_value - switch_time
+    subtitle_layers = subtitle_variants[active_key]
+    frame.alpha_composite(animate_subtitle_layer(subtitle_layers[0], local_time, 0))
+    frame.alpha_composite(animate_subtitle_layer(subtitle_layers[1], local_time, 1))
+    return frame
+
+
+def build_contact_sheet(entries: list[dict[str, Any]], output_path: Path) -> None:
+    columns = 8
+    cell_width = 384
+    cell_height = 500
+    rows = math.ceil(len(entries) / columns)
+    sheet = Image.new("RGB", (columns * cell_width, rows * cell_height), (20, 20, 24))
+    label_font = ImageFont.truetype(str(FONT_DIR / "SF-Pro-Display-Bold.otf"), 14)
+    for index, entry in enumerate(entries):
+        image = Image.open(entry["path"]).convert("RGB")
+        image.thumbnail((cell_width - 24, cell_height - 58), Image.Resampling.LANCZOS)
+        x = (index % columns) * cell_width + (cell_width - image.width) // 2
+        y = (index // columns) * cell_height + 8
+        sheet.paste(image, (x, y))
+        label = f"{index + 1:03d} {entry['background_short']} | {entry['title_short']} | {entry['title_color_short']} | {entry['subtitle_short']} | {entry['color_short']}"
+        draw = ImageDraw.Draw(sheet)
+        draw.text(
+            ((index % columns) * cell_width + 8, (index // columns) * cell_height + cell_height - 42),
+            label,
+            font=label_font,
+            fill=(245, 245, 245),
+        )
+    sheet.save(output_path, quality=95)
+
+
+def build_font_variant_frames(
+    backgrounds: dict[str, dict[str, Any]],
+    title_layers: dict[tuple[str, str], Image.Image],
+) -> list[dict[str, Any]]:
+    output_dir = OUTPUT_DIR / "frames" / "font-variants"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    entries: list[dict[str, Any]] = []
+    index = 1
+    for background_key, background in backgrounds.items():
+        for (title_key, title_color_key), title_layer in title_layers.items():
+            for subtitle_key in (ACTIVE_SUBTITLE_KEY,):
+                for color_key in SUBTITLE_COLORS:
+                    first, second, _ = build_subtitle_layers(
+                        subtitle_key,
+                        color_key,
+                        background["width"],
+                        background["height"],
+                    )
+                    frame = compose_static(background, title_layer, (first, second))
+                    filename = (
+                        f"{index:03d}_{background_key}_{title_key}_{title_color_key}_{subtitle_key}_{color_key}.png"
+                    )
+                    path = output_dir / filename
+                    frame.convert("RGB").save(path, quality=95)
+                    entries.append(
+                        {
+                            "index": index,
+                            "path": str(path),
+                            "background": background_key,
+                            "background_short": BACKGROUND_SHORT_NAMES[background_key],
+                            "title_font": TITLE_FONTS[title_key]["label"],
+                            "title_short": title_key.replace("_", " "),
+                            "title_color": title_color_key,
+                            "title_color_short": TITLE_COLOR_SPECS[title_color_key]["label"],
+                            "subtitle_font": SUBTITLE_FONTS[subtitle_key]["label"],
+                            "subtitle_short": subtitle_key.replace("_", " "),
+                            "subtitle_color": color_key,
+                            "color_short": color_key.replace("_hint", ""),
+                        }
+                    )
+                    index += 1
+    build_contact_sheet(entries, OUTPUT_DIR / PARAMS["font_variants_sheet_name"])
+    return entries
+
+
+def ensure_output_dirs() -> None:
+    for name in ["background-assets", "matrix", "frames", "frames/font-variants", "video"]:
+        (OUTPUT_DIR / name).mkdir(parents=True, exist_ok=True)
+    # 2026-09-18 22:31: Remove only generated PNG variants before rebuilding the selected template.
+    for name in ["matrix", "frames/font-variants"]:
+        for path in (OUTPUT_DIR / name).glob("*.png"):
+            path.unlink()
+
+
+def write_metadata(
+    entries: list[dict[str, Any]],
+    font_variant_entries: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    metadata = {
+        "parameters": PARAMS,
+        "title_fonts": TITLE_FONTS,
+        "title_color_specs": TITLE_COLOR_SPECS,
+        "subtitle_fonts": SUBTITLE_FONTS,
+        "active_subtitle_font": SUBTITLE_FONTS[ACTIVE_SUBTITLE_KEY],
+        "subtitle_colors": {key: list(value) for key, value in SUBTITLE_COLORS.items()},
+        "backgrounds": BACKGROUND_SPECS,
+        "matrix_count": len(entries),
+        "matrix_entries": entries,
+        "font_variant_count": len(font_variant_entries),
+        "font_variant_entries": font_variant_entries,
+    }
+    output_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+    csv_path = output_path.with_suffix(".csv")
+    fieldnames = ["index", "path", "background", "title_font", "title_color", "subtitle_font", "subtitle_color"]
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for entry in entries:
+            writer.writerow({field: entry[field] for field in fieldnames})
+
+
+def write_readme(
+    entries: list[dict[str, Any]],
+    font_variant_entries: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    text = f"""# V4 background and subtitle style exploration
+
+This folder contains {len(entries)} image variants built from the last short style.
+
+The matrix is rendered at 1536 x 1920 for fast comparison. The selected frames are rendered at the canonical 3072 x 3840 portrait size. The MOV lasts {PARAMS['movie_seconds']} seconds at {PARAMS['fps']} fps and shows the blue layer first, then the red layer, with static backgrounds, a crossfade, line-by-line Canon subtitle timing, and subtitle fade out.
+
+Title variants: SF Pro Display Bold, Alize Bold Caps, and GT Sectra Bold, all in Caps Lock and scaled by 1.25.
+
+Title colors: V3 gradient, white, and gray.
+
+Subtitle template: {SUBTITLE_FONTS[ACTIVE_SUBTITLE_KEY]['label']}.
+
+Subtitle colors: white, yellow, #81e1fb for blue, and #ec7972 for red.
+
+The canonical source names are `blue_layer_01.png`, `red_layer_02.png`, and `black_layer_04.png`. The prepared copies and alpha masks live in `background-assets/`.
+
+Files:
+
+* `{PARAMS['matrix_sheet_name']}` contains the complete comparison sheet.
+* `{PARAMS['font_variants_sheet_name']}` contains all {len(font_variant_entries)} high-resolution title and color combinations.
+* `frames/font-variants/` contains the {len(font_variant_entries)} high-resolution title and color combinations.
+* `frames/frame-blue-style-v4.png`, `frames/frame-red-style-v4.png`, and `frames/frame-black-style-v4.png` use the GT Sectra title in caps and the selected Archive Garamond subtitle template.
+* `video/{PARAMS['movie_name']}` is the MOV requested for the subtitle and background animation.
+* `video/{PARAMS['mp4_name']}` is a browser-friendly companion.
+* `metadata.json` and `metadata.csv` record every generated choice.
+"""
+    output_path.write_text(text, encoding="utf-8")
+
+
+def encode_movie(
+    backgrounds: dict[str, dict[str, Any]],
+    title_layer: Image.Image,
+    subtitle_variants: dict[str, tuple[Image.Image, Image.Image]],
+    output_path: Path,
+) -> None:
+    width = PARAMS["matrix_width"]
+    height = PARAMS["matrix_height"]
+    fps = PARAMS["fps"]
+    frame_count = int(PARAMS["movie_seconds"] * fps)
+    command = [
+        "ffmpeg",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-s",
+        f"{width}x{height}",
+        "-r",
+        str(fps),
+        "-i",
+        "-",
+        "-vf",
+        f"scale={PARAMS['master_width']}:{PARAMS['master_height']}:flags=lanczos",
+        "-c:v",
+        "hevc_videotoolbox",
+        "-tag:v",
+        "hvc1",
+        "-b:v",
+        "18M",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+    process = subprocess.Popen(command, stdin=subprocess.PIPE)
+    assert process.stdin is not None
+    try:
+        for frame_index in range(frame_count):
+            time_value = frame_index / fps
+            frame = compose_video_frame(time_value, backgrounds, title_layer, subtitle_variants)
+            process.stdin.write(np.asarray(frame.convert("RGB"), dtype=np.uint8).tobytes())
+    finally:
+        process.stdin.close()
+    return_code = process.wait()
+    if return_code != 0:
+        raise RuntimeError(f"MOV encoding failed with exit code {return_code}")
+
+
+def encode_mp4(movie_path: Path, output_path: Path) -> None:
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(movie_path),
+        "-c:v",
+        "libx264",
+        "-crf",
+        "17",
+        "-preset",
+        "medium",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+    result = subprocess.run(command, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"MP4 encoding failed with exit code {result.returncode}")
+
+
+def require_files() -> None:
+    for spec in BACKGROUND_SPECS.values():
+        if not Path(spec["path"]).is_file():
+            raise FileNotFoundError(spec["path"])
+    for font_spec in [*TITLE_FONTS.values(), *SUBTITLE_FONTS.values()]:
+        if not Path(font_spec["path"]).is_file():
+            raise FileNotFoundError(font_spec["path"])
+
+
+def main() -> None:
+    require_files()
+    ensure_output_dirs()
+    matrix_width = PARAMS["matrix_width"]
+    matrix_height = PARAMS["matrix_height"]
+    gradient = build_gradient(matrix_width, matrix_height)
+    title_layers = {
+        (title_key, title_color_key): build_title_layer(
+            title_key,
+            matrix_width,
+            matrix_height,
+            gradient,
+            title_color_key,
+        )
+        for title_key in TITLE_FONTS
+        for title_color_key in TITLE_COLOR_KEYS
+    }
+    backgrounds = {
+        key: prepare_background(key, matrix_width, matrix_height)
+        for key in BACKGROUND_SPECS
+    }
+    subtitle_layers: dict[tuple[str, str], tuple[Image.Image, Image.Image]] = {}
+    subtitle_meta: dict[tuple[str, str], dict[str, Any]] = {}
+    for subtitle_key in (ACTIVE_SUBTITLE_KEY,):
+        for color_key in SUBTITLE_COLORS:
+            first, second, meta = build_subtitle_layers(
+                subtitle_key,
+                color_key,
+                matrix_width,
+                matrix_height,
+            )
+            subtitle_layers[(subtitle_key, color_key)] = (first, second)
+            subtitle_meta[(subtitle_key, color_key)] = meta
+
+    entries: list[dict[str, Any]] = []
+    index = 1
+    for background_key, background in backgrounds.items():
+        for (title_key, title_color_key), title_layer in title_layers.items():
+            for subtitle_key in (ACTIVE_SUBTITLE_KEY,):
+                for color_key in SUBTITLE_COLORS:
+                    filename = (
+                        f"{index:03d}_{background_key}_{title_key}_{title_color_key}_{subtitle_key}_{color_key}.png"
+                    )
+                    path = OUTPUT_DIR / "matrix" / filename
+                    frame = compose_static(
+                        background,
+                        title_layer,
+                        subtitle_layers[(subtitle_key, color_key)],
+                    )
+                    frame.convert("RGB").save(path, quality=95)
+                    entries.append(
+                        {
+                            "index": index,
+                            "path": str(path),
+                            "background": background_key,
+                            "background_short": BACKGROUND_SHORT_NAMES[background_key],
+                            "title_font": TITLE_FONTS[title_key]["label"],
+                            "title_short": title_key.replace("_", " "),
+                            "title_color": title_color_key,
+                            "title_color_short": TITLE_COLOR_SPECS[title_color_key]["label"],
+                            "subtitle_font": SUBTITLE_FONTS[subtitle_key]["label"],
+                            "subtitle_short": subtitle_key.replace("_", " "),
+                            "subtitle_color": color_key,
+                            "color_short": color_key.replace("_hint", ""),
+                        }
+                    )
+                    index += 1
+
+    build_contact_sheet(entries, OUTPUT_DIR / PARAMS["matrix_sheet_name"])
+
+    canonical_width = PARAMS["master_width"]
+    canonical_height = PARAMS["master_height"]
+    canonical_gradient = build_gradient(canonical_width, canonical_height)
+    canonical_title_layers = {
+        (title_key, title_color_key): build_title_layer(
+            title_key,
+            canonical_width,
+            canonical_height,
+            canonical_gradient,
+            title_color_key,
+        )
+        for title_key in TITLE_FONTS
+        for title_color_key in TITLE_COLOR_KEYS
+    }
+    canonical_backgrounds = {
+        key: prepare_background(key, canonical_width, canonical_height)
+        for key in BACKGROUND_SPECS
+    }
+    canonical_color_by_background = {
+        "blue_layer_01": "yellow",
+        "red_layer_02": "white",
+        "black_layer_04": "white",
+    }
+    font_variant_entries = build_font_variant_frames(
+        canonical_backgrounds,
+        canonical_title_layers,
+    )
+    canonical_title_key = ("gt_sectra", "white")
+    canonical_subtitle_key = ACTIVE_SUBTITLE_KEY
+    frame_paths: dict[str, Path] = {}
+    for background_key, background in canonical_backgrounds.items():
+        color_key = canonical_color_by_background[background_key]
+        first, second, _ = build_subtitle_layers(
+            canonical_subtitle_key,
+            color_key,
+            canonical_width,
+            canonical_height,
+        )
+        frame = compose_static(
+            background,
+            canonical_title_layers[canonical_title_key],
+            (first, second),
+        )
+        frame_path = OUTPUT_DIR / "frames" / f"frame-{BACKGROUND_SHORT_NAMES[background_key].lower()}-style-v4.png"
+        frame.convert("RGB").save(frame_path, quality=95)
+        frame_paths[background_key] = frame_path
+
+    movie_subtitle_variants: dict[str, tuple[Image.Image, Image.Image]] = {}
+    for background_key, color_key in canonical_color_by_background.items():
+        first, second, _ = build_subtitle_layers(
+            canonical_subtitle_key,
+            color_key,
+            matrix_width,
+            matrix_height,
+        )
+        movie_subtitle_variants[background_key] = (first, second)
+    movie_path = OUTPUT_DIR / "video" / PARAMS["movie_name"]
+    encode_movie(
+        backgrounds,
+        title_layers[canonical_title_key],
+        movie_subtitle_variants,
+        movie_path,
+    )
+    encode_mp4(movie_path, OUTPUT_DIR / "video" / PARAMS["mp4_name"])
+
+    write_metadata(entries, font_variant_entries, OUTPUT_DIR / "metadata.json")
+    write_readme(entries, font_variant_entries, OUTPUT_DIR / "README.md")
+    print(
+        json.dumps(
+            {
+                "output_dir": str(OUTPUT_DIR),
+                "matrix_count": len(entries),
+                "font_variant_count": len(font_variant_entries),
+                "sheet": str(OUTPUT_DIR / PARAMS["matrix_sheet_name"]),
+                "frames": {key: str(value) for key, value in frame_paths.items()},
+                "mov": str(movie_path),
+                "mp4": str(OUTPUT_DIR / "video" / PARAMS["mp4_name"]),
+            },
+            indent=2,
+        )
+    )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise

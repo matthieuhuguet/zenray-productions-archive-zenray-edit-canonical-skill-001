@@ -1,0 +1,710 @@
+# Shorts, consignes transférées depuis ZenRay Houdini (27 October 2026)
+
+## STYLE V4 COPERNICUS : REGLE ACTUELLE ET PIPELINE AUTONOME
+
+Pour toute demande qui mentionne Copernicus, un background de layer, le bleu, le rouge, le jaune, le noir,
+`style V4` ou `shorteditorv4`, utiliser ce pipeline et ne jamais reprendre automatiquement
+`short-editor/short_editor.py`. Ce dernier reste l ancien compositeur pour les autres shorts.
+
+### Source durable
+
+Le pipeline complet vit directement dans le dossier du skill :
+`/Users/zenray/.claude/skills/zenray-houdini/short-editor-v4/`.
+
+- `assets/backgrounds/` contient exactement les quatre backgrounds canoniques : bleu, rouge, jaune et noir.
+- `scripts/generate_v4_selected.py` regenere les quatre finaux avec ombre noire.
+- `scripts/generate_all_shorts.py` regenere au besoin la matrice et le MOV ou MP4 dans `assets/generated/`.
+- `assets/selected-finals/` contient les quatre images de preuve du style valide.
+- Aucun fichier de reference Copernicus supplementaire n est necessaire au bundle V4.
+- `ASSET_INDEX.json` contient une empreinte SHA-256 de chaque fichier archive. Controle :
+  `python3 /Users/zenray/.claude/skills/gear/scripts/gear.py verify /Users/zenray/.claude/skills/zenray-houdini/short-editor-v4 --against /Users/zenray/.claude/skills/zenray-houdini/short-editor-v4/ASSET_INDEX.json`.
+
+### Style V4 valide
+
+- Titre : `GT Sectra Bold`, en Caps Lock, facteur `1.25` par rapport au V3, blanc dans les finaux.
+- Sous-titres : `Archive Garamond Bold Italic`, casse normale, jamais en Caps Lock, blancs dans les
+  finaux.
+- Backgrounds : `blue_layer_01`, `red_layer_02`, `yellow_layer_03` et `black_layer_04`, les quatre seuls assets visuels canoniques.
+- Règle absolue des backgrounds V4 : ZÉRO particule, poussière d'étoiles ou paillettes. Les fonds sont strictement purs (couleur de base + nuage volumétrique + lueur diffuse). Ne jamais générer ni compositer de calque de particules lumineuses (part_layer, background_particle_count = 0).
+- Images finales : texte centre avec drop shadow noir sur le titre et les sous-titres.
+- Animation MOV : backgrounds fixes, crossfade bleu vers rouge, apparition canonique ligne par ligne,
+  pop puis fondu de sortie, sans balayage gauche-droite et sans drop shadow.
+- Format du MOV : `3072 x 3840`, `30 fps`, `6 secondes`, HEVC `hvc1`. Le MP4 compagnon est en H.264.
+
+### Miniature 4:5 4K V4 (regle du 2026-09-19)
+
+- Format canonique : frame unique en 4:5 4K (`3072 x 3840`), export PNG et JPG.
+- Titre haut : `HOUDINI` traque et `PROCEDURAL CHURCH` justifie au span en GT Sectra Bold Caps blanc, ombre portee noire (`offset 16, blur 10`).
+- Sous-titre bas : `HDA Houdini Engine` ecrit comme un sous-titre en Archive Garamond Bold Italic blanc avec ombre portee noire (`offset 20, blur 12`), centre sur le nuage (`center_y: 0.79`), strictement sans particules ni paillettes.
+- Coupure de texture du batiment : coupure pure a 45 degres passant par l arête mur/toit (moitie rouge 19.48.12 et moitie bleue 19.48.25), strictement sans trait ni barre de slash dessinee sur l image.
+- Aucun texte superflu, aucun badge parasite.
+
+### Short 4:5 V4 avec attribution dynamique des fonds (regle du 2026-09-19)
+
+- Format : `3072 x 3840` a 60 fps, 51.50 s exactes (13 cues de 3s + 10s turntable 3D + 2.5s carte freelance finale), audio normalise -14 LUFS avec dip de transition 1s (38s a 40s) et progression concert sur les 12.5s finales. Fond pur sans aucune particule.
+- Carte de fin freelance (OBLIGATOIRE sur chaque short) : chaque short se termine imperativement par la carte freelance commercial Matthieu pendant exactement 2.5 secondes. Ne jamais l'oublier.
+  - Asset canonique dans le skill : `/Users/zenray/.claude/skills/zenray-houdini/assets/commercial/commercialMatthieu.png` (format 4:5 natif 3240x4050, mis a l echelle 3072x3840 sans aucune deformation).
+- Premiere frame dans Houdini : style JAUNE obligatoire (`yellow_layer_03`).
+- Frames suivantes : analyse colorimetrique de la texture du batiment :
+  - Si batiment rouge/brique : style ROUGE (`red_layer_02`).
+  - Si batiment bleu (swap materiau) : style BLEU (`blue_layer_01`).
+- Titre haut : GT Sectra Bold Caps blanc avec ombre noire.
+- Sous-titres : Inter Bold Italic (ou Archive Garamond Bold Italic) blanc avec ombre noire, animation Canon (pop 0.3s, delai ligne 2 de 0.67s, fondu de sortie 0.35s).
+
+### Encadre turquoise d illustration des parametres (regle du 2026-09-19)
+
+Pour illustrer et guider le regard sur les reglages d un HDA ou d un composant dans les captures Unreal ou Houdini des shorts :
+- **Couleur** : Turquoise electrique `#00F0FF` (`(0, 240, 255)`), contraste optimal sur les interfaces sombres d Unreal Engine et Houdini.
+- **Geometrie du trait** : Rectangle arrondi avec `radius = 24px` et epaisseur `width = 12px` (calibre sur des captures plein format 4K / ~3456x2234).
+- **Ciblage obligatoire (Details / Parameters et Values)** :
+  - Ne jamais encadrer la geometrie 3D centrale dans le viewport quand la voix ou le sous-titre parle de parametres.
+  - Encadrer specifiquement le panneau **Details > Houdini Parameters**, en partant de l entete de section jusqu au bas des parametres actifs, en englobant imperativement les onglets, les curseurs et **toutes les valeurs numeriques** (`Width 4.0`, `Wall Height 2.2`, `Cross Height 0.5`, `Porch Width 3.5`, `Step Run 1.0`, `Railing Height 2.0`, cook time `0.3s`, etc.). C est la valeur numerique qui prouve la modification procedurale.
+- **Application selective** :
+  - Appliquer uniquement sur les captures ou des parametres sont activement presentes ou modifies (ex: Cues 3 a 12 de demonstration HDA).
+  - NE PAS appliquer sur les captures de contexte general (ex: Houdini GUI initiale, ecran de session non demarree, ou ecran de compilation de pont sans parametres HDA).
+
+### Regle de langue des posts
+
+Le texte visible dans les sous-titres incrustes d un post ou d un short est en anglais par defaut.
+Le fichier source du post peut rester bilingue FR + EN, mais le short affiche la version anglaise,
+mot pour mot depuis le texte edite, sans traduction ni invention, sauf demande explicite contraire.
+
+## 7. RECORDS AND PUBLISHING : RENDU ET ANIMATION PROCEDURALE (SLIDERS, VIEWPORT ET EXPORT VIDEO)
+
+### 1. Attribution des cles d animation en canon (hou.Keyframe)
+
+Pour demontrer visuellement les degres de liberte d un composant procedural (HDA), l animation
+en canon est la methode de reference : chaque parametre est anime l un apres l autre pendant
+que tous les autres restent stables a leur valeur par defaut. Cette approche isole chaque
+transformation dans le viewport 3D et montre avec clarte le role de chaque curseur.
+
+La repartition se fait de facon homogene sur la duree de la timeline :
+- Exemple type : 8 parametres sur 360 frames (15 secondes a 24 fps).
+- Chaque parametre recoit une tranche temporelle egale : 360 / 8 = 45 frames par parametre.
+- Dans sa tranche, le parametre part de sa valeur par defaut, atteint sa valeur pic (extremum
+  ou amplitude de test) au centre exact de la fenetre (frame 22 ou 23), puis revient a sa valeur
+  par defaut a la fin de sa fenetre.
+- Des cles de maintien (plateau) sont posees a la frame 1, au debut de la tranche active, a la fin
+  de la tranche active et a la frame finale pour empecher toute derive de courbure d interpolation
+  en amont ou en aval.
+
+Script HOM de reference pour poser les cles en canon :
+
+```python
+import hou
+
+node = hou.node('/obj/Church/Component_Armature')
+parms_spec = [
+    ('width', 4.0, 5.6),
+    ('length', 6.0, 8.5),
+    ('wall_height', 2.2, 3.2),
+    ('front_gable_height', 2.4, 3.6),
+    ('rear_gable_height', 2.4, 3.6),
+    ('arch_angle', 55.0, 75.0),
+    ('cross_height', 1.2, 1.8),
+    ('beam_size', 0.11, 0.17)
+]
+
+total_frames = 360
+step_frames = total_frames // len(parms_spec)
+
+for idx, (pname, default_val, peak_val) in enumerate(parms_spec):
+    p = node.parm(pname)
+    if p is None:
+        continue
+    p.deleteAllKeyframes()
+    start_f = idx * step_frames + 1
+    mid_f = start_f + step_frames // 2
+    end_f = (idx + 1) * step_frames
+
+    if start_f > 1:
+        kf_first = hou.Keyframe()
+        kf_first.setFrame(1)
+        kf_first.setValue(default_val)
+        p.setKeyframe(kf_first)
+
+        kf_pre = hou.Keyframe()
+        kf_pre.setFrame(start_f)
+        kf_pre.setValue(default_val)
+        p.setKeyframe(kf_pre)
+    else:
+        kf_start = hou.Keyframe()
+        kf_start.setFrame(1)
+        kf_start.setValue(default_val)
+        p.setKeyframe(kf_start)
+
+    kf_mid = hou.Keyframe()
+    kf_mid.setFrame(mid_f)
+    kf_mid.setValue(peak_val)
+    p.setKeyframe(kf_mid)
+
+    kf_end = hou.Keyframe()
+    kf_end.setFrame(end_f)
+    kf_end.setValue(default_val)
+    p.setKeyframe(kf_end)
+
+    if end_f < total_frames:
+        kf_last = hou.Keyframe()
+        kf_last.setFrame(total_frames)
+        kf_last.setValue(default_val)
+        p.setKeyframe(kf_last)
+
+hou.setFrame(1)
+```
+
+### 2. Protocole de capture en premier plan (evitement de mise en veille GPU par macOS)
+
+Sur macOS, le gestionnaire de fenetres (WindowServer) ainsi que les mecanismes d economie
+d energie du systeme (App Nap, occlusion de fenetre) coupent ou ralentissent severement le
+rafraichissement OpenGL, Metal et Qt des applications qui ne sont pas actives au premier plan.
+Si Houdini perd le focus pendant un enregistrement video ou un script d automatisation (par
+exemple au profit d OBS ou du terminal), le viewport 3D cesse d evaluer les images ou saute des
+frames, produisant une capture video gelee ou saccadee.
+
+Pour garantir un enregistrement fluide a plein debit :
+
+1. Forcer Houdini au premier plan par AppleScript avant le demarrage du playback :
+```python
+import subprocess, time
+
+def focus_houdini():
+    cmd = 'tell application "System Events" to tell process "houdinifx" to set frontmost to true'
+    subprocess.run(['osascript', '-e', cmd], capture_output=True, text=True)
+
+focus_houdini()
+time.sleep(0.5)
+```
+
+2. En cas d animation procedurale pilotee pas a pas directement en HOM sans playbar :
+Forcer l interface Qt de Houdini a traiter sa file d attente d evenements graphiques a chaque pas :
+```python
+from PySide6.QtCore import QCoreApplication
+import time
+
+# A l interieur de la boucle de variation des parametres :
+QCoreApplication.processEvents()
+time.sleep(0.04)
+```
+
+### 3. Configuration de la playbar (bornes, synchronisation temps reel et controle)
+
+Le module HOM `hou.playbar` controle l execution temporelle de la scene. Pour une capture
+d animation calibree, la sequence d initialisation configure explicitement la plage globale,
+la plage de lecture, le mode de boucle et la cadence temps reel.
+
+1. Fonctions fondamentales de configuration :
+- `hou.playbar.setFrameRange(first, last)` : definit les bornes globales de la timeline de la scene.
+- `hou.playbar.setPlaybackRange(first, last)` : definit la plage de lecture active.
+- `hou.playbar.setPlayMode(hou.playMode.Once)` : arrete la lecture a la derniere frame au lieu de boucler.
+- `hou.playbar.setRealTime(True)` : verrouille le defilement a la cadence reelle (ex: 24 fps) pour
+  synchroniser la capture avec l horloge physique. Passer a False si chaque frame doit cuire sans
+  jamais sauter d image, quelle que soit la charge de calcul.
+- `hou.playbar.play()` : demarre la lecture.
+- `hou.playbar.stop()` : suspend la lecture.
+
+2. Sequence d execution et boucle de surveillance :
+```python
+import hou, time
+
+total_frames = 360
+
+hou.playbar.setFrameRange(1, total_frames)
+hou.playbar.setPlaybackRange(1, total_frames)
+hou.playbar.setPlayMode(hou.playMode.Once)
+hou.playbar.setRealTime(True)
+hou.setFrame(1)
+hou.playbar.play()
+
+t_start = time.time()
+while True:
+    time.sleep(0.5)
+    cur_frame = hou.frame()
+    is_playing = hou.playbar.isPlaying()
+    if cur_frame >= total_frames - 1 or not is_playing:
+        break
+    if time.time() - t_start > (total_frames / 24.0) + 5.0:
+        break
+
+hou.playbar.stop()
+hou.setFrame(total_frames)
+```
+
+### 4. Deux flux d export video distincts : Master 16:9 Raw et Reels 4:5 4K
+
+Pour couvrir a la fois les besoins d archive technique / devlog et la diffusion sur les reseaux sociaux, le pipeline se divise en deux flux distincts et complementaires :
+
+**REGLE ABSOLUE DE RESOLUTION (2026-09-13) : un short, un reel, un habillage et tout livrable sortent TOUJOURS en 4K, jamais en HD.** Le 9:16 vertical vaut `2160x3840`, le 4:5 feed vaut `2160x2700`, le 16:9 master vaut `3840x2160`. Aucune declinaison HD ne se produit ni ne se livre : elle se derive en une seconde depuis la 4K si une plateforme l exige un jour, alors que l inverse est impossible. Toute valeur en pixels citee plus bas (taille de police, ligne de base, padding, largeur de cartouche) est donc exprimee dans le repere 4K, et une valeur HD trouvee dans un ancien script est un defaut a corriger avant le rendu.
+
+#### Flux A : Mode Master Paysage 16:9 Raw (Brut de capture, sans habillage)
+Ce format conserve la scene 3D et le panneau de parametres sans aucun texte surimpose ni artifice graphique. Ideal pour YouTube, portfolio ArtStation, presentation technique aux studios ou devlogs.
+
+1. Sortie Native Mac Retina 60 fps (3456x2234, format exact de l ecran) :
+Conserve l integralite des pixels et de la fenetre avec fluidite maximale :
+```bash
+ffmpeg -y -ss 0.8 -t 15.0 -i capture_raw.mkv \
+  -c:v libx264 -r 60 -preset fast -crf 18 \
+  -pix_fmt yuv420p -movflags +faststart -an \
+  rendu_retina_60fps_3456x2234.mp4
+```
+
+2. Recadrage horizontal Master 16:9 (4K UHD uniquement) :
+Rogne la barre de titre superieure macOS et ajuste le format :
+```bash
+# Sortie 4K UHD (3840x2160), seule sortie horizontale autorisee
+ffmpeg -y -ss 1.2 -t 15.0 -i capture_raw.mov \
+  -vf "crop=3456:1944:0:100,scale=3840:2160" \
+  -c:v libx264 -preset fast -crf 18 \
+  -pix_fmt yuv420p -movflags +faststart \
+  rendu_16x9_4k.mp4
+```
+
+3. Recadrage vertical 9:16 brut (Shorts, TikTok, Reels plein ecran sans texte) :
+Centre la decoupe sur le sujet 3D :
+```bash
+ffmpeg -y -ss 1.2 -t 15.0 -i capture_raw.mov \
+  -vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=2160:3840" \
+  -c:v libx264 -preset fast -crf 19 \
+  -pix_fmt yuv420p -movflags +faststart \
+  reel_vertical_9x16_4k.mp4
+```
+
+#### Flux B : Mode Reel Vertical 4:5 4K avec habillage et sous-titres (layout Black Myth Wukong)
+Ce format maximise l occupation de l ecran dans le fil d actualite Instagram (2160x2700 a 60 fps). La video native 16:9/Retina est positionnee au centre sans rognage, l arriere-plan etendu est floute et assombri, un titre superieur en `AnthropicSerif-Regular` chapeaute la scene, et des sous-titres animes bicolores en `Inter SemiBold` (regle d auto-fit anti-rognage) rythment la narration sans masquer les sliders de parametres. (Voir detail complet en section 6).
+
+3. Parametres cles d encodage et compatibilite Apple / Instagram :
+- `-pix_fmt yuv420p` : indispensable pour assurer la compatibilite de lecture sur QuickTime,
+  Safari, iOS Photos et tous les navigateurs web.
+- `-movflags +faststart` : positionne l atome moov au debut du fichier, permettant la lecture
+  immediate en streaming sans attendre le telechargement integral du fichier.
+- **Piege critique de la galerie iPhone Photos (bug paye 2 fois : 2026-09-16 et 2026-09-17)** :
+  Sur iPhone et macOS, l application Photos et AirDrop refusent categoriquement d importer dans la
+  Pellicule (Photos) tout fichier QuickTime `.mov` encode en H.264 (`libx264`) des lors que la resolution
+  depasse le standard 1080p (notamment en 4K vertical 3072x3840 a 60 fps, car le flux depasse le profil H.264
+  Level 5.2 et bascule en Level 6.0 non supporte par le decodage Photos). Le fichier est alors deporte dans
+  l application Fichiers comme simple document de donnees, l option « Enregistrer la video » est absente ou
+  echoue, et le Short reste totalement invisible dans la galerie pour Instagram et TikTok.
+  De meme, un flux HEVC portant le tag `hev1` genere par defaut par ffmpeg est egalement rejete par Photos.
+  **Regle absolue de livraison pour tout master `.mov`** :
+  1. Le fichier `.mov` DOIT imperativement etre encode en HEVC materiel Apple (`hevc_videotoolbox`) avec
+     le tag Apple explicite `-tag:v hvc1`, l espace `-color_primaries bt709 -color_trc bt709 -colorspace bt709`,
+     le pixel format `-pix_fmt yuv420p`, le debit `-b:v 18M` et l atome moov en tete (`-movflags +faststart`).
+  2. Le fichier `.mp4` compagnon reste encode en H.264 universel (`libx264` CRF 17) pour YouTube Shorts,
+     Twitter/X et les navigateurs web.
+- **Publication Instagram sur Mac (sans mode mobile)** : Instagram Web sur Mac permet la publication
+  directe de Reels sans simuler un navigateur mobile. Le site requiert un flux H.264 avec atome moov
+  en tete (`+faststart`). Les conteneurs standard `.mp4` en resolution 2160x2700 (4:5)
+  ou 2160x3840 (9:16) sont pris en charge nativement au glisser-deposer.
+- `-crf 17` ou `18` : facteur de debit constant assurant une qualite visuelle studio sans artefacts
+  sur les aretes vives et le relief procedural du maillage.
+- `-ss` et `-t` : decoupe temporelle precise excluant les phases de demarrage et d arret de la capture.
+
+### 5. Multiplexage audio et post-production sonore (decoupe, fondus et mixage sans perte)
+
+Pour habiller les reels d une bande sonore musicale sans degrader le flux video master :
+
+1. Decoupe et fondus audio (entree et sortie de 1 seconde) :
+Pour extraire un segment precis (par exemple de 03:05 a 03:20, soit 15 secondes) et eviter les clics de coupure brute, ffmpeg applique les filtres `afade` :
+```bash
+# Decoupe d un segment avec fondu d entree d 1 seconde et fondu de sortie d 1 seconde
+ffmpeg -y -ss 00:03:05 -t 15.0 -i musique_source.mp3 \
+  -af "afade=t=in:ss=0:d=1.0,afade=t=out:st=14.0:d=1.0" \
+  -c:a pcm_s16le musique_15s_fade.wav
+```
+
+2. Multiplexage sans recompression video (same bitrate master) :
+Pour remplacer ou ajouter la musique sur la capsule video en conservant 100% de la netteté et du debit video d origine, le flux video est copie directement (`-c:v copy`) sans aucun recalcul :
+```bash
+# Injection de la piste musicale en AAC 320 kbps avec copie directe du flux video
+ffmpeg -y -i reel_source_60fps.mp4 -i musique_15s_fade.wav \
+  -map 0:v:0 -map 1:a:0 \
+  -c:v copy -c:a aac -b:a 320k -shortest \
+  reel_final_audio.mp4
+```
+
+3. Attribution indexee sur une serie de composants :
+Dans une serie de composants (01 Armature, 02 WoodFacade, 03 PorchStairs), l attribution sonore se relie a l index de chaque composant pour garantir une continuite de dynamique et de style musical propre a chaque element de la scene.
+
+### 6. Habillage Instagram Feed 4K (4:5) et sous-titrage anime ligne par ligne (layout Black Myth Wukong)
+
+Pour maximiser l espace visuel et la resolution dans le fil d actualite Instagram a partir d une capture Retina ou 4K :
+
+1. Architecture du gabarit 4K vertical 4:5 (2160x2700 a 60 fps) :
+- Calque d arriere-plan : le flux video lui-meme est etire sur l ensemble du cadre 4K puis adouci par un flou de boite (`boxblur=40:5`) avec un assombrissement doux (`eq=brightness=-0.15`) pour concentrer le regard sur le sujet 3D.
+- Calque central : la video master native est positionnee au centre exact sans rognage (`scale=2160:-2`), conservant l integralite des sliders Qt et du Scene Viewer 3D en pleine definition a 60 images par seconde.
+- Calque de tete : titre superieur en `AnthropicSerif` avec alternance expressive Light et LightItalic (taille 138 px dans le repere 4K), centre en haut (Y = 260) avec ombre portee douce (alpha 160, decalage 2 px) pour une lisibilite immediate.
+  Fichiers : `~/Library/Fonts/AnthropicSerif-Light.ttf` et `~/Library/Fonts/AnthropicSerif-LightItalic.ttf`.
+  Regle d alternance selon le nombre de mots :
+  * 1 mot : `Italic`
+  * 2 mots : `Light Italic`
+  * 3 mots : `Light Italic Italic` (ex : "Houdini Procedural Church")
+  * 4 mots : `Light Italic Italic Italic`
+  * Exception pour concepts lies : preserver la cohesion semantique du bloc (ex : "Houdini Unreal Louisiana Bayou" = `Light Light Italic Italic`).
+  Le rendu se fait mot a mot en calculant l avance typographique exacte via `font.getlength()`.
+- Calque de pied : sous-titres animes bicolores en bas du cadre (Y = 2270 et 2410).
+
+2. Design typographique et chromatique des sous-titres :
+- Police : `Inter` avec variation optique reglee en ExtraBold (graisse 800).
+  Fichier reel : `~/Library/Fonts/InterVariable.ttf` avec `set_variation_by_name(b"ExtraBold")` ou `set_variation_by_axes([800.0, 100.0, 0.0])`.
+- Taille maximale calibree sur la largeur (MAX auto-fit) : la taille de police est poussee a son maximum en pixels par rapport a la largeur du canevas (`initial_size = 128` a 144 px). Chaque ligne est ajustee individuellement par boucle de reduction jusqu a `MAX_TEXT_W = int(W * 0.82)` (1770 px en 4K). Ce dimensionnement garantit un impact visuel maximal a l ecran sans aucun debordement lors du pic d overshoot.
+- Ombre portee anti-fond : ombre portee noire legere (alpha 180, decalage 2 px) assurant un contraste parfait contre tout fond 3D clair ou sombre.
+- Casse : casse naturelle de phrase (pas de tout-en-capitales), calquee mot a mot sur le texte du post sans inventer de termes.
+- Premiere ligne (accroche ou sujet cle) : jaune vif (`#FFE600`).
+- Deuxieme ligne (detail technique ou constat) : blanc pur (`#FFFFFF`).
+
+3. Regle d auto-fit et anti-rognage (calquee sur le skill zenray-html-photoshop-pdf-hda-socialmedia) :
+Pour eviter tout debordement ou rognage sur les bords (crop), la boite de texte mesure sa largeur (`textbbox`) par rapport a la largeur de securite (`W * 0.82`, soit 1770 px en 4K pour reserver la marge d overshoot). Si le texte deborde, la taille de police diminue dynamiquement (`font_size -= 2`) jusqu a tenir confortablement dans le cadre. La police ne sort jamais du cadre pour « cropper » le texte, elle s adapte a la taille maximale qui tient.
+
+4. Animation des deux lignes differentes en canon d une seconde avec pop dynamique marque :
+Les deux lignes ne pop JAMAIS en meme temps. L entree se deroule en cascade canon sur une fenetre globale d une seconde (60 frames a 60 fps) :
+- Ligne 1 (Jaune) pop en premier a t = 0.0 s (frame 0) : demarrage dynamique a echelle 0.50 (fondu d opacite 0.0 a 1.0 sur 3 frames), pic d overshoot marque a 1.18 a frame 5, leger rebond d amorti a 0.96 a frame 10, puis stabilisation fluide a 1.00 a frame 15.
+- Ligne 2 (Blanc) pop en decalage canon a t = 0.40 s (frame 24) : elle subit le meme punch explosif (0.50 vers 1.18 puis 1.00), ce qui cree l effet d apparition cadensee deux temps tres prise sur TikTok et Reels.
+- Centre de mise a l echelle propre a chaque ligne : chaque ligne s anime autour de son propre centre geometrique horizontal et vertical (c1 a Y = 2270, c2 a Y = 2410), interdisant tout chevauchement ou glissement parasite vertical.
+- Stabilisation complete : des frame 45 (0.75 s), le bloc bicolore complet est stabilise a echelle 1.00 et reste visible jusqu a la fin de la replique.
+
+5. Regle absolue de generation des shorts : toujours 3 sous-agents en parallele (3 subagents running) :
+Pour generer ou recalculer une serie de 3 shorts, l agent lance TOUJOURS 3 sous-agents en parallele en un appel unique `invoke_subagent` (un sous-agent par composant/short : Short 01 Windows, Short 02 Roof, Short 03 Church). Cette regle est imperative :
+- Division par 3 du temps de composition video et de rendu.
+- Isolation totale des processus ffmpeg et validation independante de chaque fichier (MOV, MP4, 4 vignettes) par son sous-agent dedie.
+- Suivi clair et lisible dans l interface utilisateur ("3 subagents running").
+
+6. Double depot systematique du texte de post (.md) :
+Afin que Matthieu puisse relire, editer ou copier le texte sans chercher dans l arborescence, le fichier unique du post markdown (`post-<sujet>.md`) est obligatoirement duplique a deux endroits :
+1. Dans `Memory/Posts/<date>-<sujet>/post-<sujet>.md` (source durable, versionnee dans le depot Memory).
+2. Dans le dossier de travail courant (`~/.claude/tmp/tmp-shorts-houdini/` ou `~/.claude/tmp/post-<sujet>/`) a la racine meme des fichiers videos.
+
+7. Decoupage narratif 20 % (8 repliques mot a mot sur 15 secondes, sans mots ajoutes) :
+- 0.0s a 1.0s (1s) : `Procedural modeling of a bayou church` / `in Houdini for Unreal Engine rendering.`
+- 1.0s a 3.0s (2s) : `Goal was to create a successful,` / `parameter-driven hero asset.`
+- 3.0s a 5.0s (2s) : `I first designed three separate modules:` / `Armature, wood facade, and porch stairs.`
+- 5.0s a 7.0s (2s) : `Here is the honest takeaway though:` / `I made an asset design mistake.`
+- 7.0s a 9.0s (2s) : `3 completely independent HDA components,` / `it is counter-productive in practice.`
+- 9.0s a 11.0s (2s) : `When I change the armature,` / `the facade and stairs are not linked.`
+- 11.0s a 13.0s (2s) : `3 solid components don't make a hero asset` / `until they share a common brain.`
+- 13.0s a 15.0s (2s) : `Next step:` / `interconnecting these 3 modules into a unified master hero asset.`
+
+6. Commande d assemblage ffmpeg 4K :
+```bash
+ffmpeg -y -i video_master_audio.mp4 -i overlay_4k_subtitles.mov \
+  -filter_complex "[0:v]split=2[fg][bg];[bg]scale=2160:2700:force_original_aspect_ratio=increase,crop=2160:2700,boxblur=40:5,eq=brightness=-0.15[bg_blur];[fg]scale=2160:-2[fg_scaled];[bg_blur][fg_scaled]overlay=0:(H-h)/2[base];[base][1:v]overlay=0:0[outv]" \
+  -map "[outv]" -map 0:a \
+  -c:v libx264 -preset fast -crf 17 -pix_fmt yuv420p -movflags +faststart \
+  -c:a copy \
+  video_finale_4k_4x5_subtitles.mp4
+```
+Cette chaine conserve intacte la piste musicale master en AAC stereo a 320 kbps avec un master video 4K a 60 fps.
+
+### 5. Mouvement de camera dedie aux Shorts et Reels : le turn-over (orbite 180 degres)
+
+Pour reveler la volumetrie complete d un asset procedural dans un format vertical (Shorts YouTube, Reels Instagram, TikTok), le mouvement de reference est le **turn-over**.
+
+#### Principe et trajectoire
+1. **Point de depart** : vue 3/4 plongeante (angle de depart a environ -42 degres en lacet et -14 degres en tangage).
+2. **Rotation orbitale** : un balayage circulaire continu a 180 degres sur 10 secondes (240 frames a 24 fps) pivote autour du centre de gravite de l asset ou de l origine (0, 0, 0).
+3. **Architecture du rig (separer rotation et cadrage)** :
+   - Un null pivot `/obj/rig_shorts_turn_over` est positionne au centre du volume de l asset (ex: `Y = 2.6`). Seul son canal de rotation `ry` recoit des cles d animation (de -42 degres a frame 1 jusqu a 138 degres a frame 240).
+   - Une camera enfant dediee `/obj/cam_shorts_reel` est connectee en entree au null pivot. Ses translations et rotations locales fixent le recul (ex: `Z = 14.5`), l elevation plongeante (`Y = 3.2`, `rx = -14.0`) et la focale (ex: 38 mm).
+   - Format natif calibre a 9:16 vertical 4K : `resx = 2160`, `resy = 3840`.
+4. **Previsualisation directe dans Houdini** :
+   - Assigner `/obj/cam_shorts_reel` au viewport `SceneViewer` actif (`cur_vp.setCamera(cam)`).
+   - Des que l utilisateur clique sur Play dans la barre de transport (playbar), la scene pivote en temps reel sous ses yeux.
+
+#### Script Python HOM d initialisation du rig turn-over
+```python
+import hou
+
+obj = hou.node("/obj")
+
+# 1. Null pivot au centre de l asset
+rig = obj.node("rig_shorts_turn_over")
+if rig is None:
+    rig = obj.createNode("null", "rig_shorts_turn_over")
+rig.parmTuple("t").set((0.0, 2.6, 0.5))
+
+p_ry = rig.parm("ry")
+p_ry.deleteAllKeyframes()
+
+# Animation 180 degres sur 10 secondes (240 frames a 24 fps)
+kf1 = hou.Keyframe()
+kf1.setFrame(1)
+kf1.setValue(-42.0)
+kf1.setSlope(0.0)
+
+kf2 = hou.Keyframe()
+kf2.setFrame(240)
+kf2.setValue(138.0)
+kf2.setSlope(0.0)
+
+p_ry.setKeyframe(kf1)
+p_ry.setKeyframe(kf2)
+
+# 2. Camera dediee cam_shorts_reel parentée au rig
+cam = obj.node("cam_shorts_reel")
+if cam is None:
+    cam = obj.createNode("cam", "cam_shorts_reel")
+    cam.setInput(0, rig)
+
+cam.parmTuple("t").set((0.0, 3.2, 14.5))
+cam.parmTuple("r").set((-14.0, 0.0, 0.0))
+cam.parm("focal").set(38.0)
+cam.parm("resx").set(2160)
+cam.parm("resy").set(3840)
+
+# 3. Synchronisation de la timeline
+hou.playbar.setFrameRange(1, 240)
+hou.playbar.setPlaybackRange(1, 240)
+hou.playbar.setRealTime(True)
+hou.setFrame(1)
+
+# 4. Verrouillage du viewport SceneViewer sur la camera shorts
+sv = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
+if sv:
+    sv.curViewport().setCamera(cam)
+```
+
+### Registre des posts publies (source unique, a editer la avant tout sous-titrage)
+
+| Date | Post | Texte FR + EN et 8 repliques de sous-titres | Medias |
+|---|---|---|---|
+| 2026-09-10 | 3 components : Armature, WoodFacade, PorchStairs | `Memory/Posts/2026-09-10-tmp-post-3components-zenray-houdini/post-3components-zenray-houdini.md` | `~/.claude/tmp/post-3components-zenray-houdini/` |
+| 2026-09-11 | 3 components : Roof, WindowA, WindowB | `Memory/Posts/2026-09-11-post-3components-roof-windows/post-3components-roof-windows.md` | `~/Downloads/post-3components-roof-windows/` (reel-01-roof, reel-02-windowa, reel-03-windowb) |
+| 2026-09-11 | Church hero asset coordination, 3 shorts (fenetres, toit, eglise complete) | `Memory/Posts/2026-09-11-post-church-hero-coordination/post-church-hero-coordination.md` | `~/.claude/tmp/tmp-shorts-houdini/` (short-01-windows, short-02-roof, short-03-church) |
+| 2026-09-11 | Hero Asset Coordination : Roof & Windows | `Memory/Posts/2026-09-11-post-church-hero-coordination/post-church-hero-coordination.md` | `~/.claude/tmp/post-church-hero-coordination/` |
+| 2026-09-14 | Harmonie du texel density global, 10 cues sur 30 s, deux extraits (UV puis materiaux) | `Memory/Posts/2026-09-14-texel-density-global/post-texel-density-global.md` | `~/Downloads/tmp-3D-houdini/` |
+
+Les composants se decrivent simplement, avec les mots de Matthieu, jamais par des details inventes (arc brise, croix, bardeaux de cedre...) : Roof, fenetre de facade, fenetre de profil.
+Le sous-titrage part toujours de la version editee par Matthieu dans ce fichier, jamais d une copie
+reecrite : les repliques se calquent mot a mot sur son texte (regle du decoupage narratif ci-dessus).
+
+### 6 bis. Short de composants : objet geo de vitrine separe, anime comme un snapshot temporaire (2026-09-11)
+
+Demande de Matthieu : filmer des composants seuls (fenetres sans la structure) sans jamais toucher a la
+scene de production. La methode retenue :
+
+1. **Un objet geo de vitrine distinct de Church** (`/obj/Showcase_Windows`) : il ne contient que des
+   `object_merge` vers les composants (unite WindowA, unite WindowB, les 8 fenetres placees) et un
+   `switch` pilote par `$F` (`if($F<=120,0,if($F<=240,1,2))`) qui enchaine les etapes du short
+   (5 s par etape a 24 fps). Church garde son display flag coupe pendant le tournage.
+2. **L animation vit sur l instance, comme un snapshot temporaire** : cles sur les parametres HDA
+   (volets `shutter_angle` 0 a 180, persiennes `louver_angle`, scale), posees le temps du tournage.
+   Avant de poser les cles, `houdini_snapshot save`, et apres le tournage on retire les cles et on
+   restaure : la scene de production revient a son etat exact.
+3. **Camera shorts unique qui suit les etapes** : `rig_shorts_turn_over.ry` en orbite continue sur
+   1 a 360, `rig.ty` et `cam_shorts_reel.tz` en cles `constant()` a chaque changement d etape pour
+   recadrer sans saut de vitesse (unite : distance 1.6 a 1.75 ; 8 fenetres : 5.6).
+   Resolution camera 2160x3840 (9:16 en 4K), jamais un format carre herite ni une declinaison HD.
+
+### 6 ter. Captures OpenGL fiables et enregistrement video d une fenetre (2026-09-11, OBS deprecie le 2026-09-24)
+
+**Captures cassees, cause et correctif.** Un flipbook lance sans camera capture la vue libre du
+viewport en 1280x720, avec des objets hors cadre et des perspectives fausses. Toujours :
+`vp.setCamera(hou.node("/obj/cam_shorts_reel"))`, puis `fb.useResolution(True)` et
+`fb.resolution((540, 960))` pour un controle rapide en 9:16. Cette basse definition sert UNIQUEMENT a verifier le cadrage image par image ; le rendu livre repasse en `2160x3840`.
+
+**Enregistrement video d une fenetre : `screencapture` de macOS, jamais OBS.**
+`~/.claude/skills/zenray-houdini/scripts/record_window.sh "Houdini" 85 sortie.mov` trouve la fenetre par
+le nom de son application (`window_id.swift`) et lance `screencapture -x -v -V <s> -l<windowid>`. Il filme
+LA FENETRE, meme cachee derriere Claude : l ecran de Matthieu n est jamais pris. Sortie H.264 Retina
+(3508x2110 pour une fenetre de 1708x1009 points, ombre comprise), 120 i/s. `-R x,y,w,h` filme une ZONE
+d ecran, donc ce qui est devant : a eviter. Controle obligatoire avant la vraie prise : 3 s de test, une
+image extraite, regardee.
+
+**`_deprecated` : OBS.** Le 2026-09-24, OBS 32 a enregistre du NOIR PUR, sans une erreur dans son
+journal, avec la source `window_capture` (ancienne API de capture macOS) puis avec `screen_capture`
+(ScreenCaptureKit, mode fenetre). Ancien script `Memory1/Houdini/Scripts/_deprecated/record_short.py`,
+profil et scene dans `~/Library/Application Support/obs-studio/basic/_deprecated_zenray/`. Ne plus
+proposer OBS pour un enregistrement pilote par l agent.
+
+**Defile des layers Copernicus pour un short** : `templates/copernicus-material-v2/LayerWalkthroughRoofTilesV2.py`
+montre chaque layer dans la vue (hauteur, puis chaque detail `dNN_H`, couleur, chaque `dNN_C`, rugosite,
+normale, AO, final) par un `addEventLoopCallback` qui ne bloque pas Houdini ; vue `Front` + `frameAll`
+pour une image plate. 115 layers, ~80 s. Lancer `record_window.sh` en arriere-plan, puis `start()`.
+
+### 7. Structure de livraison epuree pour les posts reseaux sociaux
+
+Pour eviter toute pollution visuelle et confusion de fichiers dans `~/.claude/tmp/<nom-du-post>/` :
+
+1. Regle de la racine minimale (4 fichiers maximum visibles) :
+La racine du dossier de livraison ne contient JAMAIS de doublons, de declinaisons HD ou de fichiers intermediaires temporaires. Elle presente strictement :
+- Le fichier texte unique du post en markdown : `post-<sujet>.md`.
+- Les fichiers video finaux prets a publier, avec des noms courts et lisibles : `reel-01-<nom>.mov`, `reel-02-<nom>.mov`, `reel-03-<nom>.mov`. Le format `.mov` (QuickTime natif Apple en H.264 `avc1` avec `+faststart`) est le format maitre prioritaire car il s importe directement dans la Pellicule iOS (Photos) sans friction et s ingere nativement sur le site Instagram desktop.
+
+2. Organisation en sous-dossiers dedies :
+Toutes les declinaisons techniques secondaires sont obligatoirement rangees dans des sous-repertoires :
+- `mp4/` : les copies miroirs en `.mp4` pour les plateformes ou outils tiers le requerant.
+- `raw/` : les captures brutes en plein ecran 16:9 ou Retina (sans habillage ni texte surimpose) pour archivage technique ou devlog YouTube.
+
+Arborescence canonique a reproduire a chaque livraison :
+```text
+~/.claude/tmp/post-<sujet>/
+├── post-<sujet>.md           # Le texte du post (FR + EN)
+├── reel-01-<nom>.mov         # Livrable pret a poster 1
+├── reel-02-<nom>.mov         # Livrable pret a poster 2
+├── reel-03-<nom>.mov         # Livrable pret a poster 3
+├── mp4/                      # Miroir des reels au format .mp4
+│   ├── reel-01-<nom>.mp4
+│   └── ...
+└── raw/                      # Captures brutes 16:9 / Retina sans texte
+    ├── reel-01-<nom>-raw.mov
+    └── ...
+```
+
+---
+
+## 6 quater. Style final des shorts, titre mixte, flash NEW, sous-titres (2026-09-12)
+
+Le detail complet et le code de reference vivent dans le skill
+`zenray-html-photoshop-pdf-hda-socialmedia-shorts-reel`, section « Style de titre et de sous-titre
+des shorts ». Cette section EST L ETAT FINAL, apres six corrections successives dans la meme
+session ; un pointeur perime coute plus cher qu une regle absente, donc les valeurs ci-dessous sont
+celles a relire, jamais une note intermediaire.
+
+### Le titre : deux polices sur une seule ligne, casse normale
+
+« Houdini » en `AnthropicSerif-SemiBold.ttf` DROIT ; le reste, « Louisiana Bayou », en
+`AnthropicSerif-SemiBoldItalic.ttf` ITALIQUE. **Casse normale partout, jamais de majuscule forcee** :
+ni « HOUDINI », ni « LOUISIANA BAYOU ». Texte exact `"Houdini" + " Louisiana Bayou"`.
+
+Les deux runs de texte partagent une seule baseline calculee depuis `font.getmetrics()` (ascent,
+descent) de CHAQUE police, jamais depuis le haut de leur boite `getbbox()` : deux polices
+differentes n ont pas le meme ascent, aligner sur le haut de boite desaligne visuellement les deux
+runs sur leur ligne de base. La taille se cherche par pas de 2 px jusqu a ce que la pastille
+(largeur des deux runs additionnee, plus marge) tienne sous 92 % du canevas.
+
+**Les quatre corrections qui ont mene ici, dans l ordre, pour ne jamais les rejouer.** Le titre est
+parti en `AnthropicSans-SemiBoldItalic`, faux des le depart. Corrige en `AnthropicSerif`
+SemiBoldItalic, toujours faux. Matthieu a alors precise, mot pour mot : « c etait Houdini pas en
+caps, pas italic, mais le reste du titre est italic »  :  d ou le titre mixte. Premiere version du
+titre mixte gardait « LOUISIANA BAYOU » en majuscules ; correction finale, encore mot pour mot :
+« NON TOUT EN CASSE NORMAL ».
+
+### Les sous-titres : Inter Black, jaune vif plein `#FFE600`
+
+Police `InterVariable.ttf`, instance nommee **`Black`** (poids 900, pas ExtraBold ni SemiBold).
+Couleur **`#FFE600`**, un jaune vif plein. Deux teintes essayees et rejetees avant celle-ci,
+`#edc853` puis `#f8f671`, toutes deux jugees trop pales par Matthieu. `#FFE600` est le meme jaune
+deja documente comme « jaune vif » dans la section Black Myth Wukong du skill social : une seule
+couleur canonique dans tout le corpus, pas une troisieme variante.
+
+**Le piege de police variable a ne jamais rejouer.** `InterVariable.ttf` porte deux axes dans cet
+ordre : `Optical size` (14 a 32) puis `Weight` (100 a 900). `set_variation_by_axes([poids])` regle
+le PREMIER axe, la taille optique, et laisse le poids a son defaut Regular sans la moindre erreur.
+La correction est `font.set_variation_by_name(b'Black')`, qui vise l instance par son nom et ne peut
+pas se tromper d axe.
+
+### Le flash NEW en preroll, 0,30 s, rose
+
+Rose sature au choc `rgb(255,18,132)`, transition rapide (ease-out puissance 0,30) vers un rose pale
+`#eb8c86`, tenu jusqu au fondu. **Aucun bord noir**, la forme est la couleur elle-meme, zero contour.
+Halo en texture nuage (bruit fractal, plusieurs octaves de bruit floute superposees, jamais un
+simple flou uniforme), 2,15 fois la taille du texte net. Fade in ET fade out du texte et du halo,
+jamais une coupe seche.
+
+**Integration au debut du short.** Overlay direct `[0:v][1:v]overlay=0:0:eof_action=pass`, memes
+dimensions que le canevas du short (2160x3840) : aucun recadrage, aucun redimensionnement.
+`eof_action=pass` est necessaire, sans lui la derniere image du flash reste figee a l ecran une fois
+ses 0,30 s ecoulees au lieu de laisser voir la suite. Duree choisie dans la fourchette donnee par
+Matthieu, 0,25 a 0,35 s, calquee sur le rythme du contre mikiri de Sekiro.
+
+### Scripts canoniques et parametres mesures
+
+| Script | Role | Duree | Resolution |
+|---|---|---|---|
+| `Memory/Houdini/Scripts/render_subtitled_short.py` | titre mixte + 10 sous-titres animes | 30,000 s | 2160x3840, 30 ips |
+| `Memory/Houdini/Scripts/render_mikiri_flash.py` | le flash NEW | 0,300 s | 2160x3840, 60 ips, ProRes 4444 alpha |
+
+Les deux scripts portent leur resolution dans le dict `P` en tete de fichier : `P['width'] = 2160` et
+`P['height'] = 3840`. Les anciens rendus HD du 2026-09-12 ne sont pas conformes et doivent etre
+refaits en 4K. Toutes les valeurs en pixels du dict suivent le repere 4K : taille de titre, lignes
+de base des sous-titres, rayons, decalages d ombre et flou du halo.
+
+Les deux shorts finaux (`short-01-church-turntable.mov`, `short-02-vestibule.mov`) montent le flash
+en tete puis la video composee, dans `~/.claude/tmp/tmp-shorts-vestibule-louisiana-bayou/shorts/`. Le
+turntable de l eglise porte la musique Every Dawn and Dusk, celui du vestibule porte Stay Dont Go
+Away, chacun a 30 s de fade in et out de 1 s deja appliques sur la piste audio.
+
+## 6 quinquies. Turntable mesure, et isoler un composant sans jamais perdre l etat de la scene (2026-09-12)
+
+### Le cadrage se mesure par projection, jamais a l oeil
+
+Deux tours de camera ont ete montes le meme jour : `cam_shorts2` pour l eglise entiere,
+`cam_shorts3` pour le seul vestibule. Le rig est toujours le meme, un `null` qui tourne sur `ry` par
+un keyframe lineaire de debut a fin plus 360 degres (l interpolation lineaire sur les deux seules
+cles evite le boitement a la couture ou la boucle se referme), et une camera enfant qui porte le
+recul et la plongee.
+
+**Le recul et la hauteur ne se devinent pas, ils se cherchent par une boucle qui mesure.** Pour
+chaque distance candidate, on projette les huit coins de la boite englobante du sujet a travers la
+camera, a intervalles reguliers sur tout le tour (24 echantillons), et on releve le pire ecart en
+coordonnees normalisees (NDC). Tant que ce pire ecart depasse la marge choisie (0,90 a 0,97 selon la
+tolerance voulue au bord), on recule encore :
+
+```python
+def worst_ndc(camera, corners, aperture, focal, aspect, sample_count, last_frame):
+    worst = 0.0
+    for index in range(sample_count):
+        hou.setFrame(1 + index * (last_frame - 1) / float(sample_count))
+        world_to_camera = camera.worldTransform().inverted()
+        for corner in corners:
+            local = corner * world_to_camera
+            depth = -local[2]
+            if depth <= 0.01:
+                return 99.0   # le sujet est derriere la camera a cet angle, distance a rejeter
+            worst = max(worst,
+                        abs(local[0] * focal / (aperture / 2 * depth)),
+                        abs(local[1] * focal * aspect / (aperture / 2 * depth)))
+    return worst
+```
+
+Un objet qui tourne est au plus pres de l objectif par ses COINS, jamais par son centre : la mesure
+doit donc se faire sur les huit coins de la boite englobante et sur plusieurs angles du tour, pas sur
+une seule image de face.
+
+### Isoler un composant : sauvegarder l etat AVANT de le casser, le restaurer APRES
+
+Pour filmer le vestibule seul, tout `/obj` est masque sauf `Church`, et dans `Church` l affichage
+bascule sur `Component_PorchVestibule`. **Cette modification n a de sens que si elle se defait
+exactement**, sinon chaque tournage laisse la scene un peu plus abimee que la precedente.
+
+```python
+# 1. Sauvegarder AVANT de toucher a quoi que ce soit
+state = {
+    'obj': {c.name(): c.parm('display').eval() for c in obj.children() if c.parm('display')},
+    'church_display_node': church.displayNode().name() if church.displayNode() else None,
+}
+json.dump(state, open(backup_path, 'w'))
+
+# 2. Isoler, tourner, capturer
+
+# 3. Restaurer, dans le MEME ordre que la sauvegarde
+for name, value in state['obj'].items():
+    hou.node('/obj/' + name).parm('display').set(value)
+church.node(state['church_display_node']).setDisplayFlag(True)
+```
+
+Verifie le 2026-09-12 : les 19 objets d `/obj` retrouvent exactement leur etat d avant tournage, et
+`Component_PorchVestibule` reste le noeud affiche dans `Church`, la ou Matthieu l avait laisse.
+
+### Deux gizmos de viewport survivent a la capture, et ce n est ni un bug ni un flag a chasser
+
+Une croix verte et une grille en fil de fer restent visibles en haut a droite et en bas a droite du
+flipbook meme apres extinction de tous les display flags et de tous les flags template. Ils
+viennent des poignees d interaction du viewport lui-meme (l origine de scene, la grille de
+reference), pas d un objet de la scene : aucun `setTemplateFlag(False)` ni `setDisplayFlag(False)`
+ne les retire. A masquer au recadrage final si necessaire, pas a chercher plus longtemps dans la
+scene.
+
+## Short editor : un seul fichier HDA pour tous les shorts (2026-09-16)
+
+**Un seul fichier** : `~/.claude/skills/zenray-houdini/short-editor/short_editor.py`. Lancer : `~/.venvs/shorts/bin/python short_editor.py [--preview 4]`. Sorties : `~/Downloads/tmp-3D-houdini/Shorts/short-editor/`.
+
+**Comme un HDA.** Le bloc `PARAMS` en tete du fichier est l interface : source, crop, titre, style (polices, couleurs, tailles, positions, animation), sous-titres, sortie. Toute demande de reglage = une edition dans `PARAMS`, rien d autre. Le moteur sous `END PARAMS` ne porte aucune valeur et ne change que pour une capacite nouvelle, notee dans le `CHANGELOG` du docstring (qui recoit aussi les notes hors shorts).
+
+**Le skill ne recopie aucune valeur** : le style fait foi dans `PARAMS`, jamais ici. Anciens scripts (`render_short_4k_45.py`, `render_short_4k_compositor.py`, `render_subtitled_short.py`) : historique fige. Variantes supportees : style legacy (multi-font aleatoire) et style officiel `short-editor-hda-v002` (100 % Garamond italic avec drop shadow 40px, titre 2 lignes SF Pro Display Bold avec justification bord a bord Batman a 0.000000 px d ecart, sous-titres bilingues en Yu Mincho Extrabold orange ambre 95pt synchronises a t=0 avec la premiere ligne anglaise, fade out dust in-place particulaire en 12 frames a 360 degres sans derive laterale, bloc commercial final de 3s en ratio 4:5 avec fade in 0.2s, double export automatique en master MOV Apple HEVC hvc1 bt709 pour la pellicule iPhone Photos et master MP4 H.264 universel pour le web, routage kaomoji et piste audio dediee normalisee EBU R128 a -14 LUFS). A chaque post cree dans Memory1, creer un symlink `post.md` a la racine du dossier temporaire de rendu.
+
+### Regle d or sur l export video des Shorts : le bug de la galerie iPhone Photos (.mov)
+Bug recurrent paye deux fois (le 2026-09-16 et le 2026-09-17) :
+- En 4K vertical (3072x3840 a 60 ips), un fichier QuickTime `.mov` encode en H.264 standard (`libx264`) depasse le profil Level 5.2 (Level 6.0). Lors d un transfert AirDrop ou telechargement, iOS refuse categoriquement d importer ce `.mov` dans la Pellicule (Photos) : le bouton « Enregistrer la video » n apparait pas ou echoue, et la video reste confinee dans l application Fichiers comme simple fichier de donnees, invisible dans Instagram et TikTok.
+- Pour tout Short, `short_editor.py` applique desormais la regle duale automatique :
+  1. `master.mp4` est encode en H.264 universel (`libx264`, CRF 17) pour YouTube Shorts, le web et les visionneuses de bureau.
+  2. `master.mov` est re-encode via l encodeur materiel Apple Silicon `hevc_videotoolbox` avec `-tag:v hvc1`, `-pix_fmt yuv420p`, `-color_primaries bt709 -color_trc bt709 -colorspace bt709` et `-movflags +faststart`. Ce fichier `.mov` s enregistre instantanement dans la Pellicule Photos de l iPhone sans aucune erreur.
+

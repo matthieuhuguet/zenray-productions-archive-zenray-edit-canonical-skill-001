@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Generate the selected V4 style outputs with black text shadows."""
+
+from __future__ import annotations
+
+# 2026-09-19 21:00: Keep the canonical V4 bundle limited to the selected background assets.
+
+import json
+from pathlib import Path
+
+from generate_all_shorts import (
+    ACTIVE_SUBTITLE_KEY,
+    BACKGROUND_SPECS,
+    PARAMS,
+    build_gradient,
+    build_subtitle_layers,
+    build_title_layer,
+    compose_static,
+    prepare_background,
+)
+
+
+V4_DIR = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = V4_DIR / "assets" / "selected-finals"
+
+
+SELECTED_TITLE_KEY = "gt_sectra"
+SELECTED_TITLE_COLOR_KEY = "white"
+SELECTED_SUBTITLE_COLOR_KEY = "white"
+SHADOW_TITLE = {"enabled": True, "color": [0, 0, 0, 230], "offset": 16, "blur": 10}
+SHADOW_SUBTITLE = {"enabled": True, "color": [0, 0, 0, 230], "offset": 20, "blur": 12}
+YELLOW_BACKGROUND_KEY = "yellow_layer_03"
+YELLOW_BACKGROUND_SPEC = {
+    "label": "Yellow layer 03",
+    "path": str(V4_DIR / "assets" / "backgrounds" / "yellow_layer_03.png"),
+    "base_rgb": (19, 17, 5),
+    "particle_rgb": (255, 220, 55),
+    "center_y": 0.79,
+    "seed": 3303,
+}
+BACKGROUND_COLOR_NAMES = {
+    "blue_layer_01": "blue",
+    "red_layer_02": "red",
+    "black_layer_04": "black",
+    YELLOW_BACKGROUND_KEY: "yellow",
+}
+
+BACKGROUND_SPECS[YELLOW_BACKGROUND_KEY] = YELLOW_BACKGROUND_SPEC
+
+
+def main() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    for path in OUTPUT_DIR.glob("*.png"):
+        path.unlink()
+
+    PARAMS["title_shadow"] = SHADOW_TITLE
+    PARAMS["subtitle_shadow"] = SHADOW_SUBTITLE
+
+    width = PARAMS["master_width"]
+    height = PARAMS["master_height"]
+    gradient = build_gradient(width, height)
+    title_layer = build_title_layer(
+        SELECTED_TITLE_KEY,
+        width,
+        height,
+        gradient,
+        SELECTED_TITLE_COLOR_KEY,
+    )
+
+    for background_key, background_spec in BACKGROUND_SPECS.items():
+        background = prepare_background(background_key, width, height)
+        first, second, _ = build_subtitle_layers(
+            ACTIVE_SUBTITLE_KEY,
+            SELECTED_SUBTITLE_COLOR_KEY,
+            width,
+            height,
+        )
+        frame = compose_static(background, title_layer, (first, second))
+        color_name = BACKGROUND_COLOR_NAMES[background_key]
+        output_path = OUTPUT_DIR / f"v4_gt_sectra_white_{color_name}_archive_garamond_white_black_shadow.png"
+        frame.convert("RGB").save(output_path, quality=95)
+        print(output_path)
+
+    metadata_path = OUTPUT_DIR.parent / "metadata.json"
+    if metadata_path.exists():
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata.setdefault("backgrounds", {})[YELLOW_BACKGROUND_KEY] = YELLOW_BACKGROUND_SPEC
+        metadata["selected_final_outputs"] = [
+            str(path.relative_to(OUTPUT_DIR.parent))
+            for path in sorted(OUTPUT_DIR.glob("*.png"))
+        ]
+        metadata_path.write_text(
+            json.dumps(metadata, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+
+if __name__ == "__main__":
+    main()

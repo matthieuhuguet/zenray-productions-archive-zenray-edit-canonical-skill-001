@@ -1,0 +1,627 @@
+"""ZenRay short editor, ONE file = ONE HDA.
+
+The PARAMS block below is the parameter interface: every value of a short (source, crop, title,
+style, cues, output) lives there and ONLY there. The engine below it holds no literal value.
+To change a short, edit PARAMS. To add a capability, edit the engine and log it in CHANGELOG.
+
+Usage: ~/.venvs/shorts/bin/python short_editor.py [--preview SECONDS]
+
+CHANGELOG (append only, newest last; non-shorts notes asked by Matthieu also live here)
+- 2026-09-16 v1: merged render_short_4k_45.py into a generic engine, 4:5 letterbox, Sectra title,
+  10 x 2 canon subtitles with per-word random font, kaomoji routed per character.
+- 2026-09-16 v2: template.json and jobs/*.json folded into PARAMS. One file, one source of truth.
+- 2026-09-16 v3: style 2 added (100% Garamond italic subtitles with 40px black drop shadow,
+  tracked SF Pro Display Bold 2-line title, separate audio track input, zero stroke).
+- 2026-09-17 v4: Japanese bilingual subtitles support (Yu Mincho Demibold font, crisp white #f0f2f5 text,
+  drop shadow, aligned underneath English lines with in-place dust particle disintegration).
+FR : un seul fichier ; les valeurs vivent dans PARAMS, le moteur n en porte aucune.
+"""
+# 2026-09-17 00:20
+import os
+import random
+import subprocess
+import sys
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+
+# ===== PARAMS (HDA interface: edit here, nowhere else) =====
+PARAMS = {
+    'canvas': {'width': 3072, 'height': 3840, 'fps': 60, 'duration': 33.0},
+    'source': {
+        'path': '/Users/zenray/Downloads/tmp-3D-houdini/shorts2/02_Rushes/houdini_rush_30s.mov',
+        'crop': None,
+        'start': 0.0,
+    },
+    'audio': {
+        'path': '/Users/zenray/Downloads/tmp-3D-houdini/shorts2/03_Audio/rdr2-clean-33s.m4a',
+        'start': 0.0,
+    },
+    'commercial': {
+        'path': '/Users/zenray/Downloads/tmp-3D-houdini/commercial/imagefinal.png',
+        'duration': 3.0,
+        'fade_in': 0.2,
+    },
+    'image': {'fit': 'width', 'y_center': 1920},
+    'title': {
+        'color': [196, 199, 206],
+        'lines': [
+            {'text': 'HOUDINI', 'size': 170, 'y': 540, 'tracking': 0.85, 'font': '~/Library/Fonts/SF-Pro-Display-Bold.otf'},
+            {'text': 'STILT HOUSE', 'size': 62, 'y': 715, 'align': 'justify_to_prev', 'word_space_mult': 2.2, 'font': '~/Library/Fonts/SF-Pro-Display-Bold.otf'},
+        ],
+    },
+    'subtitles': {
+        'style': 'short-editor-hda-v002',
+        'fade_out': 'dust_inplace',
+        'dust_frames': 12,
+        'color': [239, 159, 71],
+        'shadow_color': [0, 0, 0, 230],
+        'shadow_offset_y': 36,
+        'shadow_blur': 16,
+        'max_width_ratio': 0.87,
+        'space': 32,
+        'pad': 120,
+        'line1_y': 2960,
+        'line2_y': 3150,
+        'line1_y_3lines': 2940,
+        'line2_y_3lines': 3110,
+        'line3_y_3lines': 3300,
+        'size_max': 120,
+        'size_min': 80,
+        'default_size': 108,
+        'jp_size': 95,
+        'jp_color': [239, 159, 71],
+        'jp_shadow_offset_y': 32,
+        'cue_seconds': 3.0,
+        'line2_delay': 0.67,
+        'shear': 0.22,
+        'seed': 42,
+        'fonts': {
+            'garamond': '~/Library/Fonts/ArchiveGaramondStd-BoldItalic.ttf',
+            'yu_mincho': '~/Library/Fonts/YuMincho.ttc',
+            'sf_reg': '~/Library/Fonts/SF-Pro-Display-Regular.otf',
+            'inter': '~/Library/Fonts/InterTight-Italic-VariableFont_wght.ttf',
+            'serif': '~/Library/Fonts/AnthropicSerif-SemiBoldItalic.ttf',
+            'mono': '~/Library/Fonts/AnthropicMono-Bold.ttf',
+            'euph': '/System/Library/Fonts/Supplemental/EuphemiaCAS.ttc',
+            'arial': '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+        },
+        'punch_curve': [
+            [0.5, 0.0],
+            [0.68, 0.4],
+            [0.85, 0.7],
+            [1.02, 1.0],
+            [1.14, 1.0],
+            [1.18, 1.0],
+            [1.16, 1.0],
+            [1.11, 1.0],
+            [1.05, 1.0],
+            [0.99, 1.0],
+            [0.96, 1.0],
+            [0.97, 1.0],
+            [0.99, 1.0],
+            [1.01, 1.0],
+            [1.0, 1.0],
+        ],
+    },
+    'cues': [
+        ['Today I needed a break', 'from my church modeling project.', '教会モデリングから少し息抜きをして、'],
+        ['So I decided to start', 'a completely different project.', 'まったく別の制作を始めることにしました。'],
+        ['I chose to model this structure', 'based on a very expected thing.', 'あの大注目の対象をベースにモデリング。'],
+        ['Take a closer look,', 'can you guess what it is?', 'よく見て、何を作っているか分かりますか？'],
+        ['I think I will stop here', 'for this first blockout pass.', '最初のブロックアウトは一旦ここまで。'],
+        ['I will get back to it later', 'with much finer modeling.', '今後はさらに細かい作り込みを再開します。'],
+        ['It is always great to start from a blockout', 'before pushing a structure further,', 'まずはブロックアウトから組むのが鉄則です、'],
+        ['even though this one', 'is already quite advanced.', '初日でもすでにかなり形になってきました。'],
+        ['Pretty solid progress', 'for a single day of work.', 'たった1日の作業にしては上出来な進捗。'],
+        ['thanks for watching, follow,', 'like for more! ᕙ(`▿´)ᕗ', 'ご視聴感謝！フォロー＆いいねよろしく！ᕙ(`▿´)ᕗ'],
+    ],
+    'output': {
+        'dir': '/Users/zenray/Downloads/tmp-3D-houdini/shorts2/01_Masters',
+        'name': 'houdini-stilt-house-blockout-4x5-4k-jp',
+        'crf': 17,
+        'preset': 'slow',
+        'thumb_at': 15.0,
+    },
+}
+# ===== END PARAMS =====
+K_SPECIAL = {'ᕙ': 'euph', 'ᕗ': 'euph', '▿': 'arial'}
+
+
+def load_params():
+    cfg = PARAMS
+    if not cfg['source']['path']:
+        raise SystemExit('PARAMS is missing source.path')
+    if not cfg['cues']:
+        raise SystemExit('PARAMS has no cues')
+    if not cfg['output']['dir']:
+        raise SystemExit('PARAMS is missing output.dir')
+    return cfg
+
+
+def fp(p):
+    return os.path.expanduser(p)
+
+
+def draw_tracked(draw, text, font, y, color, tracking_ratio, canvas_w):
+    chars = list(text)
+    char_widths = [draw.textbbox((0, 0), c, font=font)[2] - draw.textbbox((0, 0), c, font=font)[0] for c in chars]
+    avg_w = sum(char_widths) / len(char_widths) if char_widths else 0
+    tracking = avg_w * tracking_ratio
+    total_w = sum(char_widths) + tracking * (len(chars) - 1)
+    cur_x = (canvas_w - total_w) / 2
+    x_start = cur_x
+    for i, c in enumerate(chars):
+        draw.text((cur_x, y), c, font=font, fill=color)
+        cur_x += char_widths[i] + tracking
+    x_end = cur_x - tracking
+    return (x_start, x_end, total_w)
+
+
+def draw_justified_to_span(draw, text, font, y, color, target_x0, target_x1, word_space_mult=2.2):
+    words = text.split(' ')
+    w_chars = []
+    total_chars_w = 0
+    num_letter_gaps = 0
+    for w in words:
+        chars = list(w)
+        cw = [draw.textbbox((0, 0), c, font=font)[2] - draw.textbbox((0, 0), c, font=font)[0] for c in chars]
+        w_chars.append((chars, cw))
+        total_chars_w += sum(cw)
+        num_letter_gaps += len(chars) - 1
+    num_word_gaps = len(words) - 1
+    target_span = target_x1 - target_x0
+    denom = num_letter_gaps + (word_space_mult * num_word_gaps)
+    letter_tracking = (target_span - total_chars_w) / denom if denom > 0 else 0
+    word_space = letter_tracking * word_space_mult
+    cur_x = target_x0
+    for wi, (chars, cw) in enumerate(w_chars):
+        for ci, c in enumerate(chars):
+            draw.text((cur_x, y), c, font=font, fill=color)
+            cur_x += cw[ci] + letter_tracking
+        if wi < num_word_gaps:
+            cur_x += word_space - letter_tracking
+    actual_end = cur_x - letter_tracking
+    return (target_x0, actual_end, actual_end - target_x0)
+
+
+def build_title(cfg):
+    W, H = cfg['canvas']['width'], cfg['canvas']['height']
+    t = cfg['title']
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    if not t:
+        return layer
+    d = ImageDraw.Draw(layer)
+    if 'lines' in t:
+        color = tuple(t.get('color', [196, 199, 206]))
+        last_span = None
+        for item in t['lines']:
+            font = ImageFont.truetype(fp(item['font']), item['size'])
+            align = item.get('align')
+            if (align in ('justify_to_prev', 'justify_to_line')) and last_span:
+                mult = item.get('word_space_mult', 2.2)
+                last_span = draw_justified_to_span(d, item['text'], font, item['y'], color, last_span[0], last_span[1], mult)
+            else:
+                tracking = item.get('tracking', 0.0)
+                last_span = draw_tracked(d, item['text'], font, item['y'], color, tracking, W)
+        return layer
+    if not t.get('text'):
+        return layer
+    for size in range(t['max_size'], 9, -1):
+        font = ImageFont.truetype(fp(t['font']), size)
+        bb = d.textbbox((0, t['baseline_y']), t['text'], font=font, anchor='ls')
+        if bb[2] - bb[0] <= W - 2 * t['safe_margin_x'] and bb[1] >= t['safe_top'] and bb[3] <= t['safe_bottom']:
+            d.text(((W - (bb[2] - bb[0])) / 2 - bb[0], t['baseline_y']), t['text'], font=font,
+                   fill=tuple(t['color']), anchor='ls')
+            return layer
+    raise SystemExit('title cannot fit the safe area')
+
+
+class Subtitles:
+    def __init__(self, cfg):
+        self.s = cfg['subtitles']
+        self.W = cfg['canvas']['width']
+        self.color = tuple(self.s['color'])
+        self.style = self.s.get('style', 'short-editor-hda-v002')
+
+    def pool(self, size):
+        f = self.s['fonts']
+        inter = ImageFont.truetype(fp(f['inter']), size)
+        inter.set_variation_by_axes([700])
+        serif = ImageFont.truetype(fp(f['serif']), size)
+        mono = ImageFont.truetype(fp(f['mono']), int(size * 0.92))
+        faces = {'mono': mono, 'euph': ImageFont.truetype(fp(f['euph']), size),
+                 'arial': ImageFont.truetype(fp(f['arial']), size)}
+        return [inter, serif, mono], faces
+
+    def plan_legacy(self, line, size, cue, li):
+        pool, faces = self.pool(size)
+        rng = random.Random(cue * 1337 + self.s['seed'] + li * 99)
+        last, words = -1, []
+        for w in line.split(' '):
+            if any(ord(c) > 127 for c in w):
+                words.append((w, None, sum(faces[K_SPECIAL.get(c, 'mono')].getlength(c) for c in w)))
+                continue
+            last = rng.choice([i for i in range(len(pool)) if i != last])
+            words.append((w, last, pool[last].getlength(w)))
+        total = sum(x[2] for x in words) + self.s['space'] * (len(words) - 1)
+        return pool, faces, words, total
+
+    def card_legacy(self, line, size, cue, li):
+        pool, faces, words, total = self.plan_legacy(line, size, cue, li)
+        im = Image.new('RGBA', (int(total + 80), int(size * 1.5 + 60)), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        x, base = 40, int(size * 1.1 + 20)
+        shear = self.s['shear']
+        for w, idx, width in words:
+            if idx is None:
+                asc = max(faces[k].getmetrics()[0] for k in faces)
+                cx = x
+                for c in w:
+                    face = faces[K_SPECIAL.get(c, 'mono')]
+                    d.text((cx, base + asc - face.getmetrics()[0]), c, font=face, fill=self.color, anchor='ls')
+                    cx += face.getlength(c)
+            elif idx == 2:
+                f = pool[2]
+                asc, desc = f.getmetrics()
+                bw, bh = int(width + 120), int(asc + desc + 60)
+                pp = Image.new('RGBA', (bw, bh), (0, 0, 0, 0))
+                ImageDraw.Draw(pp).text((30, asc), w, font=f, fill=self.color, anchor='ls')
+                sl = pp.transform((bw, bh), Image.AFFINE, (1, shear, -shear * asc, 0, 1, 0), resample=Image.BICUBIC)
+                im.paste(sl, (int(x - 30), int(base - asc)), sl)
+            else:
+                d.text((x, base), w, font=pool[idx], fill=self.color, anchor='ls')
+            x += width + self.s['space']
+        return im
+
+    def is_japanese(self, text):
+        return any('\u3040' <= c <= '\u30ff' or '\u4e00' <= c <= '\u9fff' for c in text)
+
+    def card_v2(self, line, size):
+        f = self.s['fonts']
+        font_g = ImageFont.truetype(fp(f['garamond']), size)
+        font_sf = ImageFont.truetype(fp(f.get('sf_reg', '~/Library/Fonts/SF-Pro-Display-Regular.otf')), size)
+        faces_spec = {
+            'ᕙ': ImageFont.truetype(fp(f.get('euph', '/System/Library/Fonts/Supplemental/EuphemiaCAS.ttc')), size),
+            'ᕗ': ImageFont.truetype(fp(f.get('euph', '/System/Library/Fonts/Supplemental/EuphemiaCAS.ttc')), size),
+            '▿': ImageFont.truetype(fp(f.get('arial', '/System/Library/Fonts/Supplemental/Arial Unicode.ttf')), size),
+            '(': font_sf,
+            ')': font_sf,
+            '`': font_sf,
+            '´': font_sf,
+        }
+        if self.is_japanese(line):
+            font_yu = ImageFont.truetype(fp(f.get('yu_mincho', '~/Library/Fonts/YuMincho.ttc')), size, index=2)
+            runs = []
+            for c in line:
+                face = faces_spec.get(c, font_yu)
+                runs.append((c, face, face.getlength(c)))
+            total_w = sum(x[2] for x in runs)
+            pad = self.s.get('pad', 120)
+            card_w = int(total_w + pad * 2)
+            card_h = int(size * 1.6 + pad * 2)
+            card = Image.new('RGBA', (card_w, card_h), (0, 0, 0, 0))
+            shadow = Image.new('RGBA', (card_w, card_h), (0, 0, 0, 0))
+            d_sh = ImageDraw.Draw(shadow)
+            text_l = Image.new('RGBA', (card_w, card_h), (0, 0, 0, 0))
+            d_tx = ImageDraw.Draw(text_l)
+            base_y = pad + int(size * 1.1)
+            off_y = self.s.get('jp_shadow_offset_y', 26)
+            sh_color = tuple(self.s.get('shadow_color', [0, 0, 0, 230]))
+            jp_color = tuple(self.s.get('jp_color', [245, 245, 247]))
+            cx = pad
+            for c, face, clen in runs:
+                d_sh.text((cx, base_y + off_y), c, font=face, fill=sh_color, anchor='ls')
+                d_tx.text((cx, base_y), c, font=face, fill=jp_color, anchor='ls')
+                cx += clen
+            blur_rad = self.s.get('shadow_blur', 16)
+            if blur_rad > 0:
+                shadow = shadow.filter(ImageFilter.GaussianBlur(radius=blur_rad))
+            card.paste(shadow, (0, 0), shadow)
+            card.paste(text_l, (0, 0), text_l)
+            return card, shadow, text_l, total_w
+
+        words = line.split(' ')
+        word_data = []
+        for w in words:
+            if any(c in faces_spec for c in w):
+                char_runs = []
+                for c in w:
+                    face = faces_spec[c] if c in faces_spec else font_sf
+                    char_runs.append((c, face, face.getlength(c)))
+                w_len = sum(x[2] for x in char_runs)
+                word_data.append(('special', char_runs, w_len))
+            else:
+                word_data.append(('garamond', w, font_g.getlength(w)))
+
+        space = self.s.get('space', 32)
+        total_w = sum(x[2] for x in word_data) + space * (len(word_data) - 1)
+        pad = self.s.get('pad', 120)
+        card_w = int(total_w + pad * 2)
+        card_h = int(size * 1.6 + pad * 2)
+
+        card = Image.new('RGBA', (card_w, card_h), (0, 0, 0, 0))
+        shadow = Image.new('RGBA', (card_w, card_h), (0, 0, 0, 0))
+        d_sh = ImageDraw.Draw(shadow)
+        text_l = Image.new('RGBA', (card_w, card_h), (0, 0, 0, 0))
+        d_tx = ImageDraw.Draw(text_l)
+
+        base_y = pad + int(size * 1.1)
+        off_y = self.s.get('shadow_offset_y', 36)
+        sh_color = tuple(self.s.get('shadow_color', [0, 0, 0, 230]))
+
+        cur_x = pad
+        for item in word_data:
+            if item[0] == 'garamond':
+                w = item[1]
+                d_sh.text((cur_x, base_y + off_y), w, font=font_g, fill=sh_color, anchor='ls')
+                d_tx.text((cur_x, base_y), w, font=font_g, fill=self.color, anchor='ls')
+                cur_x += item[2] + space
+            else:
+                for c, face, clen in item[1]:
+                    d_sh.text((cur_x, base_y + off_y), c, font=face, fill=sh_color, anchor='ls')
+                    d_tx.text((cur_x, base_y), c, font=face, fill=self.color, anchor='ls')
+                    cur_x += clen
+                cur_x += space
+
+        blur_rad = self.s.get('shadow_blur', 16)
+        if blur_rad > 0:
+            shadow = shadow.filter(ImageFilter.GaussianBlur(radius=blur_rad))
+        card.paste(shadow, (0, 0), shadow)
+        card.paste(text_l, (0, 0), text_l)
+        return card, shadow, text_l, total_w
+
+    def frames(self, im, cy):
+        out = []
+        for scale, alpha in self.s['punch_curve']:
+            if alpha <= 0:
+                out.append(None)
+                continue
+            r = im.resize((int(im.width * scale), int(im.height * scale)), Image.Resampling.BILINEAR)
+            if alpha < 1:
+                r.putalpha(r.getchannel('A').point(lambda p, a=alpha: int(p * a)))
+            out.append((r, self.W // 2 - r.width // 2, cy - r.height // 2))
+        return out, (im, self.W // 2 - im.width // 2, cy - im.height // 2)
+
+    def make_dust_frames_inplace(self, card, shadow, text_l, n_dust=12):
+        arr_tx = np.array(text_l)
+        H, W = arr_tx.shape[:2]
+        y_idx, x_idx = np.where(arr_tx[:, :, 3] > 40)
+        if len(y_idx) == 0:
+            return [card] * n_dust
+        colors = arr_tx[y_idx, x_idx]
+        n_pts = len(y_idx)
+        rng = np.random.RandomState(42 + n_pts % 777)
+        angles = rng.uniform(0, 2 * np.pi, n_pts)
+        speeds = rng.uniform(1.2, 5.0, n_pts)
+        vx = np.cos(angles) * speeds
+        vy = np.sin(angles) * speeds
+        delay = rng.uniform(0, 3.0, n_pts)
+        dust_frames = []
+        for f in range(n_dust):
+            sh_a = max(0.0, 1.0 - f / (n_dust * 0.55))
+            cur_sh = shadow.point(lambda p, a=sh_a: int(p * a))
+            t = np.maximum(0, f - delay)
+            cur_x = np.clip(np.round(x_idx + vx * t).astype(int), 0, W - 1)
+            cur_y = np.clip(np.round(y_idx + vy * t).astype(int), 0, H - 1)
+            p_alpha = np.clip(colors[:, 3] * np.maximum(0.0, 1.0 - t / 6.5), 0, 255).astype(np.uint8)
+            layer = np.zeros((H, W, 4), dtype=np.uint8)
+            layer[cur_y, cur_x] = np.column_stack([colors[:, :3], p_alpha])
+            glow_idx = np.where((t > 0) & (t < 4) & (rng.uniform(0, 1, n_pts) < 0.25))[0]
+            if len(glow_idx) > 0:
+                gx = np.clip(cur_x[glow_idx] + 1, 0, W - 1)
+                gy = np.clip(cur_y[glow_idx], 0, H - 1)
+                layer[gy, gx] = np.column_stack([colors[glow_idx, :3], (p_alpha[glow_idx] * 0.5).astype(np.uint8)])
+            p_im = Image.fromarray(layer)
+            comp = Image.alpha_composite(cur_sh, p_im)
+            dust_frames.append(comp)
+        return dust_frames
+
+    def frames_v2(self, card, shadow, text_l, cy):
+        out = []
+        for scale, alpha in self.s['punch_curve']:
+            if alpha <= 0:
+                out.append(None)
+                continue
+            r = card.resize((int(card.width * scale), int(card.height * scale)), Image.Resampling.BILINEAR)
+            if alpha < 1:
+                r.putalpha(r.getchannel('A').point(lambda p, a=alpha: int(p * a)))
+            out.append((r, self.W // 2 - r.width // 2, cy - r.height // 2))
+        steady = (card, self.W // 2 - card.width // 2, cy - card.height // 2)
+        n_dust = self.s.get('dust_frames', 12)
+        raw_dust = self.make_dust_frames_inplace(card, shadow, text_l, n_dust=n_dust)
+        out_frames = [(df, self.W // 2 - df.width // 2, cy - df.height // 2) for df in raw_dust]
+        return out, steady, out_frames
+
+    def prepare(self, cues):
+        max_w = int(self.W * self.s.get('max_width_ratio', 0.87))
+        prepared = []
+        if self.style in ('short-editor-hda-v002', 'garamond_shadow'):
+            default_size = self.s.get('default_size', 108)
+            for ci, cue in enumerate(cues):
+                if len(cue) == 3:
+                    size = default_size
+                    for test in range(self.s.get('size_max', 120), self.s.get('size_min', 80), -2):
+                        c1, s1, t1, w1 = self.card_v2(cue[0], test)
+                        c2, s2, t2, w2 = self.card_v2(cue[1], test)
+                        if w1 <= max_w and w2 <= max_w:
+                            size = test
+                            card1, sh1, tx1 = c1, s1, t1
+                            card2, sh2, tx2 = c2, s2, t2
+                            break
+                    else:
+                        card1, sh1, tx1, _ = self.card_v2(cue[0], size)
+                        card2, sh2, tx2, _ = self.card_v2(cue[1], size)
+                    jp_size = self.s.get('jp_size', 76)
+                    card3, sh3, tx3, _ = self.card_v2(cue[2], jp_size)
+                    y1 = self.s.get('line1_y_3lines', 2950)
+                    y2 = self.s.get('line2_y_3lines', 3120)
+                    y3 = self.s.get('line3_y_3lines', 3280)
+                    lines = [
+                        self.frames_v2(card1, sh1, tx1, y1),
+                        self.frames_v2(card2, sh2, tx2, y2),
+                        self.frames_v2(card3, sh3, tx3, y3),
+                    ]
+                    prepared.append(lines)
+                    print('cue %d (3 lines) size %d' % (ci + 1, size), flush=True)
+                else:
+                    size = default_size
+                    for test in range(self.s.get('size_max', 120), self.s.get('size_min', 80), -2):
+                        c1, s1, t1, w1 = self.card_v2(cue[0], test)
+                        c2, s2, t2, w2 = self.card_v2(cue[1], test)
+                        if w1 <= max_w and w2 <= max_w:
+                            size = test
+                            card1, sh1, tx1 = c1, s1, t1
+                            card2, sh2, tx2 = c2, s2, t2
+                            break
+                    else:
+                        card1, sh1, tx1, _ = self.card_v2(cue[0], size)
+                        card2, sh2, tx2, _ = self.card_v2(cue[1], size)
+                    lines = [
+                        self.frames_v2(card1, sh1, tx1, self.s['line1_y']),
+                        self.frames_v2(card2, sh2, tx2, self.s['line2_y']),
+                    ]
+                    prepared.append(lines)
+                    print('cue %d (2 lines) size %d' % (ci + 1, size), flush=True)
+            return prepared
+
+        for ci, cue in enumerate(cues):
+            size = self.s['size_min']
+            for test in range(self.s['size_max'], self.s['size_min'], -1):
+                if all(self.plan_legacy(l, test, ci, li)[3] <= max_w for li, l in enumerate(cue)):
+                    size = test
+                    break
+            lines = [self.frames(self.card_legacy(l, size, ci, li), self.s['line%d_y' % (li + 1)])
+                     for li, l in enumerate(cue)]
+            prepared.append(lines)
+            print('cue %d size %d' % (ci + 1, size), flush=True)
+        return prepared
+
+
+def render(cfg, preview=None):
+    c = cfg['canvas']
+    W, H, FPS = c['width'], c['height'], c['fps']
+    duration = preview if preview else c['duration']
+    total = int(round(duration * FPS))
+    src = cfg['source']
+    cw, ch, cx, cy = src['crop'] if src['crop'] else (None, None, 0, 0)
+    if cw is None:
+        probe = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
+                                'stream=width,height', '-of', 'csv=p=0', src['path']],
+                               capture_output=True, text=True, check=True).stdout.strip().split(',')
+        cw, ch = int(probe[0]) // 2 * 2, int(probe[1]) // 2 * 2
+    assert cw % 2 == 0 and ch % 2 == 0, 'crop dims must stay even'
+    img_w = W
+    img_h = int(round(ch * W / cw))
+    img_y = int(cfg['image']['y_center'] - img_h / 2)
+
+    title = build_title(cfg)
+    subs = Subtitles(cfg)
+    cues = subs.prepare(cfg['cues'])
+    cue_frames = int(round(cfg['subtitles']['cue_seconds'] * FPS))
+    delay = int(round(cfg['subtitles'].get('line2_delay', 0.67) * FPS))
+    dust_frames = cfg['subtitles'].get('dust_frames', 12)
+    dust_start = cue_frames - dust_frames - 2
+
+    comm_cfg = cfg.get('commercial')
+    has_comm = bool(comm_cfg and comm_cfg.get('path') and not preview)
+    if has_comm:
+        comm_dur = comm_cfg.get('duration', 3.0)
+        comm_frames = int(round(comm_dur * FPS))
+        comm_start = total - comm_frames
+        comm_fade_frames = int(round(comm_cfg.get('fade_in', 0.2) * FPS))
+        comm_img = Image.open(fp(comm_cfg['path'])).convert('RGB').resize((W, H), Image.Resampling.LANCZOS)
+        comm_black = Image.new('RGB', (W, H), (0, 0, 0))
+    else:
+        comm_start = total
+
+    o = cfg['output']
+    os.makedirs(o['dir'], exist_ok=True)
+    name = o['name'] + ('-preview' if preview else '')
+    out_mov = os.path.join(o['dir'], name + '.mov')
+    out_mp4 = os.path.join(o['dir'], name + '.mp4')
+
+    has_audio_track = bool(cfg.get('audio') and cfg['audio'].get('path'))
+    audio_path = cfg['audio']['path'] if has_audio_track else src['path']
+    audio_start = cfg['audio'].get('start', 0.0) if has_audio_track else src['start']
+    audio_map = ['-map', '0:v', '-map', '1:a' if has_audio_track else '1:a?']
+
+    p_in = subprocess.Popen(['ffmpeg', '-v', 'error', '-ss', str(src['start']), '-i', src['path'],
+                             '-vf', 'fps=%d,crop=%d:%d:%d:%d,scale=%d:%d:flags=lanczos' % (FPS, cw, ch, cx, cy, img_w, img_h),
+                             '-pix_fmt', 'rgb24', '-f', 'rawvideo', 'pipe:1'],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    preset = o.get('preset', 'slow')
+    p_out = subprocess.Popen(['ffmpeg', '-y', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24',
+                              '-s', '%dx%d' % (W, H), '-r', str(FPS), '-i', 'pipe:0',
+                              '-ss', str(audio_start), '-i', audio_path] + audio_map + [
+                              '-c:v', 'libx264', '-preset', preset, '-crf', str(o['crf']), '-pix_fmt', 'yuv420p',
+                              '-c:a', 'aac', '-b:a', '320k', '-shortest', '-movflags', '+faststart',
+                              '-frames:v', str(total), out_mp4], stdin=subprocess.PIPE)
+    nbytes = img_w * img_h * 3
+    for fi in range(total):
+        if fi >= comm_start:
+            k = fi - comm_start
+            if k < comm_fade_frames:
+                alpha = k / float(comm_fade_frames)
+                frame = Image.blend(comm_black, comm_img, alpha)
+            else:
+                frame = comm_img
+            p_out.stdin.write(frame.tobytes())
+            if fi % 300 == 0:
+                print('frame %d/%d' % (fi, total), flush=True)
+            continue
+
+        raw = p_in.stdout.read(nbytes)
+        frame = Image.new('RGB', (W, H), (0, 0, 0))
+        if len(raw) >= nbytes:
+            frame.paste(Image.fromarray(np.frombuffer(raw, np.uint8).reshape(img_h, img_w, 3)), (0, img_y))
+        frame.paste(title, (0, 0), title)
+        ci = min(fi // cue_frames, len(cues) - 1)
+        rel = fi - ci * cue_frames
+        n_lines = len(cues[ci])
+        delays_map = [0, delay, 0] if n_lines == 3 else [i * delay for i in range(n_lines)]
+        for li, cue_data in enumerate(cues[ci]):
+            if len(cue_data) == 3:
+                anim, steady, anim_out = cue_data
+                if rel < dust_start:
+                    k = rel - delays_map[li]
+                    if k < 0:
+                        continue
+                    part = anim[k] if k < len(anim) else steady
+                    if part is not None:
+                        frame.paste(part[0], (part[1], part[2]), part[0])
+                else:
+                    d_idx = rel - dust_start
+                    if d_idx < len(anim_out):
+                        part = anim_out[d_idx]
+                        frame.paste(part[0], (part[1], part[2]), part[0])
+            else:
+                anim, steady = cue_data
+                k = rel - delays_map[li]
+                if k < 0:
+                    continue
+                part = anim[k] if k < len(anim) else steady
+                if part is not None:
+                    frame.paste(part[0], (part[1], part[2]), part[0])
+        p_out.stdin.write(frame.tobytes())
+        if fi % 300 == 0:
+            print('frame %d/%d' % (fi, total), flush=True)
+    p_out.stdin.close()
+    p_out.wait()
+    p_in.kill()
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', out_mp4,
+                    '-c:v', 'hevc_videotoolbox', '-b:v', '18M', '-tag:v', 'hvc1', '-pix_fmt', 'yuv420p',
+                    '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709',
+                    '-c:a', 'copy', '-movflags', '+faststart', out_mov], check=True)
+    at = min(o['thumb_at'], duration - 0.5)
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', str(at), '-i', out_mp4, '-vframes', '1',
+                    '-vf', 'scale=1080:-2', '-q:v', '2', out_mov[:-4] + '-thumb.jpg'], check=True)
+    print('DONE', out_mov, out_mp4, flush=True)
+    return out_mov
+
+
+if __name__ == '__main__':
+    args = sys.argv[1:]
+    pv = float(args[args.index('--preview') + 1]) if '--preview' in args else None
+    render(load_params(), pv)

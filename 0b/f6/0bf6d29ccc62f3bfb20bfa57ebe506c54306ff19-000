@@ -1,0 +1,646 @@
+# Shorts1
+
+Corpus route des shorts et reels verticaux ZenRay. Il absorbe le 2026-09-14 les deux skills
+`zenray-realisation-shorts-reels` et `zenray-shorts-reel-realisation`, supprimes le meme jour
+parce qu ils dupliquaient et contredisaient le corpus. Le contenu ci-dessous est repris sans
+reecriture ; les titres sont seulement descendus d un niveau pour tenir dans ce fichier.
+
+Le script compositeur vit desormais dans
+`Library/Houdini/Scripts/render_short_4k_compositor.py` (4K natif, 18,00 s, 60 ips).
+
+---
+
+## Realisation Complete de Shorts et Reels Verticaux : Copernicus 18s
+
+Ce document constitue la reference technique absolue et la synthese de production du Short vertical 9:16 consacre a la texturation procedurale de bois sous Copernicus dans Houdini.
+
+### 1. Contexte et Objectif de Production
+
+Le projet vise a produire un format court vertical ultra dynamique (18,00 secondes a 60 fps) pour exposer le travail de recherche technique de Matthieu Huguet sur Houdini 20.5 et le nouveau module Copernicus (remplacant procedural de Substance Designer integre directement dans le graphe 3D).
+
+L eglise en bois de cypre du bayou louisianais sert de support heroique. L objectif est de demontrer l empilement rigoureux des calques de texture :
+1. Les joints et fentes de planches (Planks & Seams).
+2. Les fibres fines directionnelles (Fine Fibers).
+3. Les nœuds de bois organiques avec fissures radiales (Organic Wood Knots).
+4. Les cernes paraboliques de dosse (Cathedral Waves).
+5. Le composite final melange pret pour Karma XPU (Composite Lookdev Substrate).
+
+### 2. Chronologie des Feedbacks et Arbitrages
+
+Durant les 10 iterations de la session, 13 ajustements majeurs ont ete operes pour atteindre la perfection editoriale :
+
+1. **Suppression de la capsule de titre :** Remplacement du cartouche sombre par un lettrage pur blanc avec contour fin 4px.
+2. **Proscription absolue d image importee :** Refuscategorique de coller une image de reference dans Copernicus. Le procedural s exprime exclusivement par des bruits natifs et des coordonnees mathematiques.
+3. **Rectification des nœuds de bois :** Passage d une forme carree artificielle a une silhouette circulaire naturelle avec micro-fissures radiales par Voronoi.
+4. **Elargissement des cernes cathedrales :** Baisse de la frequence spatiale pour une visibilite immediate sur petit ecran mobile.
+5. **Enregistrement de captures OBS reelles :** Remplacement des rushs perimes par une capture live de 12s du reseau Copernicus en action.
+6. **Timeline verrouillee a 18,00 secondes :** 3s d accroche 3D, 12s de navigation dans le graphe, 3s de defile de spheres.
+7. **Normalisation sonore EBU R128 :** Calibrage exact a -14 LUFS avec fondus in (0,2s) et out (0,8s).
+8. **Nettoyage des 3 dernieres secondes :** Retrait integral des sous-titres jaunes devant les spheres 3D pour laisser respirer les reflets du materiau.
+9. **Ordre du defile des spheres :** 15s Fiber Knot, 16s Cathedral Waves, 17s Composite Blend.
+10. **Typographie 2 lignes et Auto-Fit :** Condensation des sous-titres en 2 lignes et detection automatique de la taille maximale (entre 40pt et 62pt) pour tenir dans la largeur sans rogner.
+11. **Animation en canon ligne par ligne :** Declenchement de la ligne 1 a t=0 avec pop d echelle (0.50 vers 1.18 puis 1.00), suivi de la ligne 2 a 40 frames (0,67s) pour creer un rythme percutant.
+12. **Reparation du bug de titre masquant Procedural :** Isolation du titre sur calque RGBA separe pour bannir toute collision de variables w1/w2.
+13. **Generation multi-livrables :** Sauvegarde des deux variantes musicales (Kokuhaku et The Witcher) sous formats MOV et MP4, totalisant 4 fichiers finaux valides.
+
+### 3. Architecture du Compositeur Python / FFmpeg
+
+Le moteur de rendu `/tmp/compose_final_perfect_18s.py` s appuie sur une architecture de streaming bidirectionnel sans ecriture de fichiers temporaires sur disque :
+- Deux processus FFmpeg lisent les rushs videos sources (la turntable 3D et le walkthrough OBS) et injectent les pixels bruts `rgb24` via stdout.
+- Le script Python lit les paquets de pixels, assemble les calques avec Pillow (titre fixe isole, sous-titres animes en canon, spheres recadrees).
+- Le frame composite est injecte directement dans le stdin d un encodeur FFmpeg `libx264` fonctionnant en preset slow et CRF 17.
+- L ancien benchmark Full HD de 7,6 secondes est obsolete. Le compositeur officiel produit maintenant les 1080 images directement en 2160x3840 a 60 fps ; son temps se mesure apres le prochain rendu complet.
+
+### 4. Organisation des Composants du Skill
+
+Le dossier `components/` rassemble les briques operationnelles reutilisables :
+- `components/01-feedback-history.md` : Retours detailles et lecons techniques.
+- `components/02-python-compositor-script.py` : Script Python complet et autonome.
+- `components/03-canon-subtitles-animation.md` : Formule mathematique du pop et logique canon.
+- `components/04-audio-processing-normalization.md` : Protocoles de mastering sonore mobile.
+- `components/05-typography-and-title-rules.md` : Chartes typographiques et protection de calques.
+- `components/06-deliverables-and-specs.md` : Tableau de controle et commandes ffprobe.
+
+### 5. Matrice Finale des Fichiers Produits
+
+Tous les livrables sont archives et disponibles dans `/Users/zenray/Downloads/tmp-3D-houdini/` :
+- `short-materials-layers-kokuhaku.mov` (2.6 MB, audio Kokuhaku normalise -14 LUFS)
+- `short-materials-layers-kokuhaku.mp4` (2.6 MB, audio Kokuhaku)
+- `short-materials-layers-thewitcher.mov` (2.8 MB, audio The Witcher cut 09:24 normalise -14 LUFS)
+- `short-materials-layers-thewitcher.mp4` (2.8 MB, audio The Witcher)
+- `short-materials-layers.mov` (2.6 MB, version canonique par defaut)
+- `short-materials-layers.mp4` (2.6 MB, version canonique par defaut)
+- `thumbnails/` : vignettes certifiees 2160x3840 extraites directement du master 4K natif.
+
+---
+
+## Historique Chronologique des Feedbacks Utilisateur et Corrections
+
+Ce document consigne l ensemble des retours de Matthieu Huguet lors de la session de production du Short Copernicus 18s, la reponse technique apportee et la regle d or apprise.
+
+### Retour 1 : Suppression de la capsule de titre
+- **Observation Matthieu :** « enleve la capsule du titre et save »
+- **Diagnostic :** La vignette et le short utilisaient un cartouche noir arrondi (capsule) sous le titre. Matthieu voulait epurer le look pour un rendu luxe editorial direct.
+- **Correction appliquee :** Suppression du rectangle arrondi noir semi-transparent sous le texte. Le titre se detache directement en blanc avec un subtil contour noir (stroke width 4px).
+- **Regle retenue :** Ne jamais imposer de capsule par defaut lorsque la direction artistique privilegie l epuration typographique sur fond d image.
+
+### Retour 2 : Non au copier-coller d image dans Copernicus
+- **Observation Matthieu :** « TU M AS JUSTE COLLE L IMG REF TU TE FOUS DE MA GUEULE NE FAIS PLUS JAMAIS L ERREUR UNE IMAGE REF NE DOIT JAMAIS ETRE COPIE DIRECTEMENT DANS LE GRAPH CE N EST PAS COMME CA QUE MARCHE LE PROCEDURAL ET COPERNICUS OU MEME SUBSTANCE DESIGNER. PAS COLLE, REFERENCE POUR S EN INSPIRER »
+- **Diagnostic :** Un noeud `file` contenant directement l image de reference avait ete importe dans le graphe au lieu de concevoir les calques en pur procedural (noises, patterns, warps).
+- **Correction appliquee :** Destruction immediate du noeud image dans le graphe Copernicus. Reconstruction complete du materiau a l aide de generateurs proceduraux mathematiques natifs.
+- **Regle d or absolue :** Une image de reference sert uniquement d inspiration visuelle externe. Dans un outil procedural (Copernicus, Substance Designer, Houdini SOPs), tout se construit par fonctions mathematiques et bruits proceduraux.
+
+### Retour 3 : Forme des noeuds de bois (Wood Knot L3)
+- **Observation Matthieu :** « les knot L3 ne sont pas assez ronds et pourquoi le shorts c est devenu n imp alors qu on a defini le style final »
+- **Diagnostic :** Le bruit procedurale applique sur le noeud generait des formes trop etirees ou rectangulaires au lieu de nœuds de bois organiques concentriques.
+- **Correction appliquee :** Recalibrage des coordonnees polaires, ajout d un masque d ellipticite circulaire doux et insertion de micro-fissures radiales par Voronoi warp.
+- **Regle retenue :** Un nœud de bois organique commence toujours par une geometrie centrale quasi-circulaire perturbee par les fibres qui l enveloppent.
+
+### Retour 4 : Agrandissement des vagues cathedrales (Cathedral Waves)
+- **Observation Matthieu :** « ET LES WAVES cathedral wave sont quasi parfaite il faut juste les agrandir un peu »
+- **Diagnostic :** La frequence spatiale des cernes de dosse (tangential grain) etait legerement trop serree pour une lisibilite ideale a l echelle smartphone.
+- **Correction appliquee :** Diminution de l echelle de frequence du generateur de bandes pour espacer et elargir les motifs de cernes paraboliques.
+
+### Retour 5 : Remplacement des captures par des enregistrements OBS reels
+- **Observation Matthieu :** « Non c est pas les bonnes images il faut rerecord des images reels car la les layers ne sont plus a jour »
+- **Diagnostic :** Les captures video utilisees dans le montage montraient l ancienne version du graphe avant la refonte procedurale des calques.
+- **Correction appliquee :** Nouvel enregistrement OBS en direct sur la session active d Houdini (walkthrough fluide de 12 secondes montrant la structure des calques ordonnee de gauche a droite).
+
+### Retour 6 : Structure stricte de 18 secondes
+- **Observation Matthieu :** « le shorts devait faire 18 sec. avec a la fin 3 sec de sphere material »
+- **Diagnostic :** Le premier jet faisait 15 secondes. Il manquait l espace dedie pour faire defiler les spheres de materiaux.
+- **Correction appliquee :** Extension de la timeline a 18,00 secondes exactes (1080 frames a 60 fps). Repartition : 0 a 3s lookdev eglise, 3 a 15s walkthrough graphe, 15 a 18s defile des spheres.
+
+### Retour 7 : Normalisation audio YouTube
+- **Observation Matthieu :** « le son est bon mais il manque et fade in / out + normalisation audio youtube. -14 ou + 14 je sais pas »
+- **Diagnostic :** L audio etait extrait brut sans adaptation a la norme de diffusion des plateformes mobiles.
+- **Correction appliquee :** Normalisation standard EBU R128 a -14 LUFS integree via ffmpeg loudnorm, avec fondu entrant de 0,2s et fondu sortant de 0,8s a 17,2s.
+
+### Retour 8 : Suppression des sous-titres sur les spheres
+- **Observation Matthieu :** « Corrections les 3 dernieres secondes enleve simplement le sous titres jaune ca passe devant et on en a pas besoin »
+- **Diagnostic :** Les sous-titres jaunes apparaissaient encore au centre bas entre 15s et 18s et masquaient le reflet et le relief du materiau 3D.
+- **Correction appliquee :** Condition stricte `if frame_idx < 900` (avant 15,0s) sur le calque de sous-titrage. Les 3 dernieres secondes sont totalement epurees.
+
+### Retour 9 : Ordre du defile des spheres 3D
+- **Observation Matthieu :** « Dans les 3 dernieres seconde Inverse aussi l ordre c est d abord et fiber knot puis waves puis enfin blend »
+- **Diagnostic :** L ordre initial etait Grain -> Blend -> Knot.
+- **Correction appliquee :** Reagencement precis : 15 a 16s Fiber Knot, 16 a 17s Cathedral Waves, 17 a 18s Composite Blend.
+
+### Retour 10 : Passage de 3 lignes a 2 lignes et Auto-Fit
+- **Observation Matthieu :** « je vois que t as fait trois lignes j aurais prefere 2 lignes ou tu condenses le texte a la taille max en px sans crop »
+- **Diagnostic :** Trois lignes de texte saturaient verticalement le bas de l image.
+- **Correction appliquee :** Reecriture des 5 cues en 2 lignes nettes. Creation d un algorithme d auto-fit descendant (de 62pt a 40pt) pour trouver la taille maximale en pixels qui tient dans 960px de largeur sans deborder.
+
+### Retour 11 : Animation en canon ligne par ligne
+- **Observation Matthieu :** « NON C EST ANIME LIGNE PAR LIGNE EN CANON »
+- **Diagnostic :** Les deux lignes de sous-titres apparaissaient simultanement avec le meme pop.
+- **Correction appliquee :** Decouplage temporel. Ligne 1 apparait a frame 0 du cue avec un pop dynamique (echelle 0.50 vers 1.18 puis 1.00 en 18 frames). Ligne 2 declenche son propre pop avec un retard de 40 frames (0,67 seconde plus tard). Effet rythmique percutant.
+
+### Retour 12 : Bug d affichage du titre fixe (Procedural manquant)
+- **Observation Matthieu :** « LE TITRE EST CASSE »
+- **Diagnostic :** Dans la boucle de mesure des mots des sous-titres, les variables `w1` et `w2` etaient ecrasees par le script, ce qui faussait le positionnement du calque titre et masquait le mot central « Procedural ».
+- **Correction appliquee :** Isolation totale du titre : precalcule sur un canevas RGBA statique (`title_layer`) une seule fois au demarrage du script et colle a chaque frame sur le flux video sans aucune interference de variables.
+
+### Retour 13 : Choix musical et multi-livrables (Kokuhaku et The Witcher)
+- **Observation Matthieu :** « en fait remet la musique : kokuhaku-18s.m4a et on a fini fais le en premier rapidement mais garde l ancienne version avec le son different mais met l extension kokuhaku ou the witcher. 4 outputs car .mov et .mp4 »
+- **Correction appliquee :** Production de 4 fichiers finaux rigoureusement identiques en image mais dotes de leurs bandes-son respectives, avec nommage explicite et verification ffprobe.
+
+---
+
+## Algorithme d Animation en Canon Ligne par Ligne
+
+Ce composant documente la technique d animation des sous-titres utilisee pour maximiser l impact et la retention sur les plateformes courtes (Shorts, Reels, TikTok).
+
+### 1. Principe de l animation en canon
+
+Contrairement a un affichage statique ou a un pop simultane de tout le texte, l animation en canon decoupe le message en deux etapes visuelles distinctes :
+1. **Ligne 1 (Accroche immediate) :** Declenchee a l instant exact du debut du cue (frame relative f_rel = 0).
+2. **Ligne 2 (Resolution / Rythme) :** Declenchee avec un retard fixe appele canon delay (40 frames a 60 fps, soit exactement 0,67 seconde).
+
+Ce decalage force l oeil de l internaute a lire la premiere ligne avant d accueillir le punch de la seconde ligne, maintenant l attention en eveil permanent.
+
+### 2. Courbe d impact punchy (Punch Scale Curve)
+
+L animation utilise une courbe de rebond dynamique en 18 images (0,30 seconde a 60 fps) calibree pour eviter tout effet de flottement elastique mou.
+
+```python
+## Definition de la courbe : liste de tuples (echelle, opacite_alpha)
+punch_curve = [
+    (0.50, 0.00), # Frame 0 : invisible, miniature
+    (0.65, 0.40), # Frame 1 : apparition rapide
+    (0.85, 0.75), # Frame 2 : montee en puissance
+    (1.02, 1.00), # Frame 3 : opacite complete, depassement
+    (1.14, 1.00), # Frame 4 : overshoot
+    (1.18, 1.00), # Frame 5 : pic d impact (punch max)
+    (1.16, 1.00), # Frame 6 : debut du rappel
+    (1.11, 1.00), # Frame 7
+    (1.06, 1.00), # Frame 8
+    (1.02, 1.00), # Frame 9
+    (0.99, 1.00), # Frame 10 : leger sous-depassement
+    (0.98, 1.00), # Frame 11
+    (0.99, 1.00), # Frame 12
+    (1.00, 1.00), # Frame 13 a 17 : stabilisation parfaite
+    (1.00, 1.00),
+    (1.00, 1.00),
+    (1.00, 1.00),
+    (1.00, 1.00),
+]
+```
+
+### 3. Precalcul en memoire vive
+
+Pour garantir un rendu video superieur a 140 fps sans saturer le processeur, toutes les images de redimensionnement de chaque ligne sont precalculees en amont dans la structure `rendered_cues` :
+- Les cartes de texte haute definition sont rasterisees une seule fois.
+- Les 18 variations d echelle et d alpha sont stockees en liste de surfaces PIL RGBA.
+- Lors de la boucle principale de composition video, un simple collage `base_frame.paste(im, pos, im)` s execute a la volee sans calcul trigonometrique ni convolution redondante.
+
+---
+
+## Normalisation et Traitement Audio pour Shorts et Reels
+
+Ce composant decrit la methode normalisee pour adapter n importe quelle source audio YouTube au standard de diffusion mobile (-14 LUFS).
+
+### 1. Pourquoi normaliser a -14 LUFS
+
+YouTube Shorts, Instagram Reels et TikTok appliquent des algorithmes stricts de Loudness Normalization. Un fichier mixe trop fort (au-dessus de -14 LUFS integre) est ecrase par le compresseur de la plateforme, ce qui detruit la dynamique et introduit de la saturation. Un fichier trop bas passe inapercu et parait amorphe sur telephone.
+
+La cible ideale est :
+- **Volume integre (I) :** -14.0 LUFS
+- **True Peak (TP) :** -1.0 dBFS (pour eviter tout ecretage lors de la recompression codec)
+- **Loudness Range (LRA) :** 7 a 11 LU
+
+### 2. Commandes FFmpeg de decoupe et normalisation
+
+#### Etape 1 : Extraction du segment musical (ex: 18,00 secondes a partir du point de depart choisi)
+```bash
+ffmpeg -y -ss 00:09:24.00 -i source_full.mp3 -t 18.00 -c copy segment_raw.mp3
+```
+
+#### Etape 2 : Mesure de loudness
+```bash
+ffmpeg -i segment_raw.mp3 -af loudnorm=I=-14:TP=-1.0:LRA=11:print_format=json -f null -
+```
+
+#### Etape 3 : Application de la normalisation avec fondus d entree et de sortie
+Pour eviter un depart brutal et clore proprement la fin du short :
+- Fondu d ouverture doux (fade in) : 0,20 a 0,50 seconde au debut.
+- Fondu de fermeture (fade out) : 0,80 seconde avant la fin (commence a 17,20s pour finir a 18,00s).
+
+```bash
+ffmpeg -y -i segment_raw.mp3 -af "loudnorm=I=-14:TP=-1.0:LRA=11,afade=t=in:ss=0:d=0.2,afade=t=out:st=17.2:d=0.8" -c:a aac -b:a 320k -ar 48000 master_audio_18s.m4a
+```
+
+### 3. Multiplexage video et audio
+
+Lors de la generation finale, l audio est encode en AAC 48 kHz stereo 320 kbps avec l option `-shortest` pour que la fin de la bande son verrouille parfaitement la duree de la video.
+
+---
+
+## Typographie, Titrage et Prevention du Masquage de Calques
+
+Ce composant resume la charte typographique de ZenRay et la regle d isolation memoire contre les collisions de variables.
+
+### 1. La formule officielle Sectra
+
+Le titre entier utilise **GT Sectra Bold Italic**. Le fichier officiel est `GT-Sectra-LCGV-Bold-Italic.otf`, installe dans `~/Library/Fonts`.
+
+Exemple officiel : `Houdini Procedural Texturing`, entierement en GT Sectra Bold Italic.
+
+La taille n est jamais choisie a l estime. Le compositeur travaille directement sur un canevas 2160x3840, descend depuis 400 px et mesure la boîte reelle avec `textbbox`, contour compris. Il retient la premiere taille qui tient dans la marge horizontale de 64 px et la bande verticale de y=440 a y=820. Sur le titre officiel, le maximum mesure est 151 px avec une boîte x=69,5 a x=2090,5. La taille 152 px mesure 2036 px de large et depasse de 4 px la zone sure de 2032 px.
+
+L auto-fit reste enferme dans `title_layer`. Il ne modifie jamais `cues_2lines`, qui garde exactement deux lignes par cue, ni le rendu randomise des sous-titres. La frame de controle se prend a t=1,5s pour afficher les deux lignes apres leur animation canon.
+
+Le titre tri-polices precedent reste disponible sous le profil **`mixed-deprecated`** pour reproduire un ancien rendu : `Houdini` en Sectra, `Procedural` en Inter Tight Italic 700 et `Texturing` en Anthropic Mono Bold incline. Il n est jamais la valeur par defaut.
+
+### 2. Prevention de collision de variables (Le piege w1 / w2)
+
+#### Le probleme rencontre en session
+Dans une premiere version du script compositeur, le titre etait dessine frame par frame en mesurant les largeurs avec `t_w1` et `t_w2`. Plus bas dans la boucle de sous-titrage, une variable temporaire nommee `w1` etait utilisee pour mesurer la largeur de la premiere ligne de sous-titre.
+A cause d une reassignation involontaire, la coordonnee X du mot central `Procedural` devenait egale a la coordonnee du mot `Houdini`, superposant les lettres et effacant le mot central du short.
+
+#### La solution architecturale absolue
+**Toujours isoler le calque de titrage statique sur un canevas dedie.**
+```python
+## Creation d un calque titre statique RGBA
+title_layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+d_title = ImageDraw.Draw(title_layer)
+
+## Rendu officiel complet du titre une seule fois au boot
+for title_font_size in range(400, 9, -1):
+    title_stroke_width = max(1, round(title_font_size * 8 / 132))
+    title_font = ImageFont.truetype(p_sectra_bold_italic, title_font_size)
+    title_bbox = d_title.textbbox((0, title_baseline_y), title_text, font=title_font, stroke_width=title_stroke_width, anchor='ls')
+    if title_bbox[2] - title_bbox[0] <= W - 128 and title_bbox[1] >= 440 and title_bbox[3] <= 820:
+        title_tx = (W - (title_bbox[2] - title_bbox[0])) / 2 - title_bbox[0]
+        break
+d_title.text((title_tx, title_baseline_y), title_text, font=title_font, fill=(255, 255, 255), stroke_width=title_stroke_width, stroke_fill=(0, 0, 0), anchor='ls')
+
+## Dans la boucle d images video : aucun calcul, collage pur
+base_frame.paste(title_layer, (0, 0), title_layer)
+```
+
+### 3. Auto-Fit typographique des sous-titres
+
+Pour eviter tout debordement d ecran sur petit smartphone, une boucle descendante teste la largeur totale de chaque ligne de sous-titre avant le rendu :
+```python
+MAX_W = 1880
+best_size = 80
+for test_size in range(124, 76, -1):
+    f_inter = ImageFont.truetype(p_inter, test_size)
+    # verification du cumul des largeurs de mots
+    if all_lines_fit:
+        best_size = test_size
+        break
+```
+Le texte est ainsi presente a la plus grande taille possible sans jamais risquer de coupe.
+
+---
+
+## Specifications et Controle Qualite des 4 Masters Livrables
+
+Ce document specifie les 4 sorties video generees pour clore le projet Short Copernicus 18s.
+
+### 1. Matrice des Livrables
+
+| Fichier | Bande Son | Format | Resolution | FPS | Codec Video | Codec Audio | Poids |
+|---|---|---|---|---|---|---|---|
+| `short-materials-layers-kokuhaku.mov` | Kokuhaku 18s | QuickTime Master | 2160x3840 | 60 | H.264 High CRF 17 | AAC 48k 320k | Mesure apres rendu |
+| `short-materials-layers-kokuhaku.mp4` | Kokuhaku 18s | Web Faststart | 2160x3840 | 60 | H.264 High | AAC 48k 248k | Mesure apres rendu |
+| `short-materials-layers-thewitcher.mov` | The Witcher 18s | QuickTime Master | 2160x3840 | 60 | H.264 High CRF 17 | AAC 48k 320k | Mesure apres rendu |
+| `short-materials-layers-thewitcher.mp4` | The Witcher 18s | Web Faststart | 2160x3840 | 60 | H.264 High | AAC 48k 315k | Mesure apres rendu |
+
+Les fichiers de base `short-materials-layers.mov` et `short-materials-layers.mp4` sont egalement maintenus synchronises sur la version retenue Kokuhaku.
+
+### 2. Vignettes de couverture (Thumbnails)
+
+Generees a l instant exact t = 13,50 secondes (ou les deux lignes de sous-titres sont parfaitement stables et visibles) :
+- `thumbnail-materials-layers-9x16-4k.jpg` et `.png` : extraits directement du master natif 2160x3840, sans agrandissement.
+- `test_thumbnail_no_capsule.jpg` : reference epuree sans cartouche sombre.
+
+### 3. Script de verification automatique ffprobe
+
+Pour certifier les livrables avant mise en ligne :
+```bash
+for f in short-materials-layers-kokuhaku.mov short-materials-layers-kokuhaku.mp4 short-materials-layers-thewitcher.mov short-materials-layers-thewitcher.mp4; do
+  echo "Validation de $f..."
+  ffprobe -v error -show_entries stream=codec_name,width,height,r_frame_rate,duration -of default=noprint_wrappers=1 "$f"
+done
+```
+Critères de conformite stricts :
+- Duree video : 18.000000 secondes.
+- Duree audio : 17.984000 a 18.000000 secondes.
+- Taux de rafraichissement : 60/1.
+- Dimensions : 2160x3840 natives.
+
+---
+
+## Archivage des posts, repris du skill supprime zenray-shorts-reel-realisation
+
+Chaque court metrage s accompagne immediatement :
+- d un fichier post trilingue (EN / 日本語 / FR) sous `Memory/Posts/YYYY-MM-DD-<sujet>/` ;
+- de SA phrase de cloture, et les deux ne se confondent jamais (correction du 2026-09-14) :
+
+  | Support | Ce que le lecteur fait | Phrase exacte, recopiee sans une variation |
+  |---|---|---|
+  | **Le POST** (le texte publie, les trois langues) | il LIT | `thanks for reading, like for more! ᕙ(`▿´)ᕗ` |
+  | **Le SHORT** (la video, dernier cue a l ecran) | il REGARDE | `thanks for watching, follow, like for more! ᕙ(`▿´)ᕗ` |
+
+  Le short appelle en plus le `follow` avant le `like`, le post non. Mettre la phrase du short dans
+  le post, ou l inverse, est une faute : le support commande le verbe ;
+
+- d une consignation de synthese dans `Memory/SocialMedia/SocialMedia1.md`.
+
+Le reste de ce skill supprime est ecarte volontairement : il prescrivait 1080x1920, un titre
+AnthropicSans SemiBold Italic, les jaunes `#FFDC33` et `#EDC853` et un pop de 0,92 vers 1,05, tous
+contredits par la regle 4K, par le titre Sectra, par le jaune `#FFE144` et par la courbe 0,50 vers
+1,18 en vigueur depuis le 2026-09-14.
+
+---
+
+## Production du Short 28s UV Texel Harmony, Garamond x1.25, Kaomoji Mono et Jaune #f1f250 (2026-09-14)
+
+Ce document consigne la production du Short vertical 4K dedie a l harmonisation du texel density procedural sous Houdini.
+
+### 1. Fiche Technique et Parametres 28.00s
+
+| Parametre | Valeur validee | Rationale et Preuve |
+|---|---|---|
+| **Format & Cadence** | 2160x3840 (4K vertical 9:16) a 60 fps | Master haute fidelite sans compression destructive |
+| **Duree exacte** | 28,000000 secondes (1680 frames) | Vitesse acceleree x3 de la capture OBS 0:04 a 1:28 |
+| **Bande-son** | Kinematica (Luminist), cut 2:04 a 2:32 | Normalisation EBU R128 a -14 LUFS, fondu entrant 0,2s, fondu sortant 0,8s |
+| **Titre maitre** | GT Sectra Bold Italic (132-151 pt) | Blanc pur `#FFFFFF`, contour noir 8px, zero capsule |
+| **Sous-titres** | 10 cues en 2 lignes avec delai canon 36 frames (0,60s) | Pop d echelle dynamique 0,50 vers 1,18 puis 1,00 |
+| **Jaune des sous-titres** | `#FFE144` (version initiale) / `#f1f250` (nouveau standard adopte) | `#f1f250` correspond a RGB `(241, 242, 80)` |
+
+### 2. Arbitrages Typographiques et Regles de Securite
+
+#### A. Calibrage d echelle Archive Garamond Std Bold Italic (Facteur x1.25)
+La substitution de la police serif Anthropic par `ArchiveGaramondStd-BoldItalic.ttf` provoquait un desequilibre visuel a echelle unitaire (1.0). L oeil de Garamond presente une hauteur de minuscules (x-height) inferieure de 20% par rapport a Inter Tight et Anthropic Mono (36px contre 45px sur un corps 80).
+- **Regle validee :** Appliquer obligatoirement un facteur multiplicateur de `1.25` sur la taille de la police Garamond (`int(round(font_size * 1.25))`).
+- **Resultat mesure :** L epaisseur de trait et la lisibilite des mots en Garamond s equilibrent parfaitement avec les mots voisins en Inter Tight et Anthropic Mono sur la meme ligne.
+
+#### B. Exception stricte Kaomoji et Emojis en police Mono
+Les expressions faciales japonaises (kaomojis tels que `ᕙ(`▿´)ᕗ` dans le cue 10) ne doivent jamais etre confiees a des polices variables ou serif, sous peine de produire des caracteres manquants (glyphes .notdef affichant des boites avec des croix).
+- **Regle validee :** Filtrer le mot contenant le kaomoji et router son rendu en mode composite :
+  * Base : `AnthropicMono-Bold.ttf` pour les parentheses et accents.
+  * Bras et poings (`ᕙ` et `ᕗ`) : issus de `EuphemiaCAS.ttc` (Canadian Aboriginal Syllabics).
+  * Bouche / nez triangulaire (`▿`) : issu de `Arial Unicode.ttf`.
+- **Controle :** Aucun caractere tofu ou carre vide autorise sur les sorties finales.
+
+#### C. Nouveau jaune officiel des sous-titres : #f1f250
+Matthieu a valide le code couleur `#f1f250` pour remplacer definitivement l ancien jaune `#FFE144`.
+- **Valeurs colorimetriques :** Rouge 241, Vert 242, Bleu 80 (`(241, 242, 80)`).
+- **Contour :** Noir pur `(0, 0, 0)` avec epaisseur de contour de 8px en 4K (4px en Full HD).
+
+### 3. Synchronisation Camera et Animation des Parametres HDA
+
+Pour dynamiser la sequence et prouver la flexibilite procedurale du HDA Church sous Houdini, les parametres geometriques sont animes en synchronisation directe avec les trois mouvements de camera :
+1. **Plan 1 (0 a 10s, frames 1 a 600) :** Vue trois quarts et zoom progressif vers la facade. Le parametre `wall_height` s anime de 2.60m a 3.00m.
+2. **Plan 2 (10 a 20s, frames 601 a 1200) :** Travelling horizontal le long du profil droit de l eglise. Les bardeaux s animent avec `roof_shingle_rows` (16 a 22 rangees) et `roof_shingle_thickness` (0.015m a 0.025m).
+3. **Plan 3 (20 a 28s, frames 1201 a 1680) :** Turnover a 180 degres vers l arriere. Le debord de toiture s anime avec `roof_gable_overhang` (0.15m a 0.28m).
+
+### 4. Perspective Technique : HDA zenray_short_compositor
+
+Pour supprimer les scripts Python externes et accelerer l edition des shorts directement dans l interface de Houdini, le developpement d un HDA dedie `zenray_short_compositor` est planifie :
+- **Entrees :** Sequence d images / rush brut OpenGL Karma, piste audio m4a / mp3.
+- **Parametres :** Titre Sectra auto-fit, multiparm de sous-titres, facteur d echelle Garamond (1.25 par defaut), selecteur de couleur jaune (`#f1f250`), exportateur en un clic 4K Master MOV et MP4 Faststart via ROP ou subprocess FFmpeg integre.
+
+### 5. Repertoire des Livrables
+
+- Master original upload : `/Users/zenray/Downloads/tmp-3D-houdini/tmp-shorts/short-uv-texel-harmony.mov` (140.5 Mo) et `mp4/short-uv-texel-harmony.mp4`.
+- Copie avec nouveau jaune #f1f250 et kaomoji multi-glyphes : `/Users/zenray/Downloads/tmp-3D-houdini/tmp-shorts/copies/short-uv-texel-harmony-f1f250-kaomoji.mov` (140.4 Mo) et `copies/mp4/short-uv-texel-harmony-f1f250-kaomoji.mp4`.
+- Vignettes 4K et 1080p conformes : dossier `thumbnails/` et `copies/thumbnails/`.
+
+## Format 4:5 4K (2026-09-15, ordre Matthieu : desormais TOUS les shorts)
+
+Plus de 9:16 : les shorts sortent en 4:5 vertical, toujours en 4K, soit
+3072x3840 a 60 fps. Le reste ne change pas : titre Sectra Bold Italic blanc a
+contour noir sans capsule, sous-titres 2 lignes en canon (ligne 2 a +0,67 s),
+courbe punch, jaune #f1f250, police mono composite pour le kaomoji, audio
+musique a -14 LUFS en place (jamais sur les rushs).
+
+Recadrage : crop 4:5 centre sur le viewport (jamais de chrome Houdini si on
+peut l eviter), upscale lanczos vers 3072x3840, noter le ratio dans le post.
+Exemple churchyard : rush 3456x2234, crop 1148x1436+520+500 (viewport sans
+chrome, mesure sur vignette rendue), upscale x2,7. Toujours verifier le chrome
+sur la vignette avant de livrer : le crop estime a l oeil rate la barre
+d outils et la timeline de quelques dizaines de px.
+
+Masters silencieux : quand la musique n est pas choisie, rendre le .mov sans
+audio et le noter ; a la pose : fade in 0,2-0,5 s, fade out 0,8 s, PUIS
+normalize -14 LUFS en dernier (interview-audio : normalize toujours dernier,
+jamais avant les fades).
+
+Script : `Library/Houdini/Scripts/render_short_4k_45.py` (variante 4:5 du
+compositeur 9:16, qui reste fige pour l historique). Deps Python : venv
+`~/.venvs/shorts` (pillow + numpy ; /usr/bin/python3 bloque par Xcode,
+Homebrew seul est nu).
+
+
+## 2026-09-16 : Nouveau jaune des sous-titres
+
+Pour les prochains Shorts et Reels, `#ffff82` devient le jaune officiel des sous-titres. Valeur RGB : `(255, 255, 130)`. Le script canonique est `Library/Houdini/Scripts/render_short_4k_45.py`, où la couleur reste centralisée dans `YELLOW`.
+
+
+## 2026-09-16 : Style V2 Valide `short-editor-hda-v002` (Batman / Darkest Night)
+
+Le style officiel des Shorts et Reels cinematiques porte le nom `short-editor-hda-v002` dans le moteur `short_editor.py` :
+
+### 1. Titre haut v2 avec justification bord a bord (Batman Reference)
+- Typographie : `SF-Pro-Display-Bold.otf`, all-caps, decoupe en 2 lignes.
+- Ligne principale : `HOUDINI`, taille 170 pt, y=540, tracking 0.85 (espacement de 85 % de la largeur moyenne des glyphes).
+- Sous-ligne justifiee pleine largeur : `STILT HOUSE`, taille 62 pt (soit ~28 % du cap-height principal comme sur la reference Batman archivee sous `references/batman-darkest-night-title-ref.jpg`), y=715.
+- Formule mathematique de justification Batman :
+  `target_span = x1 - x0`
+  `letter_tracking = (target_span - total_chars_w) / (num_letter_gaps + word_space_mult * num_word_gaps)`
+  `word_space = letter_tracking * word_space_mult` avec `word_space_mult = 2.2`.
+- Alignement absolu : le premier caractere s aligne au pixel pres sur le bord gauche du titre principal (x0 = 929.27), et le dernier caractere s aligne au pixel pres sur le bord droit (x1 = 2142.73). Ecart geometrique mesure : 0.000000 px.
+- Couleur : `#c4c7ce` (gris perle cinematique, RGB 196, 199, 206).
+- Placement : aere, parfaitement centre dans le bandeau noir superieur de la lettrebox 4:5 sans mordre sur le bord ni sur l image.
+
+### 2. Sous-titres bas v2 (Garamond Bold Italic + Drop Shadow 40px)
+- Nom de style moteur : `short-editor-hda-v002`.
+- Typographie : 100 % Garamond (`ArchiveGaramondStd-BoldItalic.ttf`), suppression du melange multi-polices aleatoire.
+- Couleur du texte : `#ef9f47` (orange ambre lumineux, RGB 239, 159, 71).
+- Zero stroke : aucun contour dur, suppression totale du contour noir 8px.
+- Drop Shadow cinematique : ombre portee noire a 40px obtenue par calque noir `(0, 0, 0, 230)` decale de `(0, 36)` px et filtre par un `GaussianBlur(radius=16)`.
+- Routage Kaomoji : pour les kaomojis (`ᕙ(`▿´)ᕗ`), les parentheses et accents sont en SF Pro Display Regular, les bras en `EuphemiaCAS.ttc` et le nez/bouche en `Arial Unicode.ttf`.
+- Animation : conservation du punch canon ZenRay (pop dynamique sur chaque ligne avec 0.67 s de decalage pour la ligne 2).
+- Placement : ligne 1 a y=2960, ligne 2 a y=3150, survolant airement le bandeau bas.
+
+### 3. Animation Fade Out Dust In-Place (Desintegration sur place)
+- Desintegration particulaire des sous-titres : effritement sur place en poussiere ultra rapide sur 0.20s (12 frames a 60 ips).
+- Diffusion isotrope : angles aleatoires a 360 degres (`uniform(0, 2*pi)`), vitesse `uniform(1.2, 5.0)`, rayon de dispersion progressif jusqu a 36 px.
+- Zero derive laterale : suppression stricte de tout vent ou balayage directionnel gauche/droite pour garantir une desintegration homogene sur place.
+- Delai de declenchement purement local et aleatoire (`uniform(0, 3.0)` frames) sans ponderation spatiale.
+- Decroissance visuelle : attenuation cubique `(1 - k/total)^1.5` de l opacite alpha pour une disparition fluide et cinematique.
+
+### 4. Flyer commercial de cloture (3 secondes, ratio 4:5 natif)
+- Integration directe en fin de timeline (frames 1800 a 1979 a 60 ips, portant la duree totale a 33.00s).
+- Image source commerciale : `/Users/zenray/Downloads/tmp-3D-houdini/commercial/imagefinal.png` (3240x4050, ratio 4:5 exact).
+- Fondu entrant doux depuis le noir (fade in 0.2s, 12 frames).
+- Piste audio dediee avec SFX extrait de YouTube de 0:07 a 0:10 (3s), normalise EBU R128 a -14 LUFS, mixe avec fondu entrant de 0.2s et concatene a la musique principale.
+
+### 5. Sous-titres bilingues japonais (Yu Mincho Extrabold, Orange Ambre 95pt)
+- Support natif des sous-titres 3 lignes par cue (2 lignes en anglais Garamond ambre plus 1 ligne de traduction japonaise naturelle en Yu Mincho).
+- Synchronisation temporelle simultanee : la premiere ligne anglaise et la ligne japonaise apparaissent rigoureusement en meme temps a t=0 (`delays_map = [0, delay, 0]`) pour garantir aux spectateurs japonais l integralite du temps de lecture du plan (2.76 s). La seconde ligne anglaise arrive avec son decalage dynamique canonique (0.67 s).
+- Typographie et couleur : `YuMincho.ttc` (index 2 = Extrabold), taille agrandie x1.25 a 95 pt, meme orange ambre cinematique que l anglais `#ef9f47` (RGB 239, 159, 71).
+- Ombre portee : drop shadow noire 40px avec decalage vertical y=32 px et flou gaussien de rayon 16 px.
+- Agencement vertical calibre : disposition aeree sous le bloc anglais (`line1_y_3lines = 2940`, `line2_y_3lines = 3110`, `line3_y_3lines = 3300`).
+- Effritement simultane : a la fin de la replique (`dust_start`), toutes les lignes se desintegrent ensemble en poussiere sur place (dust in-place 12 frames).
+- Kaomoji bilingue : routage automatique des caracteres speciaux (`ᕙ`, `ᕗ`, `▿`) en EuphemiaCAS et Arial Unicode.
+
+### 6. Piste audio independante et normalisation LUFS
+Le moteur accepte un flux audio separe (`audio: {'path': '...', 'start': 0.0}`) calibre selon la norme EBU R128 a -14 LUFS (True Peak -1.0 dBFS, LRA 11 LU, fondus 0.2s in et 0.8s out), mixe directement lors de l encodage 4K.
+
+### 7. Regle permanente : symlink post.md dans le dossier temporaire
+A chaque creation d un post markdown (`~/.claude/Memory1/Posts/.../post.md`), creer obligatoirement un raccourci direct (`post.md`) a la racine du dossier temporaire de travail (`tmp/.../post.md`) pointant vers le fichier dans `Memory1`. Cela permet a la fois de garder le post parfaitement classe dans Memory1 et d y acceder instantanement depuis le dossier de production.
+
+### 8. Encodage double master pour compatibilite universelle et galerie iPhone (MOV HEVC hvc1 + MP4 H.264)
+- **Le piege de la pellicule iOS (Photos / Galerie iPhone)** : un fichier QuickTime `.mov` produit en H.264 standard a une resolution 4K verticale de 3072x3840 a 60 ips depasse le profil Level 5.2 (il est en Level 6.0). iOS refuse categoriquement d importer un tel fichier dans la Pellicule (Galerie Photos) lors d un transfert AirDrop ou depuis l application Fichiers. Le fichier reste deporte dans Fichiers et n apparait jamais dans Instagram ou TikTok.
+- **La solution Apple native** : encoder le conteneur `.mov` en HEVC materiel Apple via `hevc_videotoolbox` avec le tag obligatoire Apple `-tag:v hvc1`, l espace de couleur BT.709 (`-color_primaries bt709 -color_trc bt709 -colorspace bt709`), le pixel format `-pix_fmt yuv420p`, le debit cible `-b:v 18M` et l atome moov en tete (`-movflags +faststart`).
+- **Garantie des deux masters generes par short_editor.py** :
+  1. `*.mp4` : flux H.264 universel (`libx264` CRF 17), ideal pour le web, YouTube Shorts, Twitter/X et les navigateurs de bureau.
+  2. `*.mov` : flux HEVC materiel Apple (`hevc_videotoolbox` 18M, tag `hvc1`), s enregistre instantanement dans la Pellicule / Photos de l iPhone par AirDrop ou partage sans aucune erreur.
+
+## 2026-09-18 : Style V3 valide `short-editor-hda-v003` (ModelingJapan_01, short 01)
+
+Le V3 reprend tout le V2 et change trois choses : le TITRE porte le degrade, les sous-titres gardent
+l orange plein du V2, et les sous-titres s animent au lieu d apparaitre d un coup.
+
+**Le degrade va sur le TITRE, pas sur les sous-titres.** Premiere version essayee a l inverse puis
+corrigee par Matthieu le meme soir : le degrade sur le corps du texte se lit mal, il sert le titre.
+
+```python
+GRADIENT_STOPS = [(0.00, (153, 248, 211)), (1.00, (118, 162, 208)))]   # #99f8d3 vers #76a2d0
+GRADIENT_ANGLE_DEG = -8.0                                               # bas gauche vers haut droite
+SUB_COLOR = (239, 159, 71)                                              # #ef9f47, orange plein du V2
+```
+
+Fabrication du degrade : une rampe d un pixel de haut etiree sur la diagonale, tournee de l angle,
+recadree au canevas, puis le texte sert de MASQUE alpha. L ombre portee noire du V2 reste dessous,
+decalage 18 px et flou 8 px, sur le titre comme sur les sous-titres, et il n y a aucun contour ni
+capsule.
+
+**Le titre garde la mise en page du V2** : premiere ligne en lettrage espace, seconde ligne justifiee
+bord a bord sur la largeur de la premiere par la formule Batman.
+
+**Animation des sous-titres, en canon.** Chaque carton entre en fondu puis sort en fondu, et la
+DEUXIEME ligne entre apres la premiere, d ou le canon.
+
+```bash
+SUB_FADE_IN=0.30       # fondu d entree de chaque ligne
+SUB_FADE_OUT=0.40      # fondu de sortie, commun aux deux lignes, a la fin du carton
+SUB_CANON=0.22         # retard de la ligne 2 sur la ligne 1
+TITLE_FADE_IN=0.30
+TITLE_FADE_OUT=0.35
+```
+
+Fait avec `format=rgba,fade=t=in:alpha=1,fade=t=out:alpha=1` sur CHAQUE carton, dont les horodatages
+sont ceux de la timeline globale puisque les entrees en boucle demarrent a zero, puis un `overlay`
+borne par `enable='between(t,...)'`. Mesure qui le prouve sur le master : a 3,04 s la ligne 1 est
+pale, a 3,14 s elle monte, a 3,30 s elle est pleine tandis que la ligne 2 est encore pale, et a
+5,90 s les deux redescendent.
+
+**Sous-titres en ANGLAIS.** Le corps du texte d un short part en anglais, et le dernier carton porte
+un kaomoji. Le Garamond ne dessine aucun glyphe de kaomoji : la police bascule sur
+`/System/Library/Fonts/Hiragino Sans GB.ttc` des qu un mot contient un caractere au-dessus de
+`U+2000`, verifie par `getmask(...).getbbox()`.
+
+**Gabarit de plan du short 01, 20 secondes.** Plaque de reference en noir et blanc 3 s avec le titre,
+puis trois plans de 5 s pris dans UNE capture OBS, puis l image de cloture 2 s en fit letterbox. Cinq
+cartons de sous-titres de 3 s couvrent les 15 s de 3D.
+
+**Vignette, format 4:5.** 1080x1350, image prise dans le short lui-meme et recadree, jamais une
+capture d interface, et le titre au meme style que le short.
+
+**Musique.** Coupe a la seconde demandee dans la piste source, fondus d abord (0,35 s en entree,
+0,8 s en sortie), normalisation `loudnorm I=-14 TP=-1.5 LRA=11` en DERNIER, jamais avant les fondus.
+Mesure sur le master : -14,1 LUFS integre, pic vrai -3,1 dBFS.
+
+**Piege paye le 2026-09-18, et il vaut pour toute capture OBS.** Une commande envoyee par le pont
+BLOQUE le thread principal de Houdini : la lecture n avance pas pendant l appel, donc on demarre la
+lecture dans un appel qui rend la main, puis on compte le temps dans le processus appelant. Et le
+viewport ne joue pas au fps de la scene : mesure sur ce projet, 12,8 images par seconde pour 24
+demandees, si bien que les plans se sont retrouves hors de la prise. On MESURE le fps de lecture, on
+accorde la longueur des plans a cette mesure, puis on releve les coupures dans la prise elle-meme.
+Les cameras et les lumieres se masquent avant la prise par `viewdisplay -G "<Objet>"`, puis se
+remettent a `"*"`.
+
+**Le script qui fait foi** : `Downloads/tmp-ModelingJapan1/short-01-modeling-japan/04_plan/short_01_build.sh`,
+toutes les valeurs dans son bloc PARAMS, et le post dans
+`~/.claude/Memory1/SocialMedia/Posts/short-01-modeling-japan/`.
+
+## Style V4 Copernicus avec backgrounds et sous-titres anglais
+
+Pour une demande `style V4`, `shorteditorv4`, `background layer`, bleu, rouge, jaune ou noir, charger le
+pipeline autonome `/Users/zenray/.claude/skills/zenray-houdini/short-editor-v4/`. Ne pas appeler
+`short-editor/short_editor.py`, qui conserve un autre style historique.
+
+- Titre canonique : GT Sectra Bold, Caps Lock, facteur x1.25, blanc dans les finaux.
+- Sous-titres canoniques : Archive Garamond Bold Italic, casse normale, anglais par defaut, blanc
+  dans les finaux.
+- Backgrounds : bleu `blue_layer_01`, rouge `red_layer_02`, jaune `yellow_layer_03`, noir `black_layer_04`.
+- Finaux : texte centre et drop shadow noir.
+- MOV : background fixe, crossfade bleu vers rouge, canon ligne par ligne, pop puis fondu de sortie,
+  aucun balayage gauche-droite et aucune ombre.
+- Sorties : 3072 x 3840, 30 fps, 6 secondes, MOV HEVC hvc1 et MP4 H.264.
+- Les quatre assets canoniques vivent dans `short-editor-v4/assets/backgrounds/`. Les quatre preuves
+  finales vivent dans `short-editor-v4/assets/selected-finals/`. L index SHA-256 est dans
+  `short-editor-v4/ASSET_INDEX.json`.
+
+Le texte visible dans les sous-titres d un post ou d un short est redige en anglais par defaut. Le
+post source peut garder FR + EN dans son Markdown, mais le short affiche la version anglaise mot pour
+mot, sans traduction ni ajout, sauf demande explicite contraire.
+
+### Production Short 02 : Louisiana Bayou Procedural Church (2026-09-19)
+
+- Format Short : 4:5 en 4K (`3072 x 3840` a 60 fps, 39.00 s exactes), encode en MP4 H.264 et MOV Apple HEVC VideoToolbox (`hvc1`).
+- Piste audio : extrait YouTube masterise a -14 LUFS (EBU R128), fade in 0.2s, fade out 0.8s.
+- Attribution dynamique des styles de fond selon chaque capture :
+  - Frame 00 (Houdini) : Style JAUNE (`yellow_layer_03` avec particules or).
+  - Frames avec batiment rouge/brique (19.46.56, 19.47.34, 19.48.12, 20.01.06) : Style ROUGE (`red_layer_02`).
+  - Frames avec batiment bleu (swap materiau Unreal 19.48.25 a 19.51.51) : Style BLEU (`blue_layer_01`).
+- Titrage : `HOUDINI` traque et `PROCEDURAL CHURCH` justifie au span en GT Sectra Bold Caps blanc avec ombre noire portee (`offset 16, blur 10`).
+- Sous-titres : Archive Garamond Bold Italic blanc avec ombre noire portee (`offset 20, blur 12`), animation Canon (pop 0.3s, delai ligne 2 de 0.67s, fondu de sortie 0.35s).
+- Miniature 4:5 en 4K (`3072 x 3840`) : image unique au format 4:5 4K, coupure pure a 45 degres sur la texture du batiment passant par l arete mur/toit de la facade (50% rouge a gauche, 50% bleu a droite, sans trait ni barre de slash dessinee), style noir V4 avec nuage `black_layer_04` et particules argentees (220, 220, 220, seed 4404) sur fond noir pur (0, 0, 0), `HDA Houdini Engine` ecrit comme un sous-titre en Archive Garamond blanc avec ombre noire, sans texte ni badge superflu.
+- Livrable miniature unique (regle d or) : un seul fichier livre, `thumbnail-church-4x5-4k.jpg` (4K JPEG uniquement). Proscription absolue de multiplier les variantes (pas de PNG, pas de declinaisons 9:16 superflues, pas de previews 1080p).
+- Kaomoji de cloture : toujours le kaomoji officiel de Damien Richard `ᕙ(`▿´)ᕗ` en monospace composite (`AnthropicMono-Bold` pour le corps et les accents, `EuphemiaCAS` pour les bras `ᕙ` et `ᕗ`, `Arial Unicode` pour `▿`), calibre avec auto-fit anti-rognage.
+- Rangement et hygiene de travail systematiques : a chaque iteration, ranger le graphe Houdini, les noeuds et le dossier de travail des shorts. Supprimer automatiquement tous les fichiers temporaires de tests et de passes intermediaires.
+
+## Production 2026-09-24 : Roof Tiles Material, Houdini Copernicus Graph (9:16 4K et carre)
+
+Deux shorts tires du meme materiau, montes et rendus sans logiciel de montage, par trois scripts
+rejouables de `Productions/ZenRayShards/Scripts/` :
+
+| Script | Role |
+|---|---|
+| `ShortAudioMaster.sh <in> <debut_s> <duree_s> <out.m4a> [fondu_s]` | coupe, fondus, PUIS loudnorm deux passes lineaire a -14 LUFS / -1 dBTP ; la passe unique ratait la cible (-12,9 mesure) |
+| `ShortV4Background.py <cle> <l> <h> <out.png>` | fond V4 fixe (couleur de base + bande) a n importe quelle taille, depuis les assets de `short-editor-v4` |
+| `ComposeShortV4.py <config.json> [--preview t1,t2]` | titre GT Sectra, sous-titres Archive Garamond Bold Italic blancs, pop canon V4, ombres, kaomoji en police composite ; **les repliques sont lues dans le tableau du post** (`## Short 1`, `## Short 2`), le post etant la source de verite ; sortie MOV HEVC `hvc1` + MP4 H.264 |
+
+Montage du short 1 (9:16, 2160x3840, 60 i/s, 58,333 s) : turn Unreal 10 s plein cadre, illustrations
+2,5 s chacune (reference Pablo Blanes, Arc Raiders), puis la capture Houdini fenetre entiere (editeur de
+noeuds visible), coupee de 11 a 18 s, acceleree x1,8 pour tenir sous 60 s, posee sur le fond rouge V4.
+Musique depuis 2:38, fondus de 1 s. Short 2 : la seule vue Copernicus en carre 2160, meme coupe et meme
+vitesse, sans titre, musique a part. Configs : `04-edit/short1.json`, `short2.json` du dossier
+`~/.claude/tmp/tmp-short-roof-tiles-copernicus/`.
+
+Regles payees ce jour-la :
+- **Ralentir = diviser le temps** (images rendues a 10 i/s dans une video a 30 i/s) ; toute interpolation
+  est `_deprecated`, voir `references/render-setup-lookdev.md`.
+- **9:16 sur demande explicite** l emporte sur la regle « 4:5 pour tous les shorts ».
+- **Ombre de fenetre** : une capture `screencapture -l` inclut l ombre ; recadrer sur la boite mesuree
+  (ici 3416x2018 a partir de 46,32).
+- **Sous-titres en prose articulee** (style d ecriture de reference, `rules/Tone1.md`) : des propositions
+  completes tirees mot pour mot de la version anglaise du post, jamais des fragments nominaux ; le script
+  de controle compare chaque ligne au post.
+- Le titre se dimensionne en comptant l espacement des lettres, sinon la premiere ligne deborde.
+- Sur un fond presque blanc (height en debut de defile), l ombre des sous-titres se renforce (opacite 255,
+  flou 16) dans la config du short carre.
+
+Livrables verifies (2026-09-24) : `06-render/short-roof-tiles-houdini-copernicus-graph.mov` (HEVC hvc1,
+2160x3840, 60 i/s, 58,333 s, 112 Mo, -14,1 LUFS) et `.mp4` (H.264, 60 Mo) ; `short-roof-tiles-houdini-square.mov`
+(2160x2160, 43,333 s, 96 Mo, -14,0 LUFS) et `.mp4`. Rendu : environ 3 500 images composees par Pillow et
+encodees par VideoToolbox, les deux shorts en parallele. Post et sous-titres :
+`Memory1/Posts/2026-09-24-roof-tiles-copernicus/post-roof-tiles-copernicus.md`.

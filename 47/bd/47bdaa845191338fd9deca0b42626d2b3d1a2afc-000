@@ -1,0 +1,38 @@
+# ZenRay Houdini Short Editor V4
+
+This folder is the durable source for the Copernicus Shorts V4 background style.
+
+The V4 pipeline is separate from the historical `short-editor/short_editor.py` pipeline. Use this
+folder when the request mentions Copernicus, style V4, blue, red, yellow, black or background layers.
+
+## Canonical style
+
+- Title: GT Sectra Bold, uppercase, 1.25x the V3 title scale, white in the selected finals.
+- Subtitles: Archive Garamond Bold Italic, normal sentence case, English by default, white in the
+  selected finals.
+- Backgrounds: blue layer 01, red layer 02, yellow layer 03 and black layer 04, the only canonical visual assets.
+- Selected stills: centered text with black drop shadows.
+- Canonical movie: fixed backgrounds, blue to red crossfade, line-by-line Canon pop, subtitle fade
+  out, no left-to-right sweep and no drop shadow.
+- Movie master: 3072 x 3840, 30 fps, 6 seconds, HEVC hvc1 MOV. Browser companion: H.264 MP4.
+
+## Replay
+
+Run from this directory with the Shorts virtual environment:
+
+```bash
+cd /Users/zenray/.claude/skills/zenray-houdini/short-editor-v4
+/Users/zenray/.venvs/shorts/bin/python scripts/generate_v4_selected.py
+# Optional exploration matrix and animation proof:
+/Users/zenray/.venvs/shorts/bin/python scripts/generate_all_shorts.py
+```
+
+The four source backgrounds are in `assets/backgrounds/`. The selected final proofs are in
+`assets/selected-finals/`. No unrelated Copernicus reference image is part of the V4 bundle.
+`ASSET_INDEX.json` records the SHA-256 fingerprint of every canonical file.
+
+## Subtitle language
+
+Visible subtitle text in posts and shorts is English by default. A source post may contain French and
+English Markdown, but the short uses the edited English wording word for word, without translation or
+invention, unless Matthieu explicitly requests another language.
