@@ -1,0 +1,222 @@
+#!/usr/bin/env node
+// 27 October 2026 : Unit tests for ZenRay PDF Document & Cover Letter Engine.
+// Verifies input parsing, base64 font embedding, Chrome PDF rendering,
+// preview PNG generation, pypdf page count check, and execution performance.
+
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
+import assert from 'node:assert/strict'
+import {
+  formatEnglishDate,
+  slugify,
+  formatInlineMarkdown,
+  getEmbeddedFontFaces,
+  parseDocumentInput,
+  buildDocumentHtml,
+  checkPdfPages,
+  generatePreviewPng,
+  renderPdfDocument,
+} from './render-pdf-document.mjs'
+
+const TEST_DIR = path.join(os.tmpdir(), `zr-pdf-test-${Date.now()}`)
+fs.mkdirSync(TEST_DIR, { recursive: true })
+
+let testsPassed = 0
+let testsFailed = 0
+
+function runTest(name, fn) {
+  try {
+    fn()
+    console.log(`  ✓ ${name}`)
+    testsPassed += 1
+  } catch (err) {
+    console.error(`  ✗ ${name}: ${err.message}`)
+    testsFailed += 1
+  }
+}
+
+async function runAsyncTest(name, fn) {
+  try {
+    await fn()
+    console.log(`  ✓ ${name}`)
+    testsPassed += 1
+  } catch (err) {
+    console.error(`  ✗ ${name}: ${err.message}`)
+    testsFailed += 1
+  }
+}
+
+console.log('=== ZenRay PDF Engine Unit Tests (27 October 2026) ===\n')
+
+// Test 1: Date formatting in English with full month
+runTest('Date formatting in English with full month', () => {
+  const d = new Date(2026, 9, 27) // 27 October 2026
+  const formatted = formatEnglishDate(d)
+  assert.equal(formatted, '27 October 2026')
+})
+
+// Test 2: Slugify helper
+runTest('Slugify helper handles accents and symbols', () => {
+  assert.equal(slugify('Candidature Développeur & Tech-Artist !'), 'candidature-developpeur-tech-artist')
+  assert.equal(slugify(''), 'document')
+})
+
+// Test 3: Markdown inline formatting
+runTest('Markdown inline formatting (bold, italic, links)', () => {
+  const formatted = formatInlineMarkdown('Test **gras** et *italique* avec [lien](https://example.com)')
+  assert.ok(formatted.includes('<strong>gras</strong>'))
+  assert.ok(formatted.includes('<em>italique</em>'))
+  assert.ok(formatted.includes('<a href="https://example.com" target="_blank" rel="noopener">lien</a>'))
+})
+
+// Test 4: Static font base64 embedding
+runTest('Static fonts embedding produces 4 @font-face rules', () => {
+  const faces = getEmbeddedFontFaces()
+  assert.ok(faces.includes("font-family: 'ZRUltra'"))
+  assert.ok(faces.includes("font-family: 'ZRLiterata'"))
+  assert.ok(faces.includes('font-weight: 400'))
+  assert.ok(faces.includes('font-weight: 500'))
+  assert.ok(faces.includes('font-weight: 700'))
+  assert.ok(faces.includes('data:font/otf;base64,'))
+  assert.ok(faces.includes('data:font/ttf;base64,'))
+})
+
+// Test 5: Parsing Markdown with YAML frontmatter
+runTest('Parse Markdown with YAML frontmatter', () => {
+  const mdContent = `---
+name: Matthieu Huguet
+role: Technical Artist
+company: Remedy Entertainment
+subject: Candidature Tech Art
+date: 27 October 2026
+---
+
+Madame, Monsieur,
+
+Voici le premier paragraphe de ma lettre de candidature.
+
+- Premier point fort HDA
+- Second point fort Unreal Engine
+
+Je vous prie d'agréer, Madame, Monsieur, mes salutations distinguées.
+
+Matthieu Huguet
+`
+  const mdFile = path.join(TEST_DIR, 'sample.md')
+  fs.writeFileSync(mdFile, mdContent, 'utf8')
+
+  const parsed = parseDocumentInput({ filePath: mdFile })
+  assert.equal(parsed.name, 'Matthieu Huguet')
+  assert.equal(parsed.company, 'Remedy Entertainment')
+  assert.equal(parsed.subject, 'Candidature Tech Art')
+  assert.equal(parsed.date, '27 October 2026')
+  assert.equal(parsed.salutation, 'Madame, Monsieur,')
+  assert.equal(parsed.bullets.length, 2)
+  assert.equal(parsed.bullets[0], 'Premier point fort HDA')
+  assert.ok(parsed.signoff.includes("Je vous prie d'agréer"))
+  assert.equal(parsed.signature, 'Matthieu Huguet')
+})
+
+// Test 6: Parsing raw JSON input
+runTest('Parse raw JSON input', () => {
+  const jsonData = {
+    name: 'Matthieu Huguet',
+    company: 'Quantic Dream',
+    subject: 'Spécialiste Procédural',
+    paragraphs: ['Premier paragraphe.', 'Second paragraphe.'],
+    bullets: ['Point 1', 'Point 2'],
+  }
+  const jsonFile = path.join(TEST_DIR, 'sample.json')
+  fs.writeFileSync(jsonFile, JSON.stringify(jsonData), 'utf8')
+
+  const parsed = parseDocumentInput({ filePath: jsonFile, args: { role: 'Lead Tech Artist' } })
+  assert.equal(parsed.name, 'Matthieu Huguet')
+  assert.equal(parsed.company, 'Quantic Dream')
+  assert.equal(parsed.role, 'Lead Tech Artist')
+  assert.equal(parsed.paragraphs.length, 2)
+  assert.equal(parsed.bullets.length, 2)
+})
+
+// Test 7: HTML generation with template and CSS variables
+runTest('HTML builder replaces slots and injects HDA CSS variables', () => {
+  const params = {
+    page: { size: 'A4', marginTop: '14mm', marginSide: '16mm', marginBottom: '14mm' },
+    colors: { background: '#FDFDFC', ink: '#1F1F1E', accent: '#0A84FF', muted: '#6b6b67', faint: '#9a9a96', border: '#e6e6e2', hairline: 'rgba(31,31,30,0.1)', chip: 'rgba(120,120,128,0.08)' },
+    type: { name: '20pt', role: '9.5pt', meta: '7.5pt', recipientCompany: '9.5pt', recipientDetails: '8.5pt', date: '8.5pt', subject: '9.6pt', salutation: '9pt', body: '8.8pt', bullet: '8.6pt', signoff: '8.8pt', signatureName: '11pt', signatureRole: '8.5pt', footer: '6.8pt', lineHeight: 1.48, lineHeightTight: 1.35 },
+    space: { headerGap: '4.5mm', metaGap: '5mm', subjectGap: '4mm', salutationGap: '3.5mm', paragraphGap: '3.2mm', bulletGap: '1.8mm', signatureGap: '4.5mm' },
+    defaults: { name: 'Matthieu Huguet', role: 'Technical Artist', location: 'Aix-en-Provence, France', signoff: 'Salutations.' },
+  }
+  const docData = {
+    company: 'Epic Games',
+    subject: 'Unreal Engine Technical Artist',
+    paragraphs: ['Test paragraph.'],
+    bullets: ['Point 1'],
+  }
+  const fontFaces = '@font-face { font-family: "TestFont"; src: none; }'
+  const html = buildDocumentHtml(docData, params, fontFaces)
+
+  assert.ok(html.includes('Epic Games'))
+  assert.ok(html.includes('Unreal Engine Technical Artist'))
+  assert.ok(html.includes('--accent: #0A84FF;'))
+  assert.ok(html.includes('--font-ultra:'))
+  assert.ok(html.includes('--font-literata:'))
+  assert.ok(html.includes('TestFont'))
+})
+
+// Test 8: End-to-end PDF generation, Preview generation, and Page Check
+await runAsyncTest('End-to-end PDF render, 150 dpi preview, and single-page verification', async () => {
+  const outPdf = path.join(TEST_DIR, 'e2e-letter.pdf')
+  const result = await renderPdfDocument({
+    company: 'Guerilla Games',
+    subject: 'Candidature Technical Artist & Procedural Worlds',
+    text: `Madame, Monsieur,
+
+Fort d'une pratique avancee de la generation procedurale sous Houdini et de son integration temps reel sous Unreal Engine 5, je vous soumets ma candidature pour accompagner vos mondes ouverts.
+
+Mes champs d'intervention recents couvrent :
+
+- L'architecture de HDA robustes et modulaires pour la generation de decors complexes.
+- L'optimisation des performances shaders et des budgets memoire sur cibles exigeantes.
+
+Je reste a votre entiere disposition pour vous presenter mes travaux recents.`,
+    out: outPdf,
+    singlePage: true,
+  })
+
+  assert.ok(result.success, 'Result must be success')
+  assert.ok(fs.existsSync(outPdf), 'PDF file must exist')
+  assert.ok(fs.statSync(outPdf).size > 5000, 'PDF size must be realistic (>5KB)')
+  assert.ok(fs.existsSync(result.previewPngPath), 'Preview PNG must exist')
+  assert.equal(result.pageCount, 1, 'Page count must be 1')
+  assert.equal(result.isOverflow, false, 'isOverflow must be false')
+  assert.ok(result.durationMs < 3000, `Duration must be under 3000ms (got ${result.durationMs}ms)`)
+})
+
+// Test 9: pypdf page count function
+runTest('checkPdfPages returns correct count using pypdf', () => {
+  const pdfPath = path.join(TEST_DIR, 'e2e-letter.pdf')
+  const count = checkPdfPages(pdfPath)
+  assert.equal(count, 1)
+})
+
+// Test 10: Preview PNG generator via pdftoppm
+runTest('generatePreviewPng produces valid 150 dpi PNG', () => {
+  const pdfPath = path.join(TEST_DIR, 'e2e-letter.pdf')
+  const prefix = path.join(TEST_DIR, 'test-preview')
+  const previewPath = generatePreviewPng(pdfPath, prefix)
+  assert.ok(fs.existsSync(previewPath))
+  assert.ok(fs.statSync(previewPath).size > 10000)
+})
+
+// Summary
+console.log(`\nResults: ${testsPassed} passed, ${testsFailed} failed.`)
+
+// Clean up
+try {
+  fs.rmSync(TEST_DIR, { recursive: true, force: true })
+} catch (cleanErr) {
+  // Ignore cleanup error
+}
+
+process.exit(testsFailed > 0 ? 1 : 0)

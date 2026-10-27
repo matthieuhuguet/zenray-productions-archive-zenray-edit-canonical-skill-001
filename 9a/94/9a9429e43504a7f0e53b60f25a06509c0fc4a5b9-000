@@ -1,0 +1,453 @@
+// 27 October 2026: ZenRay Edit Motion Design integration.
+// Fast CLI and library for listing motion projects, rendering via RunHyperframes.mjs or motion server, and assembling 1:1 montages.
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import { spawn, spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+export const MOTION_SETTINGS = {
+  root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
+  motionRepo: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign',
+  motionDir: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign/motion',
+  wrapperScript: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign/Scripts/RunHyperframes.mjs',
+  projectsDir: '/Users/zenray/.claude/tmp/tmp-zenray-motion-design/motion-projects',
+  validateJson: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign/motion/params/validate.json',
+  montageScript: '/Users/zenray/.claude/skills/zenray-edit/templates/montage-1x1/Scripts/Montage.py',
+  serverUrl: 'http://127.0.0.1:3104',
+  supportedFormats: ['1x1', '9x16', '16x9', '4x5'],
+  formatResolutions: {
+    '16x9': [1920, 1080],
+    '9x16': [1080, 1920],
+    '1x1': [1080, 1080],
+    '4x5': [1080, 1350]
+  },
+  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+}
+
+export function formatDate(d = new Date()) {
+  const month = MOTION_SETTINGS.months[d.getMonth()]
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+  return `${d.getDate()} ${month} ${d.getFullYear()}, ${time}`
+}
+
+export function validateProjectId(id) {
+  if (typeof id !== 'string' || !/^[A-Za-z0-9._-]+$/.test(id)) {
+    throw new Error(`Invalid motion project id: ${JSON.stringify(id)}`)
+  }
+  return id
+}
+
+export async function listMotionProjects(options = {}) {
+  const projectsDir = options.projectsDir || MOTION_SETTINGS.projectsDir
+  const validateJson = options.validateJson || MOTION_SETTINGS.validateJson
+  const groups = {}
+
+  if (fs.existsSync(validateJson)) {
+    try {
+      const data = JSON.parse(await fsp.readFile(validateJson, 'utf8'))
+      for (const item of data.set || []) {
+        if (item.id) groups[item.id] = item.group || ''
+      }
+    } catch {
+      // Ignore unreadable validate.json
+    }
+  }
+
+  if (!fs.existsSync(projectsDir)) {
+    return []
+  }
+
+  const entries = await fsp.readdir(projectsDir, { withFileTypes: true })
+  const projects = []
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const projectJsonPath = path.join(projectsDir, entry.name, 'project.json')
+    if (!fs.existsSync(projectJsonPath)) continue
+
+    try {
+      const p = JSON.parse(await fsp.readFile(projectJsonPath, 'utf8'))
+      const scenes = p.scenes || []
+      const duration = Number((scenes.reduce((acc, s) => acc + Number(s.duration || 0), 0)).toFixed(2))
+      const cuesFile = path.join(projectsDir, entry.name, 'cues.json')
+      const storyboardFile = path.join(projectsDir, entry.name, 'Storyboard.md')
+      const sfxFile = path.join(projectsDir, entry.name, 'sfx.json')
+
+      projects.push({
+        id: entry.name,
+        title: p.title || entry.name,
+        format: p.format || '16x9',
+        fps: p.fps || 30,
+        duration,
+        scenesCount: scenes.length,
+        reference: p.reference || null,
+        group: groups[entry.name] || '',
+        updated: p.updated || null,
+        dir: path.join(projectsDir, entry.name),
+        hasCues: fs.existsSync(cuesFile),
+        hasStoryboard: fs.existsSync(storyboardFile),
+        hasSfxBinding: fs.existsSync(sfxFile)
+      })
+    } catch {
+      // Skip broken JSON files
+    }
+  }
+
+  projects.sort((a, b) => a.id.localeCompare(b.id))
+  return projects
+}
+
+export async function cookMotionProject(options = {}) {
+  const projectId = validateProjectId(options.projectId)
+  const format = options.format
+  const fps = options.fps ? Number(options.fps) : null
+  const outDir = options.outDir || path.join(os.tmpdir(), `zr-motion-cook-${projectId}-${Date.now()}`)
+  const motionDir = options.motionDir || MOTION_SETTINGS.motionDir
+
+  if (format && !MOTION_SETTINGS.supportedFormats.includes(format)) {
+    throw new Error(`Unsupported format: ${format}. Supported formats are: ${MOTION_SETTINGS.supportedFormats.join(', ')}`)
+  }
+
+  const pythonScript = `
+import sys, json, shutil
+from pathlib import Path
+
+motion_dir = Path(sys.argv[1])
+sys.path.insert(0, str(motion_dir))
+import server
+
+pid = sys.argv[2]
+out_dir = Path(sys.argv[3])
+fmt = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None
+fps_val = int(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else None
+
+p = server.read_project(pid)
+if fmt:
+    p['format'] = fmt
+if fps_val:
+    p['fps'] = fps_val
+
+w, h = server.FORMATS[p['format']]
+if out_dir.exists():
+    shutil.rmtree(out_dir)
+(out_dir / 'fonts').mkdir(parents=True)
+
+scripts = [s for s in server.runtime_scripts() if (server.MOTION / 'runtime' / s).is_file()]
+for name in [*scripts, 'zs-runtime.css', 'gsap.min.js']:
+    src = server.MOTION / 'runtime' / name
+    if src.is_file():
+        shutil.copy(src, out_dir / name)
+
+for fam, spec in server.CFG['fonts'].items():
+    for i, (path, _w) in enumerate(server._font_files(spec)):
+        src = server.font_file(f'{fam}-{i}{Path(path).suffix}')
+        if src.is_file():
+            shutil.copy(src, out_dir / 'fonts' / f'{fam}-{i}{Path(path).suffix}')
+
+pdir = server.project_dir(pid)
+if (pdir / 'assets').is_dir():
+    shutil.copytree(pdir / 'assets', out_dir / 'assets')
+
+refs = {s.get('params', {}).get('media', '') for s in p.get('scenes', [])}
+ref_urls = {}
+for r in [x for x in refs if isinstance(x, str) and x.startswith('ref:')]:
+    src = server._bank().reference_video(r[4:])
+    if src:
+        (out_dir / 'assets').mkdir(exist_ok=True)
+        shutil.copy(src, out_dir / 'assets' / f'ref-{r[4:]}{src.suffix}')
+        ref_urls[r[4:]] = f'assets/ref-{r[4:]}{src.suffix}'
+
+(out_dir / 'hyperframes.json').write_text(json.dumps({'$schema': 'https://hyperframes.heygen.com/schema/hyperframes.json', 'paths': {'assets': 'assets'}}, indent=2), encoding='utf-8')
+dur = sum(float(s.get('duration', 0)) for s in p.get('scenes', []))
+page = server.EXPORT_PAGE.format(w=w, h=h, dur=f'{dur:.6f}', fps=int(p.get('fps') or server.CFG['export']['fps']), fonts=server.fonts_css('fonts/'),
+                          scripts=''.join(f'<script src=\"{s}\"></script>' for s in scripts),
+                          project=json.dumps(p, ensure_ascii=False).replace('</', '<\\\\/'), refs=json.dumps(ref_urls))
+(out_dir / 'index.html').write_text(page, encoding='utf-8')
+print(json.dumps({'ok': True, 'cooked': str(out_dir), 'format': p['format'], 'width': w, 'height': h, 'duration': dur, 'fps': int(p.get('fps') or 60)}))
+`
+
+  const res = spawnSync('python3', ['-c', pythonScript, motionDir, projectId, outDir, format || '', fps ? String(fps) : ''], { encoding: 'utf8' })
+  if (res.status !== 0) {
+    throw new Error(`Cooking project ${projectId} failed (${res.status}): ${res.stderr || res.stdout}`)
+  }
+
+  const meta = JSON.parse(res.stdout.trim())
+  return {
+    cookedDir: outDir,
+    projectId,
+    format: meta.format,
+    width: meta.width,
+    height: meta.height,
+    duration: meta.duration,
+    fps: meta.fps
+  }
+}
+
+export async function renderMotionProject(options = {}) {
+  const projectId = validateProjectId(options.projectId)
+  const format = options.format
+  const fps = options.fps ? Number(options.fps) : null
+  const quality = options.quality || 'looks'
+  const wrapperScript = options.wrapperScript || MOTION_SETTINGS.wrapperScript
+  const outPath = options.out ? path.resolve(options.out) : null
+
+  if (!fs.existsSync(wrapperScript)) {
+    throw new Error(`HyperFrames wrapper script not found at ${wrapperScript}`)
+  }
+
+  let isPngSequence = false
+  if (options.outputFormat === 'png-sequence' || options.pngSequence) {
+    isPngSequence = true
+  } else if (outPath && !outPath.endsWith('.mp4') && (fs.existsSync(outPath) && fs.statSync(outPath).isDirectory())) {
+    isPngSequence = true
+  }
+
+  let finalTarget
+  if (outPath) {
+    finalTarget = outPath
+  } else {
+    const ext = isPngSequence ? 'frames' : 'mp4'
+    finalTarget = path.resolve(process.cwd(), `${projectId}-${format || 'native'}.${ext}`)
+  }
+
+  const cooked = await cookMotionProject({
+    projectId,
+    format,
+    fps,
+    motionDir: options.motionDir
+  })
+
+  try {
+    const renderFps = fps || cooked.fps || 60
+    const args = ['render', '-f', String(renderFps), '-q', quality]
+
+    if (isPngSequence) {
+      args.push('--format=png-sequence', '-o', finalTarget)
+      if (!fs.existsSync(finalTarget)) {
+        await fsp.mkdir(finalTarget, { recursive: true })
+      }
+    } else {
+      args.push('--format=mp4', '-o', finalTarget)
+      const parentDir = path.dirname(finalTarget)
+      if (!fs.existsSync(parentDir)) {
+        await fsp.mkdir(parentDir, { recursive: true })
+      }
+    }
+
+    args.push(cooked.cookedDir)
+
+    const run = spawnSync('node', [wrapperScript, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    if (run.status !== 0 || !fs.existsSync(finalTarget)) {
+      const errText = (run.stderr || run.stdout || '').slice(-800)
+      throw new Error(`Rendering failed with code ${run.status}: ${errText}`)
+    }
+
+    let filesCreated = []
+    if (isPngSequence) {
+      const names = await fsp.readdir(finalTarget)
+      filesCreated = names.filter(n => n.endsWith('.png')).map(n => path.join(finalTarget, n))
+    } else {
+      filesCreated = [finalTarget]
+    }
+
+    return {
+      ok: true,
+      projectId,
+      target: finalTarget,
+      isPngSequence,
+      format: cooked.format,
+      width: cooked.width,
+      height: cooked.height,
+      duration: cooked.duration,
+      fps: renderFps,
+      files: filesCreated,
+      date: formatDate()
+    }
+  } finally {
+    await fsp.rm(cooked.cookedDir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+export async function buildMontage(options = {}) {
+  const paramsFile = path.resolve(options.params || options.montage)
+  if (!fs.existsSync(paramsFile)) {
+    throw new Error(`Montage parameters file not found at ${paramsFile}`)
+  }
+
+  const step = options.step || 'build'
+  const validSteps = ['plan', 'audio', 'video', 'mov', 'verify', 'index', 'build']
+  if (!validSteps.includes(step)) {
+    throw new Error(`Invalid montage step: ${step}. Supported steps: ${validSteps.join(', ')}`)
+  }
+
+  const params = JSON.parse(await fsp.readFile(paramsFile, 'utf8'))
+  const outputCfg = params.output || {}
+  const outputDirName = outputCfg.dir || 'Out'
+  const outputName = outputCfg.name || 'montage'
+
+  let scriptPath = MOTION_SETTINGS.montageScript
+  const localScript = path.join(path.dirname(paramsFile), '..', 'Scripts', 'Montage.py')
+  if (fs.existsSync(localScript)) {
+    scriptPath = localScript
+  }
+
+  const run = spawnSync('python3', [scriptPath, step, '--params', paramsFile], {
+    encoding: 'utf8',
+    cwd: path.dirname(path.dirname(paramsFile))
+  })
+
+  if (run.status !== 0) {
+    const errText = (run.stderr || run.stdout || '').slice(-1200)
+    throw new Error(`Montage ${step} failed (${run.status}): ${errText}`)
+  }
+
+  const baseDir = path.dirname(path.dirname(paramsFile))
+  const resolvedOutDir = path.isAbsolute(outputDirName) ? outputDirName : path.join(baseDir, outputDirName)
+
+  const mp4Path = path.join(resolvedOutDir, `${outputName}.mp4`)
+  const movPath = path.join(resolvedOutDir, `${outputName}.mov`)
+  const planPath = path.join(resolvedOutDir, 'plan.json')
+  const masterWav = path.join(resolvedOutDir, 'master.wav')
+  const verifyPath = path.join(resolvedOutDir, 'verify.json')
+  const indexPath = path.join(baseDir, outputCfg.index || 'Index.md')
+
+  return {
+    ok: true,
+    step,
+    params: paramsFile,
+    outputDir: resolvedOutDir,
+    mp4: fs.existsSync(mp4Path) ? mp4Path : null,
+    mov: fs.existsSync(movPath) ? movPath : null,
+    masterWav: fs.existsSync(masterWav) ? masterWav : null,
+    plan: fs.existsSync(planPath) ? planPath : null,
+    verify: fs.existsSync(verifyPath) ? verifyPath : null,
+    index: fs.existsSync(indexPath) ? indexPath : null,
+    date: formatDate()
+  }
+}
+
+// ------------------------------------------------------------------ CLI
+async function main() {
+  const args = process.argv.slice(2)
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+    console.log(`ZenRay Edit Motion CLI (27 October 2026)
+Usage:
+  node zenray-edit-motion.mjs --list [--json]
+  node zenray-edit-motion.mjs --render <projectId> [--format 1x1|9x16|16x9|4x5] [--fps 60] [--out <target>] [--output-format mp4|png-sequence]
+  node zenray-edit-motion.mjs --montage <params.json> [--step build|plan|audio|video|mov|verify|index]
+
+Options:
+  --list, -l                  List available Motion Design projects
+  --render <id>               Render a project to MP4 or PNG sequence
+  --format <fmt>              Aspect ratio: 1x1, 9x16, 16x9, 4x5
+  --fps <num>                 Target frame rate (default: project fps or 60)
+  --out <path>                Destination file or folder
+  --output-format <fmt>       Output type: mp4 or png-sequence
+  --montage <params.json>     Assemble a 1:1 montage from params.json
+  --step <name>               Montage step (default: build)
+  --json                      Output raw JSON results
+`)
+    process.exit(0)
+  }
+
+  const asJson = args.includes('--json')
+
+  try {
+    if (args.includes('--list') || args.includes('-l')) {
+      const projects = await listMotionProjects()
+      if (asJson) {
+        console.log(JSON.stringify(projects, null, 2))
+      } else {
+        console.log(`ZenRay Motion Projects: ${projects.length} found\n`)
+        console.log('ID'.padEnd(42) + 'Format'.padEnd(10) + 'FPS'.padEnd(6) + 'Duration'.padEnd(12) + 'Title')
+        console.log('-'.repeat(90))
+        for (const p of projects) {
+          console.log(p.id.padEnd(42) + p.format.padEnd(10) + String(p.fps).padEnd(6) + `${p.duration}s`.padEnd(12) + p.title)
+        }
+      }
+      process.exit(0)
+    }
+
+    const renderIdx = args.indexOf('--render')
+    if (renderIdx !== -1) {
+      const projectId = args[renderIdx + 1]
+      if (!projectId || projectId.startsWith('-')) {
+        throw new Error('Missing project id after --render')
+      }
+
+      const getArg = name => {
+        const idx = args.indexOf(name)
+        return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('-') ? args[idx + 1] : null
+      }
+
+      const format = getArg('--format')
+      const fps = getArg('--fps')
+      const out = getArg('--out')
+      const outputFormat = getArg('--output-format')
+
+      const result = await renderMotionProject({
+        projectId,
+        format,
+        fps,
+        out,
+        outputFormat
+      })
+
+      if (asJson) {
+        console.log(JSON.stringify(result, null, 2))
+      } else {
+        console.log(`Render complete for ${result.projectId}:`)
+        console.log(`- Format: ${result.format} (${result.width}x${result.height})`)
+        console.log(`- FPS: ${result.fps}`)
+        console.log(`- Duration: ${result.duration}s`)
+        console.log(`- Destination: ${result.target}`)
+        console.log(`- Created files: ${result.files.length}`)
+      }
+      process.exit(0)
+    }
+
+    const montageIdx = args.indexOf('--montage')
+    if (montageIdx !== -1) {
+      const paramsFile = args[montageIdx + 1]
+      if (!paramsFile || paramsFile.startsWith('-')) {
+        throw new Error('Missing params.json file after --montage')
+      }
+
+      const stepIdx = args.indexOf('--step')
+      const step = stepIdx !== -1 && args[stepIdx + 1] ? args[stepIdx + 1] : 'build'
+
+      const result = await buildMontage({
+        params: paramsFile,
+        step
+      })
+
+      if (asJson) {
+        console.log(JSON.stringify(result, null, 2))
+      } else {
+        console.log(`Montage ${result.step} complete:`)
+        console.log(`- Params: ${result.params}`)
+        console.log(`- Output directory: ${result.outputDir}`)
+        if (result.mp4) console.log(`- MP4: ${result.mp4}`)
+        if (result.mov) console.log(`- MOV: ${result.mov}`)
+        if (result.masterWav) console.log(`- Master audio: ${result.masterWav}`)
+        if (result.index) console.log(`- Index: ${result.index}`)
+      }
+      process.exit(0)
+    }
+
+    throw new Error('Unknown command. Use --help to see available options.')
+  } catch (err) {
+    console.error(`Error: ${err.message}`)
+    process.exit(1)
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
+}

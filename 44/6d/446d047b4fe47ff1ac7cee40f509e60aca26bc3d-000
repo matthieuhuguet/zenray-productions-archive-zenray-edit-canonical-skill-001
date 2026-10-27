@@ -1,0 +1,530 @@
+// 27 October 2026: ZenRay Edit SFX integration.
+// Fast CLI and library for listing reference sounds and recipes, audio normalization and mastering, and binding sounds to videos.
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+export const SFX_SETTINGS = {
+  root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
+  sfxRepo: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRaySFX',
+  editRepo: '/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayEdit',
+  motionBankDir: '/Users/zenray/.claude/tmp/tmp-zenray-motion-design/motion-bank/sfx',
+  targetLufs: -14.0,
+  limiterCeilingDb: -1.5,
+  sampleRate: 48000,
+  highpassHz: 20,
+  bindingSchema: 'zenray-sfx-binding/1',
+  chainSchema: 'zenray-edit/chain@1',
+  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+}
+
+export function formatDate(d = new Date()) {
+  const month = SFX_SETTINGS.months[d.getMonth()]
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+  return `${d.getDate()} ${month} ${d.getFullYear()}, ${time}`
+}
+
+export async function measureAudio(filePath) {
+  const resolved = path.resolve(filePath)
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Audio file not found: ${resolved}`)
+  }
+
+  const run = spawnSync('ffmpeg', [
+    '-nostats',
+    '-hide_banner',
+    '-i', resolved,
+    '-af', 'ebur128=peak=true',
+    '-f', 'null',
+    '-'
+  ], { encoding: 'utf8' })
+
+  const output = run.stderr || ''
+  const summaryIdx = output.lastIndexOf('Summary:')
+  const tail = summaryIdx !== -1 ? output.slice(summaryIdx) : output
+
+  const iMatch = tail.match(/I:\s+(-?\d+(?:\.\d+)?)\s+LUFS/)
+  const tpMatch = tail.match(/Peak:\s+(-?\d+(?:\.\d+)?)\s+dBFS/)
+  const lraMatch = tail.match(/LRA:\s+(-?\d+(?:\.\d+)?)\s+LU/)
+
+  const probeRun = spawnSync('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'format=duration:stream=sample_rate',
+    '-of', 'json',
+    resolved
+  ], { encoding: 'utf8' })
+
+  let duration = 0
+  let sampleRate = 48000
+  try {
+    const probe = JSON.parse(probeRun.stdout)
+    duration = Number(Number(probe.format?.duration || 0).toFixed(3))
+    if (probe.streams && probe.streams[0]) {
+      sampleRate = parseInt(probe.streams[0].sample_rate, 10) || 48000
+    }
+  } catch {
+    // Keep defaults if probe fails
+  }
+
+  return {
+    path: resolved,
+    duration,
+    sampleRate,
+    integratedLufs: iMatch ? parseFloat(iMatch[1]) : -70.0,
+    truePeakDb: tpMatch ? parseFloat(tpMatch[1]) : -70.0,
+    rangeLu: lraMatch ? parseFloat(lraMatch[1]) : 0.0
+  }
+}
+
+export async function listSfx(options = {}) {
+  const sfxRepo = options.sfxRepo || SFX_SETTINGS.sfxRepo
+  const motionBank = options.motionBankDir || SFX_SETTINGS.motionBankDir
+  const sounds = []
+
+  // 1. Reference reproductions in out/repro-03
+  const reproDir = path.join(sfxRepo, 'out', 'repro-03')
+  let reproResults = {}
+  const resultsJson = path.join(reproDir, 'results.json')
+  if (fs.existsSync(resultsJson)) {
+    try {
+      const items = JSON.parse(await fsp.readFile(resultsJson, 'utf8'))
+      for (const item of items) {
+        if (item.ref) reproResults[item.ref] = item
+      }
+    } catch {
+      // Ignore results.json parse errors
+    }
+  }
+
+  if (fs.existsSync(reproDir)) {
+    const entries = await fsp.readdir(reproDir)
+    for (const f of entries) {
+      if (!f.endsWith('.recipe.json')) continue
+      const stem = f.replace('.recipe.json', '')
+      const wavFile = path.join(reproDir, `${stem}.wav`)
+      const recipeFile = path.join(reproDir, f)
+      const res = reproResults[stem] || {}
+
+      let duration = null
+      let hit = null
+      try {
+        const recipe = JSON.parse(await fsp.readFile(recipeFile, 'utf8'))
+        duration = recipe.duration || null
+        hit = recipe.hit || null
+      } catch {
+        // Skip invalid recipe
+      }
+
+      sounds.push({
+        id: `sfx:repro/${stem}`,
+        kind: 'sfx-reproduction',
+        module: 'sfx',
+        title: stem.replace(/-/g, ' '),
+        audio: fs.existsSync(wavFile) ? wavFile : null,
+        recipe: recipeFile,
+        score: res.heldInvariant || null,
+        duration,
+        hit
+      })
+    }
+  }
+
+  // 2. Archetypes in params/archetypes.json
+  const archFile = path.join(sfxRepo, 'params', 'archetypes.json')
+  if (fs.existsSync(archFile)) {
+    try {
+      const archetypes = JSON.parse(await fsp.readFile(archFile, 'utf8'))
+      for (const [key, spec] of Object.entries(archetypes)) {
+        if (key.startsWith('_')) continue
+        sounds.push({
+          id: `sfx:archetype/${key}`,
+          kind: 'sfx-archetype',
+          module: 'sfx',
+          title: key.replace(/_/g, ' '),
+          words: spec.words || [],
+          eventsCount: (spec.events || []).length
+        })
+      }
+    } catch {
+      // Ignore invalid archetypes
+    }
+  }
+
+  // 3. Designed proposals in params/proposals/*.json
+  const propDir = path.join(sfxRepo, 'params', 'proposals')
+  if (fs.existsSync(propDir)) {
+    const propFiles = await fsp.readdir(propDir)
+    for (const f of propFiles) {
+      if (!f.endsWith('.json')) continue
+      try {
+        const spec = JSON.parse(await fsp.readFile(path.join(propDir, f), 'utf8'))
+        const film = spec.film
+        for (const [tid, tr] of Object.entries(spec.tracks || {})) {
+          for (const [k, pr] of Object.entries(tr.proposals || {})) {
+            const wavPath = path.join(sfxRepo, 'out', 'proposals', film, `${tid}-${k}.wav`)
+            sounds.push({
+              id: `sfx:proposal/${film}/${tid}-${k}`,
+              kind: 'sfx-proposal',
+              module: 'sfx',
+              title: `${tr.label || tid}: ${k}, ${pr.name || ''}`,
+              audio: fs.existsSync(wavPath) ? wavPath : null,
+              film,
+              track: tid,
+              variant: k,
+              hit: pr.hitAt || null
+            })
+          }
+        }
+      } catch {
+        // Skip unreadable proposals
+      }
+    }
+  }
+
+  // 4. Motion SFX bank
+  if (fs.existsSync(motionBank)) {
+    try {
+      const bankFiles = await fsp.readdir(motionBank, { recursive: true })
+      for (const f of bankFiles) {
+        if (typeof f === 'string' && f.endsWith('.wav')) {
+          const fullPath = path.join(motionBank, f)
+          const stem = path.basename(f, '.wav')
+          sounds.push({
+            id: `sfx:bank/${f.replace(/\\/g, '/')}`,
+            kind: 'bank-sfx',
+            module: 'motion',
+            title: stem,
+            audio: fullPath,
+            localOnly: true
+          })
+        }
+      }
+    } catch {
+      // Ignore bank reading errors
+    }
+  }
+
+  sounds.sort((a, b) => a.id.localeCompare(b.id))
+  return sounds
+}
+
+export async function normalizeSfx(options = {}) {
+  const input = path.resolve(options.input || options.normalize)
+  if (!fs.existsSync(input)) {
+    throw new Error(`Input audio file not found: ${input}`)
+  }
+
+  const targetLufs = options.targetLufs !== undefined ? Number(options.targetLufs) : SFX_SETTINGS.targetLufs
+  const limiterCeilingDb = options.limiterCeilingDb !== undefined ? Number(options.limiterCeilingDb) : SFX_SETTINGS.limiterCeilingDb
+  const highpassHz = options.highpassHz !== undefined ? Number(options.highpassHz) : SFX_SETTINGS.highpassHz
+  const sampleRate = options.sampleRate !== undefined ? Number(options.sampleRate) : SFX_SETTINGS.sampleRate
+  const maxPasses = options.maxPasses !== undefined ? Number(options.maxPasses) : 4
+
+  let out = options.out ? path.resolve(options.out) : null
+  if (!out) {
+    const parsed = path.parse(input)
+    out = path.join(parsed.dir, `${parsed.name}-normalized.wav`)
+  }
+
+  const outDir = path.dirname(out)
+  if (!fs.existsSync(outDir)) {
+    await fsp.mkdir(outDir, { recursive: true })
+  }
+
+  const initial = await measureAudio(input)
+  const ceilingLinear = Math.pow(10, limiterCeilingDb / 20.0)
+
+  let gain = targetLufs - initial.integratedLufs
+  let passes = 0
+  let currentMeasure = initial
+
+  const tempDst = path.join(os.tmpdir(), `zr-norm-temp-${Date.now()}.wav`)
+
+  try {
+    for (let it = 0; it < maxPasses; it++) {
+      passes = it + 1
+      const filter = `highpass=f=${highpassHz},volume=${gain.toFixed(4)}dB,alimiter=limit=${ceilingLinear.toFixed(5)}:attack=5:release=60:level=disabled`
+
+      const run = spawnSync('ffmpeg', [
+        '-hide_banner',
+        '-nostats',
+        '-y',
+        '-i', input,
+        '-af', filter,
+        '-ar', String(sampleRate),
+        '-c:a', 'pcm_s24le',
+        tempDst
+      ], { encoding: 'utf8' })
+
+      if (run.status !== 0 || !fs.existsSync(tempDst)) {
+        throw new Error(`FFmpeg normalization pass ${it + 1} failed: ${run.stderr || run.stdout}`)
+      }
+
+      currentMeasure = await measureAudio(tempDst)
+      const err = targetLufs - currentMeasure.integratedLufs
+
+      if (Math.abs(err) <= 0.1 && currentMeasure.truePeakDb <= limiterCeilingDb + 0.05) {
+        break
+      }
+      gain += err
+    }
+
+    // Atomic move to destination
+    await fsp.copyFile(tempDst, out)
+  } finally {
+    await fsp.rm(tempDst, { force: true }).catch(() => {})
+  }
+
+  return {
+    ok: true,
+    input,
+    output: out,
+    targetLufs,
+    limiterCeilingDb,
+    inputLufs: initial.integratedLufs,
+    outputLufs: currentMeasure.integratedLufs,
+    gainDb: Number(gain.toFixed(2)),
+    truePeakDb: currentMeasure.truePeakDb,
+    duration: currentMeasure.duration,
+    passes,
+    date: formatDate()
+  }
+}
+
+export async function linkSfx(options = {}) {
+  const video = options.video
+  const sfx = options.sfx
+  const outPath = path.resolve(options.out || options.output)
+
+  if (!video) throw new Error('Video path or project id required (--video)')
+  if (!sfx) throw new Error('SFX path or sound id required (--sfx)')
+  if (!outPath) throw new Error('Output json destination required (--out)')
+
+  const cue = options.cue || null
+  const at = options.at !== undefined ? Number(options.at) : 0.0
+  const offsetMs = options.offsetMs !== undefined ? Number(options.offsetMs) : 0.0
+  const gainDb = options.gainDb !== undefined ? Number(options.gainDb) : 0.0
+  const label = options.label || path.basename(sfx)
+  const projectId = options.projectId || (video.startsWith('motion:') ? video.slice(7) : path.basename(video, path.extname(video)))
+
+  const isSfxBinding = path.basename(outPath) === 'sfx.json' || outPath.endsWith('sfx.json') || options.format === 'binding' || options.binding
+
+  const anchor = cue ? { cue } : { at }
+  const start = Number((at + offsetMs / 1000.0).toFixed(4))
+  const stamp = formatDate()
+
+  let document
+  if (isSfxBinding) {
+    let existing = null
+    if (fs.existsSync(outPath)) {
+      try {
+        existing = JSON.parse(await fsp.readFile(outPath, 'utf8'))
+      } catch {
+        // Overwrite if corrupt
+      }
+    }
+
+    const doc = existing || {
+      schema: SFX_SETTINGS.bindingSchema,
+      project: projectId,
+      tracks: [],
+      history: []
+    }
+
+    const trackId = options.track || `t${(doc.tracks || []).length + 1}`
+    const trackEntry = {
+      id: trackId,
+      sfx,
+      anchor,
+      offsetMs: Number(offsetMs),
+      gainDb: Number(gainDb),
+      start,
+      label
+    }
+
+    const existingIdx = (doc.tracks || []).findIndex(t => t.id === trackId)
+    const action = existingIdx !== -1 ? 'replace' : 'add'
+
+    if (existingIdx !== -1) {
+      doc.tracks[existingIdx] = trackEntry
+    } else {
+      doc.tracks.push(trackEntry)
+    }
+
+    doc.history = doc.history || []
+    doc.history.push({
+      date: stamp,
+      action,
+      track: trackEntry
+    })
+
+    doc.updated = stamp
+    doc.schema = SFX_SETTINGS.bindingSchema
+    document = doc
+  } else {
+    // Montage chain format
+    document = {
+      schema: SFX_SETTINGS.chainSchema,
+      video,
+      sfx,
+      anchor,
+      offsetMs: Number(offsetMs),
+      gainDb: Number(gainDb),
+      start,
+      label,
+      updated: stamp
+    }
+  }
+
+  const outDir = path.dirname(outPath)
+  if (!fs.existsSync(outDir)) {
+    await fsp.mkdir(outDir, { recursive: true })
+  }
+
+  const tmpFile = path.join(outDir, `.tmp-${path.basename(outPath)}-${Date.now()}`)
+  await fsp.writeFile(tmpFile, JSON.stringify(document, null, 2), 'utf8')
+  await fsp.rename(tmpFile, outPath)
+
+  return {
+    ok: true,
+    file: outPath,
+    isSfxBinding,
+    binding: isSfxBinding ? document.tracks[document.tracks.length - 1] : document,
+    date: stamp
+  }
+}
+
+// ------------------------------------------------------------------ CLI
+async function main() {
+  const args = process.argv.slice(2)
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+    console.log(`ZenRay Edit SFX CLI (27 October 2026)
+Usage:
+  node zenray-edit-sfx.mjs --list [--json]
+  node zenray-edit-sfx.mjs --normalize <input.wav> [--out <output.wav>] [--target-lufs -14] [--ceiling -1.5]
+  node zenray-edit-sfx.mjs --link --video <clip> --sfx <sound> --out <chain.json|sfx.json> [--cue <cue>] [--at <sec>] [--offset <ms>] [--gain <dB>]
+
+Options:
+  --list, -l                  List reference SFX sounds, recipes and archetypes
+  --normalize <file>          Normalize and master an audio file
+  --out <path>                Destination file for normalize or link
+  --target-lufs <num>         Target LUFS for normalize (default: -14.0)
+  --ceiling <num>             Limiter ceiling in dBFS (default: -1.5)
+  --link                      Bind a sound to a clip or montage
+  --video <path|id>           Video clip path or motion project id
+  --sfx <path|id>             Sound audio path or sfx id
+  --cue <name>                Visual cue anchor name
+  --at <sec>                  Timestamp anchor in seconds
+  --offset <ms>               Offset in milliseconds
+  --gain <dB>                 Volume adjustment in dB
+  --json                      Output raw JSON results
+`)
+    process.exit(0)
+  }
+
+  const asJson = args.includes('--json')
+
+  try {
+    if (args.includes('--list') || args.includes('-l')) {
+      const sounds = await listSfx()
+      if (asJson) {
+        console.log(JSON.stringify(sounds, null, 2))
+      } else {
+        console.log(`ZenRay SFX Bank: ${sounds.length} items found\n`)
+        console.log('ID'.padEnd(46) + 'Kind'.padEnd(20) + 'Duration'.padEnd(12) + 'Title')
+        console.log('-'.repeat(90))
+        for (const s of sounds) {
+          const durStr = s.duration ? `${s.duration}s` : ''
+          console.log(s.id.padEnd(46) + s.kind.padEnd(20) + durStr.padEnd(12) + (s.title || ''))
+        }
+      }
+      process.exit(0)
+    }
+
+    const normIdx = args.indexOf('--normalize')
+    if (normIdx !== -1) {
+      const input = args[normIdx + 1]
+      if (!input || input.startsWith('-')) {
+        throw new Error('Missing input audio file after --normalize')
+      }
+
+      const getArg = name => {
+        const idx = args.indexOf(name)
+        return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('-') ? args[idx + 1] : null
+      }
+
+      const out = getArg('--out')
+      const targetLufs = getArg('--target-lufs')
+      const ceiling = getArg('--ceiling')
+
+      const result = await normalizeSfx({
+        input,
+        out,
+        targetLufs: targetLufs !== null ? parseFloat(targetLufs) : undefined,
+        limiterCeilingDb: ceiling !== null ? parseFloat(ceiling) : undefined
+      })
+
+      if (asJson) {
+        console.log(JSON.stringify(result, null, 2))
+      } else {
+        console.log('Audio normalization and mastering complete:')
+        console.log(`- Input: ${result.input} (${result.inputLufs} LUFS)`)
+        console.log(`- Output: ${result.output} (${result.outputLufs} LUFS)`)
+        console.log(`- Gain applied: ${result.gainDb} dB`)
+        console.log(`- True peak: ${result.truePeakDb} dBFS (ceiling: ${result.limiterCeilingDb} dBFS)`)
+        console.log(`- Passes: ${result.passes}`)
+      }
+      process.exit(0)
+    }
+
+    if (args.includes('--link')) {
+      const getArg = name => {
+        const idx = args.indexOf(name)
+        return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('-') ? args[idx + 1] : null
+      }
+
+      const video = getArg('--video')
+      const sfx = getArg('--sfx')
+      const out = getArg('--out')
+      const cue = getArg('--cue')
+      const at = getArg('--at')
+      const offset = getArg('--offset')
+      const gain = getArg('--gain')
+      const label = getArg('--label')
+
+      const result = await linkSfx({
+        video,
+        sfx,
+        out,
+        cue,
+        at: at !== null ? parseFloat(at) : undefined,
+        offsetMs: offset !== null ? parseFloat(offset) : undefined,
+        gainDb: gain !== null ? parseFloat(gain) : undefined,
+        label,
+        binding: args.includes('--binding')
+      })
+
+      if (asJson) {
+        console.log(JSON.stringify(result, null, 2))
+      } else {
+        console.log('SFX linking complete:')
+        console.log(`- Type: ${result.isSfxBinding ? 'Motion project binding (sfx.json)' : 'Montage chain (chain.json)'}`)
+        console.log(`- Destination: ${result.file}`)
+        console.log(`- Binding data: ${JSON.stringify(result.binding)}`)
+      }
+      process.exit(0)
+    }
+
+    throw new Error('Unknown command. Use --help to see available options.')
+  } catch (err) {
+    console.error(`Error: ${err.message}`)
+    process.exit(1)
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
+}
