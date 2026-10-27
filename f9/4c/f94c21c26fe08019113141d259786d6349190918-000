@@ -402,22 +402,18 @@
   </section>
 
   <section class="subject-line">
-    <span class="subject-badge">OBJET :</span>
+    <span class="subject-badge">{{SUBJECT_BADGE}}</span>
     <span class="subject-text">{{SUBJECT}}</span>
   </section>
 
   <main class="letter-content">
-    <div class="salutation">{{SALUTATION}}</div>
+    {{SALUTATION_BLOCK}}
 
     <div class="content-body">
       {{CONTENT}}
     </div>
 
-    {{BULLETS_BLOCK}}
-
-    <div class="signoff-block">
-      <p class="signoff-text">{{SIGNOFF}}</p>
-    </div>
+    {{SIGNOFF_BLOCK}}
 
     <div class="signature-card">
       <div class="sig-name">{{SIGNATURE}}</div>

@@ -121,13 +121,36 @@ export function parseDocumentInput({ filePath, args = {}, text = '' }) {
 
   // Parse markdown or text content
   const lines = content.split('\n')
+  const blocks = []
   const paragraphs = []
   const bullets = []
   let currentParagraph = []
+  let currentBullets = []
   let detectedSalutation = null
   let detectedSignoff = null
   let detectedSignature = null
   let detectedSubject = null
+  let detectedRecipient = null
+  let detectedCompany = null
+  let detectedRole = null
+
+  const isEnglish = /\b(team|hello|dear|sincerely|application|opening|gameplay|designer|technical|unreal|engine|studio|recruitment)\b/i.test(content)
+
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      const pText = currentParagraph.join(' ')
+      paragraphs.push(pText)
+      blocks.push({ type: 'paragraph', text: pText })
+      currentParagraph = []
+    }
+  }
+
+  const flushBullets = () => {
+    if (currentBullets.length > 0) {
+      blocks.push({ type: 'bullets', items: [...currentBullets] })
+      currentBullets = []
+    }
+  }
 
   const signoffPatterns = [
     /je vous prie d'agr[ée]er/i,
@@ -144,49 +167,68 @@ export function parseDocumentInput({ filePath, args = {}, text = '' }) {
     const trimmed = rawLine.trim()
 
     if (!trimmed) {
-      if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph.join(' '))
-        currentParagraph = []
+      flushParagraph()
+      flushBullets()
+      continue
+    }
+
+    // Trailing signature block check
+    if (/^matthieu\s+huguet$/i.test(trimmed)) {
+      flushParagraph()
+      flushBullets()
+      detectedSignature = trimmed
+      if (i + 1 < lines.length && lines[i + 1].trim()) {
+        detectedRole = lines[i + 1].trim()
+        i += 1
+      }
+      if (i + 1 < lines.length && lines[i + 1].trim()) {
+        i += 1
       }
       continue
     }
 
+    // Recipient line at document start
+    if (blocks.length === 0 && currentParagraph.length === 0 && /^to\s+(the\s+)?(recruitment|hiring|\w+)\s+team,?$/i.test(trimmed)) {
+      detectedRecipient = trimmed
+      continue
+    }
+
     // Subject header detection
-    if (/^#+\s+(.+)$/.test(trimmed) || /^(\*\*|__)?objet\s*:\s*(.+)$/i.test(trimmed)) {
-      const match = trimmed.match(/^#+\s+(.+)$/) || trimmed.match(/^(\*\*|__)?objet\s*:\s*(.+)$/i)
-      detectedSubject = match ? match[1].replace(/(\*\*|__)$/, '').trim() : trimmed
+    if (/^#+\s+(.+)$/.test(trimmed) || /^(\*\*|__)?(objet|subject|application)\s*:\s*(.+)$/i.test(trimmed)) {
+      flushParagraph()
+      flushBullets()
+      const match = trimmed.match(/^#+\s+(.+)$/) || trimmed.match(/^(\*\*|__)?(objet|subject|application)\s*:\s*(.+)$/i)
+      detectedSubject = match ? (match[3] || match[1]).replace(/(\*\*|__)$/, '').trim() : trimmed
       continue
     }
 
     // Bullet points
     if (/^[-*]\s+(.+)$/.test(trimmed)) {
-      if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph.join(' '))
-        currentParagraph = []
-      }
-      bullets.push(trimmed.replace(/^[-*]\s+/, ''))
+      flushParagraph()
+      const bulletText = trimmed.replace(/^[-*]\s+/, '')
+      bullets.push(bulletText)
+      currentBullets.push(bulletText)
       continue
     }
 
     // Salutation detection
-    if (/^(madame,\s*monsieur|dear\s+|ch[eè]re?\s+)/i.test(trimmed) && !detectedSalutation) {
-      if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph.join(' '))
-        currentParagraph = []
-      }
+    if (/^(madame,\s*monsieur|dear\s+|ch[eè]re?\s+|hello\s+|bonjour\b)/i.test(trimmed) && !detectedSalutation) {
+      flushParagraph()
+      flushBullets()
       detectedSalutation = trimmed
+      const helloMatch = trimmed.match(/^hello\s+([a-z0-9\s_-]+),?$/i)
+      if (helloMatch && !detectedCompany) {
+        detectedCompany = helloMatch[1].trim()
+      }
       continue
     }
 
     // Sign-off formula detection
     const isSignoff = signoffPatterns.some((pattern) => pattern.test(trimmed))
     if (isSignoff) {
-      if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph.join(' '))
-        currentParagraph = []
-      }
+      flushParagraph()
+      flushBullets()
       detectedSignoff = trimmed
-      // Next non empty line could be the signer name
       for (let j = i + 1; j < lines.length; j += 1) {
         const nextTrimmed = lines[j].trim()
         if (nextTrimmed && !signoffPatterns.some((p) => p.test(nextTrimmed))) {
@@ -198,21 +240,27 @@ export function parseDocumentInput({ filePath, args = {}, text = '' }) {
       continue
     }
 
+    // Normal paragraph line
+    flushBullets()
     currentParagraph.push(trimmed)
   }
 
-  if (currentParagraph.length > 0) {
-    paragraphs.push(currentParagraph.join(' '))
-  }
+  flushParagraph()
+  flushBullets()
 
   return {
     ...metadata,
+    blocks: metadata.blocks || blocks,
     paragraphs: metadata.paragraphs || paragraphs,
     bullets: metadata.bullets || bullets,
     salutation: metadata.salutation || detectedSalutation,
-    signoff: metadata.signoff || detectedSignoff,
+    signoff: metadata.signoff !== undefined ? metadata.signoff : detectedSignoff,
     signature: metadata.signature || detectedSignature,
     subject: metadata.subject || detectedSubject,
+    company: metadata.company || detectedCompany,
+    role: metadata.role || detectedRole,
+    recipient: metadata.recipient || detectedRecipient,
+    isEnglish: metadata.isEnglish !== undefined ? metadata.isEnglish : isEnglish,
     ...args,
   }
 }
@@ -264,15 +312,39 @@ export function buildDocumentHtml(docData, params, fontFaces) {
     ? d.metas.map((m) => `<span class="meta-item">${typeof m === 'object' ? `<a href="${escapeHtml(m.href)}">${escapeHtml(m.label)}</a>` : escapeHtml(m)}</span>`).join('\n')
     : metas.join('\n')
 
-  // Paragraphs
-  const paragraphsList = Array.isArray(d.paragraphs) ? d.paragraphs : (d.paragraphs ? [d.paragraphs] : [])
-  const contentHtml = paragraphsList.map((p) => `<p>${formatInlineMarkdown(p)}</p>`).join('\n')
+  const isEnglish = d.isEnglish !== undefined
+    ? Boolean(d.isEnglish)
+    : /\b(team|hello|dear|sincerely|application|opening|gameplay|designer|technical|unreal|engine|studio|recruitment)\b/i.test(JSON.stringify(d))
 
-  // Bullets
-  const bulletsList = Array.isArray(d.bullets) ? d.bullets : []
-  const bulletsBlock = bulletsList.length > 0
-    ? `<ul class="doc-bullets">\n${bulletsList.map((b) => `<li>${formatInlineMarkdown(b)}</li>`).join('\n')}\n</ul>`
-    : ''
+  const subjectBadge = d.subjectBadge || (isEnglish ? 'APPLICATION :' : 'OBJET :')
+
+  // Content rendering with blocks in exact chronological order
+  let contentHtml = ''
+  if (Array.isArray(d.blocks) && d.blocks.length > 0) {
+    contentHtml = d.blocks.map((b) => {
+      if (b.type === 'bullets') {
+        return `<ul class="doc-bullets">\n${b.items.map((it) => `<li>${formatInlineMarkdown(it)}</li>`).join('\n')}\n</ul>`
+      }
+      return `<p>${formatInlineMarkdown(b.text)}</p>`
+    }).join('\n')
+  } else {
+    // Fallback if paragraphs passed as raw array
+    const paragraphsList = Array.isArray(d.paragraphs) ? d.paragraphs : (d.paragraphs ? [d.paragraphs] : [])
+    contentHtml = paragraphsList.map((p) => `<p>${formatInlineMarkdown(p)}</p>`).join('\n')
+    const bulletsList = Array.isArray(d.bullets) ? d.bullets : []
+    if (bulletsList.length > 0) {
+      contentHtml += `\n<ul class="doc-bullets">\n${bulletsList.map((b) => `<li>${formatInlineMarkdown(b)}</li>`).join('\n')}\n</ul>`
+    }
+  }
+
+  // Salutation block
+  const salutationText = d.salutation !== undefined ? d.salutation : (isEnglish ? '' : 'Madame, Monsieur,')
+  const salutationBlock = salutationText ? `<div class="salutation">${escapeHtml(salutationText)}</div>` : ''
+
+  // Signoff block
+  const defaultSignoff = isEnglish ? '' : params.defaults.signoff
+  const signoffText = d.signoff !== undefined ? d.signoff : defaultSignoff
+  const signoffBlock = signoffText ? `<div class="signoff-block"><p class="signoff-text">${escapeHtml(signoffText)}</p></div>` : ''
 
   const dateVal = d.date ? escapeHtml(d.date) : formatEnglishDate()
   const pageTitle = d.subject ? `${escapeHtml(d.subject)} | ${escapeHtml(d.name || 'Matthieu Huguet')}` : (d.name || 'Matthieu Huguet')
@@ -294,11 +366,11 @@ export function buildDocumentHtml(docData, params, fontFaces) {
     .replace('{{RECIPIENT}}', recipientHtml)
     .replace('{{DATE}}', dateVal)
     .replace('{{LOCATION}}', escapeHtml(d.location || 'Aix-en-Provence, France'))
-    .replace('{{SUBJECT}}', escapeHtml(d.subject || 'Candidature'))
-    .replace('{{SALUTATION}}', escapeHtml(d.salutation || 'Madame, Monsieur,'))
+    .replace('{{SUBJECT_BADGE}}', escapeHtml(subjectBadge))
+    .replace('{{SUBJECT}}', escapeHtml(d.subject || (isEnglish ? 'Application' : 'Candidature')))
+    .replace('{{SALUTATION_BLOCK}}', salutationBlock)
     .replace('{{CONTENT}}', contentHtml)
-    .replace('{{BULLETS_BLOCK}}', bulletsBlock)
-    .replace('{{SIGNOFF}}', escapeHtml(d.signoff || params.defaults.signoff))
+    .replace('{{SIGNOFF_BLOCK}}', signoffBlock)
     .replace('{{SIGNATURE}}', escapeHtml(d.signature || d.name || 'Matthieu Huguet'))
     .replace(/\{\{FOOTER_LEFT\}\}/g, escapeHtml(footerLeft))
     .replace(/\{\{FOOTER_RIGHT\}\}/g, escapeHtml(footerRight))
