@@ -1,0 +1,109 @@
+# ZenRay Edit Motion Design and SFX Integration (27 October 2026)
+
+This guide documents the automated bridges connecting ZenRay Edit with ZenRay Motion Design and ZenRay SFX.
+Two CLI tools allow immediate querying, rendering, mastering, and binding without manual setup. (27 October 2026)
+
+## Repositories and Architecture (27 October 2026)
+
+- ZenRay Edit: `/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayEdit` (umbrella application)
+- ZenRay Motion Design: `/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign`
+- ZenRay SFX: `/Users/zenray/Create/Build/Productions/GithubProductions/ZenRaySFX`
+- Motion projects directory: `/Users/zenray/.claude/tmp/tmp-zenray-motion-design/motion-projects`
+- Shared 1:1 montage template: `/Users/zenray/.claude/skills/zenray-edit/templates/montage-1x1`
+
+## 1. Motion Design CLI: zenray-edit-motion.mjs (27 October 2026)
+
+Script location:
+`/Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs`
+
+### List existing Motion Design projects (27 October 2026)
+
+```bash
+# Formatted table
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --list
+
+# Raw JSON
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --list --json
+```
+
+Lists all available projects in `motion-projects`, their title, aspect ratio (16x9, 9x16, 1x1, 4x5), frame rate, duration in seconds, scene count, and associated cues or storyboard files. (27 October 2026)
+
+### Render a Motion Design project (27 October 2026)
+
+```bash
+# Render to MP4 with native format
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --render macbook-pro-s20-fingerprint-ppm --out output.mp4
+
+# Render with format override to 1:1 square at 60 fps
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --render macbook-pro-s20-fingerprint-ppm --format 1x1 --fps 60 --out /tmp/thumb.mp4
+
+# Render to PNG sequence
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --render macbook-pro-s20-fingerprint-ppm --output-format png-sequence --out /tmp/frames
+```
+
+The script cooks the project into a temporary HyperFrames bundle, adjusting format and frame rate if overridden, then invokes the pinned private wrapper `RunHyperframes.mjs render` using headless Chrome. (27 October 2026)
+
+### Assemble a 1:1 Montage (27 October 2026)
+
+```bash
+# Run full montage build (plan, audio, video, mov, verify, index)
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --montage /path/to/Params/montage.json
+
+# Run a specific sub-step
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs --montage /path/to/Params/montage.json --step audio
+```
+
+Calls `Montage.py` from the template or local workshop, running the single pass ffmpeg pipeline, QuickTime MOV container copy, 35 point verification, and index generation. (27 October 2026)
+
+## 2. SFX CLI: zenray-edit-sfx.mjs (27 October 2026)
+
+Script location:
+`/Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs`
+
+### List SFX library and reference recipes (27 October 2026)
+
+```bash
+# Formatted table
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs --list
+
+# Raw JSON
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs --list --json
+```
+
+Scans reference reproductions in `out/repro-03/` with their recipes and invariance scores, sound archetypes in `params/archetypes.json`, designed film proposals in `params/proposals/`, and motion bank sounds. (27 October 2026)
+
+### Normalize and master audio (27 October 2026)
+
+```bash
+# Master to standard -14 LUFS with -1.5 dBFS ceiling
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs --normalize input.wav --out output.wav
+
+# Custom loudness target and ceiling
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs --normalize input.wav --out output.wav --target-lufs -16.0 --ceiling -2.0
+```
+
+Applies the mastering chain: 20 Hz high-pass filter, constant volume gain to target loudness, and look-ahead limiter (`alimiter=limit=<ceiling>:attack=5:release=60:level=disabled`). An iterative loop refines the gain until measured loudness converges within 0.1 LU of the target. (27 October 2026)
+
+### Link SFX to video clips or Motion Design projects (27 October 2026)
+
+```bash
+# Link sound to a montage clip via chain.json (schema zenray-edit/chain@1)
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs --link --video Sources/clip1.mp4 --sfx sfx:repro/12-Denied --out chain.json --cue lens --offset 15
+
+# Bind sound to a Motion Design project via sfx.json (schema zenray-sfx-binding/1)
+node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs --link --video motion:zenray-logo-opening-ppm --sfx sfx:repro/12-Denied --out /path/to/project/sfx.json --cue lens --offset 20
+```
+
+Automatically detects the target format:
+- `chain.json`: single clip montage binding with video path, sfx reference, anchor cue or timestamp, offset in milliseconds, and gain in dB.
+- `sfx.json`: multi-track motion project sidecar with schema `zenray-sfx-binding/1`, appending new tracks and preserving immutable revision history. (27 October 2026)
+
+## Verification and Unit Tests (27 October 2026)
+
+Run test suites:
+```bash
+node --test /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.test.mjs
+node --test /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.test.mjs
+```
+
+All 13 test cases validate input sanitization, cooking, rendering, audio measurements, normalization convergence, and binding generation. (27 October 2026)

@@ -1,0 +1,157 @@
+// 27 October 2026: ZenRay Edit SFX unit tests.
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import {
+  SFX_SETTINGS,
+  listSfx,
+  measureAudio,
+  normalizeSfx,
+  linkSfx
+} from './zenray-edit-sfx.mjs'
+
+const SAMPLE_WAV = path.join(SFX_SETTINGS.sfxRepo, 'out', 'repro-03', '12-Denied.wav')
+
+test('listSfx scans the SFX repository and returns structured sound items', async () => {
+  const sounds = await listSfx()
+  assert.ok(Array.isArray(sounds))
+  assert.ok(sounds.length > 0)
+
+  const kinds = new Set(sounds.map(s => s.kind))
+  assert.ok(kinds.has('sfx-reproduction'))
+  assert.ok(kinds.has('sfx-archetype'))
+
+  const repro = sounds.find(s => s.kind === 'sfx-reproduction')
+  assert.ok(repro)
+  assert.ok(repro.id.startsWith('sfx:repro/'))
+  assert.ok(repro.title)
+  assert.ok(fs.existsSync(repro.recipe))
+
+  const arch = sounds.find(s => s.kind === 'sfx-archetype')
+  assert.ok(arch)
+  assert.ok(arch.id.startsWith('sfx:archetype/'))
+  assert.ok(Array.isArray(arch.words))
+})
+
+test('measureAudio measures integrated loudness, true peak and sample rate with ffmpeg', async () => {
+  assert.ok(fs.existsSync(SAMPLE_WAV))
+  const m = await measureAudio(SAMPLE_WAV)
+
+  assert.equal(m.path, SAMPLE_WAV)
+  assert.ok(m.duration > 0.5 && m.duration < 1.5)
+  assert.equal(m.sampleRate, 48000)
+  assert.ok(m.integratedLufs < -20.0)
+  assert.ok(m.truePeakDb < 0.0)
+})
+
+test('measureAudio throws error on missing audio file', async () => {
+  await assert.rejects(
+    measureAudio('/tmp/missing-audio-file-' + Date.now() + '.wav'),
+    /Audio file not found/
+  )
+})
+
+test('normalizeSfx masters audio to -14 LUFS with -1.5 dBFS ceiling', async t => {
+  const tmpOut = path.join(os.tmpdir(), `zr-test-norm-${Date.now()}.wav`)
+  t.after(async () => {
+    await fsp.rm(tmpOut, { force: true }).catch(() => {})
+  })
+
+  const res = await normalizeSfx({
+    input: SAMPLE_WAV,
+    out: tmpOut,
+    targetLufs: -14.0,
+    limiterCeilingDb: -1.5
+  })
+
+  assert.equal(res.ok, true)
+  assert.equal(res.output, tmpOut)
+  assert.ok(fs.existsSync(tmpOut))
+  assert.ok(res.passes >= 1)
+  assert.ok(res.gainDb > 0)
+
+  // Verify resulting audio
+  const verifyMeasure = await measureAudio(tmpOut)
+  assert.ok(Math.abs(verifyMeasure.integratedLufs - (-14.0)) < 2.0)
+  assert.ok(verifyMeasure.truePeakDb <= -1.4)
+})
+
+test('linkSfx creates a montage chain.json with schema zenray-edit/chain@1', async t => {
+  const tmpChain = path.join(os.tmpdir(), `zr-test-chain-${Date.now()}.json`)
+  t.after(async () => {
+    await fsp.rm(tmpChain, { force: true }).catch(() => {})
+  })
+
+  const res = await linkSfx({
+    video: 'Sources/clip1.mp4',
+    sfx: 'sfx:repro/12-Denied',
+    out: tmpChain,
+    cue: 'lens',
+    offsetMs: 25,
+    gainDb: -1.5,
+    label: 'Denied sound on lens'
+  })
+
+  assert.equal(res.ok, true)
+  assert.equal(res.file, tmpChain)
+  assert.equal(res.isSfxBinding, false)
+
+  const doc = JSON.parse(await fsp.readFile(tmpChain, 'utf8'))
+  assert.equal(doc.schema, 'zenray-edit/chain@1')
+  assert.equal(doc.video, 'Sources/clip1.mp4')
+  assert.equal(doc.sfx, 'sfx:repro/12-Denied')
+  assert.deepEqual(doc.anchor, { cue: 'lens' })
+  assert.equal(doc.offsetMs, 25)
+  assert.equal(doc.gainDb, -1.5)
+  assert.equal(doc.start, 0.025)
+  assert.ok(doc.updated.includes('2026'))
+})
+
+test('linkSfx creates and appends tracks to a motion project sfx.json', async t => {
+  const tmpSfx = path.join(os.tmpdir(), `zr-test-sfx-binding-${Date.now()}.sfx.json`)
+  t.after(async () => {
+    await fsp.rm(tmpSfx, { force: true }).catch(() => {})
+  })
+
+  // First track
+  const res1 = await linkSfx({
+    video: 'motion:zenray-logo-opening-ppm',
+    sfx: 'sfx:repro/12-Denied',
+    out: tmpSfx,
+    cue: 'lens',
+    offsetMs: 10,
+    projectId: 'zenray-logo-opening-ppm'
+  })
+
+  assert.equal(res1.ok, true)
+  assert.equal(res1.isSfxBinding, true)
+
+  let doc = JSON.parse(await fsp.readFile(tmpSfx, 'utf8'))
+  assert.equal(doc.schema, 'zenray-sfx-binding/1')
+  assert.equal(doc.project, 'zenray-logo-opening-ppm')
+  assert.equal(doc.tracks.length, 1)
+  assert.equal(doc.tracks[0].id, 't1')
+  assert.equal(doc.tracks[0].sfx, 'sfx:repro/12-Denied')
+  assert.equal(doc.history.length, 1)
+
+  // Second track appended
+  const res2 = await linkSfx({
+    video: 'motion:zenray-logo-opening-ppm',
+    sfx: 'sfx:repro/15-TimeFall-Shelter',
+    out: tmpSfx,
+    cue: 'aberration',
+    offsetMs: 50,
+    projectId: 'zenray-logo-opening-ppm'
+  })
+
+  assert.equal(res2.ok, true)
+
+  doc = JSON.parse(await fsp.readFile(tmpSfx, 'utf8'))
+  assert.equal(doc.tracks.length, 2)
+  assert.equal(doc.tracks[1].id, 't2')
+  assert.equal(doc.tracks[1].sfx, 'sfx:repro/15-TimeFall-Shelter')
+  assert.equal(doc.history.length, 2)
+})

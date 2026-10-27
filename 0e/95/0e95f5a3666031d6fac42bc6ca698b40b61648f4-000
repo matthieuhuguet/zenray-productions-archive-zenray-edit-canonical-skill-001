@@ -5,6 +5,17 @@ description: Créer et éditer textes, photos, compositions HTML, carrousels, PD
 
 # ZenRay Edit (7 October 2026)
 
+## PRIORITÉ 0 ABSOLUE : PLUS JAMAIS RÉINVENTER LA ROUE, TOUT SE FAIT PAR TEMPLATES ET SCRIPTS DÉDIÉS EN 1 SECONDE (27 October 2026)
+
+- Mots de Matthieu (27 October 2026) : « à l'avenir, je veux pas que ça reprenne 5 minutes à chaque fois que je crée une cover letter. Là, tu as pris très exactement 4 minutes pour créer un PDF, alors que le skill ZenRay Edit devrait te permettre de le créer ultra vite, immédiatement. Donc, crée tous les fichiers et tous les scripts dans ZenRay Edit et consigne la règle afin que tu refasses plus jamais l'erreur, jamais. Je veux que la prochaine fois que je te demande de faire un PDF, et même que je te demande de faire quoi que ce soit que peut faire le skill ZenRay Edit, je veux que tu pré-génères tous les scripts qui font qu'il les génère en une seconde, tu vois, via des templates. C'était le but de ZenRay Edit. » (27 October 2026)
+- Règle fondamentale : interdiction absolue de recoder des scripts de génération ad-hoc ou de bricoler des pipelines à chaque demande. Tout média géré par ZenRay Edit (PDF, maquette HTML, Motion Design, SFX, article de skill) dispose d'un template pré-calculé et d'un script dédié, appelable via le point d'entrée unique `zr-edit.mjs` ou directement. (27 October 2026)
+- Point d'entrée unifié : `node /Users/zenray/.claude/skills/zenray-edit/scripts/zr-edit.mjs <pdf|design|motion|sfx|article|file> [options]` (27 October 2026)
+- 1. PDF instantané (1 seconde) : `node /Users/zenray/.claude/skills/zenray-edit/scripts/render-pdf-document.mjs <params.json|--title ...>` (ou `zr-edit.mjs pdf`). Utilise le template `/Users/zenray/.claude/skills/zenray-edit/templates/pdf-document/template.html`, polices GT Ultra 400 et Literata 400/500 intégrées en base64 sans requête réseau, compilation headless Chrome en 890 ms, prévisualisation PNG 150 dpi, vérification stricte 1 page sans débordement via pypdf, copie automatique dans `~/Downloads/` et archivage dans Assets. (27 October 2026)
+- 2. Maquette HTML instantanée : `node /Users/zenray/.claude/skills/zenray-edit/scripts/render-html-design.mjs <module> --title "<titre>"` (ou `zr-edit.mjs design`). Utilise le template `/Users/zenray/.claude/skills/zenray-edit/templates/html-design/template.html` et ses jetons HDA, trio typographique GT Ultra / Literata / GT Standard L, grille fluide mobile et desktop. (27 October 2026)
+- 3. Motion Design intégré : `node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-motion.mjs <--list|--render|--montage>` (ou `zr-edit.mjs motion`). Connecté aux 87 projets ZenRay Motion Design, déclinaison aux 4 ratios (16:9, 9:16, 1:1, 4:5), exécution HyperFrames sans navigateur personnel, rendu MP4 ou suite PNG. (27 October 2026)
+- 4. SFX intégré : `node /Users/zenray/.claude/skills/zenray-edit/scripts/zenray-edit-sfx.mjs <--list|--normalize|--link>` (ou `zr-edit.mjs sfx`). Connecté aux 208 éléments ZenRay SFX, normalisation loudness EBU R128 à -14.0 LUFS et plafond True Peak à -1.5 dBFS via ffmpeg, liaison atomique audio-vidéo dans `sfx.json` ou `chain.json`. (27 October 2026)
+- Preuve et suite de tests : 29 tests unitaires automatisés validés dans `scripts/*.test.mjs` (PDF, HTML, Motion, SFX, CLI unifié). (27 October 2026)
+
 ## PRIORITÉ 0, PREMIÈRE PRIORITÉ D'USAGE : titres et nombres en GT Ultra, corps en Literata, reste de l'interface en GT Standard L (26 October 2026, 15:10)
 
 - 26 October 2026 : une date, une heure, une durée, une plage, un montant ou une mesure est une valeur typographique indivisible : toute l’expression visible prend GT Ultra Regular 400, y compris le mois, les mots de liaison, les séparateurs, les unités et la devise (exemples : « 26 octobre 2026 », « October 2026 », « 9:00 AM », « 1 h 15 », « 10 000 € »). Ne jamais ne changer que les chiffres au milieu d’une date. Vérifier toutes les occurrences : calendrier, titre, bouton, champ, note, tableau, widget, compteur et détail ; dans une phrase ordinaire, seuls les nombres isolés prennent GT Ultra. (26 October 2026)
@@ -61,7 +72,9 @@ Atelier de création et d’édition, de la demande à un média vérifié et mo
 | Photo et cadrage | legacy/PhotoWorkflow.md ; legacy/EditorCorrections.md ; post-editor.md | 7 October 2026 |
 | Composition et carrousel | legacy/CompositionFoundation.md ; legacy/CompositionRecipes.md | 7 October 2026 |
 | Template depuis référence | template-creator.md ; legacy/DesignLibrary.md | 7 October 2026 |
-| PDF | legacy/PdfEditing.md, puis skill PDF si nécessaire | 7 October 2026 |
+| PDF instantané (1s) | templates/pdf-document/README.md ; scripts/render-pdf-document.mjs | 27 October 2026 |
+| Maquette HTML instantanée | templates/html-design/README.md ; scripts/render-html-design.mjs | 27 October 2026 |
+| Motion Design et SFX intégrés | templates/motion-sfx/README.md ; scripts/zenray-edit-motion.mjs ; scripts/zenray-edit-sfx.mjs | 27 October 2026 |
 | Reel et short | legacy/ShortsPipeline.md ; legacy/ShortsCorrections.md | 7 October 2026 |
 | UI paramétrique | legacy/ParameterPanels.md ; legacy/UiContract.md ; legacy/NativeUiReference.md si besoin natif | 7 October 2026 |
 | Post social et vignette | legacy/SocialText.md ; legacy/VignetteWorkflow.md ; legacy/PostEditorContract.md | 7 October 2026 |

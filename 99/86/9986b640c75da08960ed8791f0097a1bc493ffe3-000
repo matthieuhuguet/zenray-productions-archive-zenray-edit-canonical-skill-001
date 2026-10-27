@@ -1,0 +1,131 @@
+// 27 October 2026: ZenRay Edit Motion Design unit tests.
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import {
+  MOTION_SETTINGS,
+  validateProjectId,
+  listMotionProjects,
+  cookMotionProject,
+  renderMotionProject,
+  buildMontage
+} from './zenray-edit-motion.mjs'
+
+test('validateProjectId accepts valid ids and rejects path traversal or invalid characters', () => {
+  assert.equal(validateProjectId('zenray-logo-opening-ppm'), 'zenray-logo-opening-ppm')
+  assert.equal(validateProjectId('macbook-pro-s20-fingerprint-ppm'), 'macbook-pro-s20-fingerprint-ppm')
+  assert.equal(validateProjectId('test_project.v1'), 'test_project.v1')
+
+  assert.throws(() => validateProjectId('../etc/passwd'), /Invalid motion project id/)
+  assert.throws(() => validateProjectId('project/with/slash'), /Invalid motion project id/)
+  assert.throws(() => validateProjectId('project with space'), /Invalid motion project id/)
+  assert.throws(() => validateProjectId(''), /Invalid motion project id/)
+  assert.throws(() => validateProjectId(null), /Invalid motion project id/)
+})
+
+test('listMotionProjects scans the projects directory and returns sorted project list', async () => {
+  const projects = await listMotionProjects()
+  assert.ok(Array.isArray(projects))
+  assert.ok(projects.length > 0)
+
+  const sample = projects[0]
+  assert.ok(typeof sample.id === 'string' && sample.id.length > 0)
+  assert.ok(typeof sample.title === 'string')
+  assert.ok(MOTION_SETTINGS.supportedFormats.includes(sample.format))
+  assert.ok(typeof sample.fps === 'number')
+  assert.ok(typeof sample.duration === 'number')
+  assert.ok(fs.existsSync(sample.dir))
+
+  // Sorted check
+  for (let i = 1; i < Math.min(projects.length, 10); i++) {
+    assert.ok(projects[i - 1].id.localeCompare(projects[i].id) <= 0)
+  }
+})
+
+test('listMotionProjects returns empty array for non-existent directory', async () => {
+  const projects = await listMotionProjects({ projectsDir: '/tmp/non-existent-dir-for-test-' + Date.now() })
+  assert.deepEqual(projects, [])
+})
+
+test('cookMotionProject cooks a motion project and supports format override', async t => {
+  const tmpOut = path.join(os.tmpdir(), `zr-test-cook-${Date.now()}`)
+  t.after(async () => {
+    await fsp.rm(tmpOut, { recursive: true, force: true }).catch(() => {})
+  })
+
+  const cooked = await cookMotionProject({
+    projectId: 'macbook-pro-s20-fingerprint-ppm',
+    format: '1x1',
+    fps: 60,
+    outDir: tmpOut
+  })
+
+  assert.equal(cooked.projectId, 'macbook-pro-s20-fingerprint-ppm')
+  assert.equal(cooked.format, '1x1')
+  assert.equal(cooked.width, 1080)
+  assert.equal(cooked.height, 1080)
+  assert.equal(cooked.fps, 60)
+  assert.ok(cooked.duration > 0)
+
+  assert.ok(fs.existsSync(path.join(tmpOut, 'index.html')))
+  assert.ok(fs.existsSync(path.join(tmpOut, 'hyperframes.json')))
+  assert.ok(fs.existsSync(path.join(tmpOut, 'zs-core.js')))
+  assert.ok(fs.existsSync(path.join(tmpOut, 'fonts')))
+
+  const indexHtml = await fsp.readFile(path.join(tmpOut, 'index.html'), 'utf8')
+  assert.ok(indexHtml.includes('1080'))
+})
+
+test('cookMotionProject rejects unsupported aspect ratios', async () => {
+  await assert.rejects(
+    cookMotionProject({ projectId: 'macbook-pro-s20-fingerprint-ppm', format: '3x2' }),
+    /Unsupported format: 3x2/
+  )
+})
+
+test('renderMotionProject renders a short motion project to MP4 using RunHyperframes.mjs', async t => {
+  const tmpFile = path.join(os.tmpdir(), `zr-test-render-${Date.now()}.mp4`)
+  t.after(async () => {
+    await fsp.rm(tmpFile, { force: true }).catch(() => {})
+  })
+
+  const res = await renderMotionProject({
+    projectId: 'macbook-pro-s20-fingerprint-ppm',
+    format: '1x1',
+    fps: 60,
+    out: tmpFile
+  })
+
+  assert.equal(res.ok, true)
+  assert.equal(res.projectId, 'macbook-pro-s20-fingerprint-ppm')
+  assert.equal(res.format, '1x1')
+  assert.equal(res.width, 1080)
+  assert.equal(res.height, 1080)
+  assert.equal(res.fps, 60)
+  assert.equal(res.target, tmpFile)
+  assert.ok(fs.existsSync(tmpFile))
+
+  const stat = await fsp.stat(tmpFile)
+  assert.ok(stat.size > 1000)
+})
+
+test('buildMontage fails cleanly on missing params file or invalid step', async () => {
+  await assert.rejects(
+    buildMontage({ params: '/tmp/missing-montage-params-' + Date.now() + '.json' }),
+    /Montage parameters file not found/
+  )
+
+  const tmpParams = path.join(os.tmpdir(), `zr-dummy-params-${Date.now()}.json`)
+  await fsp.writeFile(tmpParams, JSON.stringify({ output: { dir: 'Out', name: 'dummy' } }), 'utf8')
+  try {
+    await assert.rejects(
+      buildMontage({ params: tmpParams, step: 'invalidStep' }),
+      /Invalid montage step: invalidStep/
+    )
+  } finally {
+    await fsp.rm(tmpParams, { force: true }).catch(() => {})
+  }
+})

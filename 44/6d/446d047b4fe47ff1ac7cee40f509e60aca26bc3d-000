@@ -310,7 +310,7 @@ export async function linkSfx(options = {}) {
   const label = options.label || path.basename(sfx)
   const projectId = options.projectId || (video.startsWith('motion:') ? video.slice(7) : path.basename(video, path.extname(video)))
 
-  const isSfxBinding = path.basename(outPath) === 'sfx.json' || outPath.endsWith('sfx.json') || options.format === 'binding' || options.binding
+  const isSfxBinding = Boolean(path.basename(outPath) === 'sfx.json' || outPath.endsWith('sfx.json') || options.format === 'binding' || options.binding)
 
   const anchor = cue ? { cue } : { at }
   const start = Number((at + offsetMs / 1000.0).toFixed(4))
