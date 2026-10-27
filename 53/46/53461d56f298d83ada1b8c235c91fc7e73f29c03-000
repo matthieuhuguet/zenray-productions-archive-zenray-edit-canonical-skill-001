@@ -261,7 +261,8 @@ export function parseDocumentInput({ filePath, args = {}, text = '' }) {
     role: metadata.role || detectedRole,
     recipient: metadata.recipient || detectedRecipient,
     isEnglish: metadata.isEnglish !== undefined ? metadata.isEnglish : isEnglish,
-    ...args,
+    // 27 October 2026: an option the caller did not give (undefined, as the CLI builds them) must not erase what the text itself said (recipient, greeting, role).
+    ...Object.fromEntries(Object.entries(args).filter(([, value]) => value !== undefined)),
   }
 }
 

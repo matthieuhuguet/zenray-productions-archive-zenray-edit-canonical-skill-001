@@ -209,6 +209,14 @@ runTest('generatePreviewPng produces valid 150 dpi PNG', () => {
   assert.ok(fs.statSync(previewPath).size > 10000)
 })
 
+runTest('Options the caller did not give never erase the greeting and recipient found in the text (27 October 2026)', () => {
+  const text = 'To the recruitment team,\n\nHello Acme Studio,\n\nI am writing about your opening.\n\nMatthieu Huguet\nTechnical Artist'
+  const doc = parseDocumentInput({ text, args: { company: 'Acme Studio', salutation: undefined, recipient: undefined, role: undefined, signoff: undefined } })
+  assert.equal(doc.salutation, 'Hello Acme Studio,')
+  assert.equal(doc.recipient, 'To the recruitment team,')
+  assert.equal(doc.company, 'Acme Studio')
+})
+
 // Summary
 console.log(`\nResults: ${testsPassed} passed, ${testsFailed} failed.`)
 

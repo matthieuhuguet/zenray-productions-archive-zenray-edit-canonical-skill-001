@@ -1,9 +1,27 @@
 ---
 name: zenray-edit
-description: Créer et éditer textes, photos, compositions HTML, carrousels, PDF et shorts avec templates paramétriques réutilisables et sources conservées ; correction grammaticale fidèle par défaut, projets et exports liés à ZenRay Assets.
+description: Moteur de création et d'édition instantanée : générer en 1,2 seconde un PDF ou une cover letter de candidature (GT Ultra et Literata, 1 page stricte via scripts/render-pdf-document.mjs ou zr-edit.mjs pdf), composer des maquettes HTML avec tokens HDA, décliner des vidéos Motion Design et normaliser des sons SFX (-14 LUFS). Correction grammaticale fidèle par défaut, archivage Assets.
 ---
 
 # ZenRay Edit (7 October 2026)
+
+## PRIORITÉ 0 ABSOLUE : GÉNÉRATION IMMÉDIATE DE PDF ET COVER LETTERS EN 1,2 SECONDE (27 October 2026)
+
+- RÈGLE IMPÉRATIVE POUR TOUT AGENT (Claude Code, Codex, Antigravity, sous-agents) :
+  Dès que Matthieu demande de créer, générer, exporter, modifier ou refaire un PDF, une cover letter ou un document imprimable A4 :
+  1. INTERDICTION FORMELLE d'écrire un script de génération ad-hoc en Python (ReportLab, Weasyprint, etc.), d'installer des paquets, de scripter Playwright à la main ou de bricoler du HTML/CSS from scratch.
+  2. EXÉCUTER DIRECTEMENT cette commande en une seule ligne :
+     `node /Users/zenray/.claude/skills/zenray-edit/scripts/render-pdf-document.mjs <input.md|--text "..."> --company "<Studio>" --subject "<Objet>" --out "/Users/zenray/Downloads/<NomDuFichier>.pdf"`
+     (ou via le dispatcher : `node /Users/zenray/.claude/skills/zenray-edit/scripts/zr-edit.mjs pdf ...`)
+  3. Ce script pré-généré exécute TOUT en 1,2 seconde chrono :
+     - Injection base64 des polices locales GT Ultra 400 et Literata 400/500 (zéro latence réseau, zéro CDN).
+     - Rendu direct via Google Chrome headless en ~1 000 ms.
+     - Génération automatique de l'aperçu PNG 150 dpi (`<Fichier>-preview-1.png`).
+     - Vérification stricte anti-débordement sur 1 seule page via pypdf.
+     - Copie immédiate dans `/Users/zenray/Downloads/`.
+  4. Preuves mesurées en conditions réelles (27 October 2026) :
+     - Eidos-Montréal (VFX Artist) : 1 211 ms (1 page stricte, 3 014 caractères).
+     - Sunblink (Environment Gameplay Designer) : 1 233 ms (1 page stricte, 2 838 caractères).
 
 ## PRIORITÉ 0 ABSOLUE : PLUS JAMAIS RÉINVENTER LA ROUE, TOUT SE FAIT PAR TEMPLATES ET SCRIPTS DÉDIÉS EN 1 SECONDE (27 October 2026)
 
