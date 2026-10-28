@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+// render-design-thumb.mjs (28 October 2026): one small preview image per design folder, made with headless Chrome in an isolated profile.
+// FR : une miniature `_thumb.webp` par dossier de design ; Chrome headless, profil isolé (jamais le navigateur personnel de Matthieu).
+//
+// Why it exists: the ZenRay Edit gallery in ZenRayProgress must show every design WITHOUT running 60 live pages. The thumbnail is
+// archived by Assets with the design (same folder, same copy), so the gallery shows an image and opens the live page only on click.
+// FR : la galerie affiche une image ; la vraie page ne s'ouvre qu'au clic.
+//
+//   node render-design-thumb.mjs <design-folder> [--force]      one folder (designs/<date>-<slug>)
+//   node render-design-thumb.mjs --all [--force] [--jobs 4]      every design folder that holds an HTML page
+//   node render-design-thumb.mjs --check                         exit 1 when a design folder has no up-to-date thumbnail
+//
+// Parameters (HDA rule, one place): THUMB below. Environment: CHROME_BIN, ZENRAY_EDIT_ROOT.
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { spawn, spawnSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+
+const HOME = os.homedir()
+export const THUMB = {
+  root: process.env.ZENRAY_EDIT_ROOT || path.join(HOME, '.claude/skills/zenray-edit'),
+  chrome: process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  cwebp: process.env.CWEBP_BIN || '/opt/homebrew/bin/cwebp',
+  name: '_thumb.webp',
+  coverNames: ['index.html'],
+  viewport: { width: 1280, height: 800 },
+  output: { width: 640, height: 400, quality: 80 },
+  settleMs: 2500,
+  jobs: 4,
+  timeoutMs: 40_000,
+}
+
+const htmlPages = (dir) => fs.readdirSync(dir).filter((n) => /\.html?$/i.test(n)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+export const coverOf = (dir, config = THUMB) => {
+  const pages = htmlPages(dir)
+  return pages.find((p) => config.coverNames.includes(p)) || pages[0] || null
+}
+const newestHtml = (dir) => Math.max(0, ...htmlPages(dir).map((p) => fs.statSync(path.join(dir, p)).mtimeMs))
+export const isFresh = (dir, config = THUMB) => {
+  const file = path.join(dir, config.name)
+  return fs.existsSync(file) && fs.statSync(file).mtimeMs >= newestHtml(dir)
+}
+export const designFolders = (config = THUMB) => {
+  const designs = path.join(config.root, 'designs')
+  return fs.readdirSync(designs, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('_')).map((e) => path.join(designs, e.name)).filter((d) => coverOf(d, config))
+}
+
+export function renderThumb(dir, { force = false, config = THUMB } = {}) {
+  return new Promise((resolve) => {
+    const cover = coverOf(dir, config)
+    if (!cover) return resolve({ dir, status: 'no-html' })
+    if (!force && isFresh(dir, config)) return resolve({ dir, status: 'fresh' })
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zr-thumb-'))
+    const png = path.join(work, 'shot.png')
+    const args = ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${path.join(work, 'profile')}`,
+      `--window-size=${config.viewport.width},${config.viewport.height}`, `--virtual-time-budget=${config.settleMs}`, `--screenshot=${png}`, pathToFileURL(path.join(dir, cover)).href]
+    const child = spawn(config.chrome, args, { stdio: 'ignore' })
+    const timer = setTimeout(() => child.kill('SIGKILL'), config.timeoutMs)
+    child.on('exit', () => {
+      clearTimeout(timer)
+      let status = 'error'
+      if (fs.existsSync(png)) {
+        const out = path.join(dir, config.name)
+        const tmp = `${out}.tmp`
+        const res = spawnSync(config.cwebp, ['-q', String(config.output.quality), '-resize', String(config.output.width), String(config.output.height), png, '-o', tmp], { encoding: 'utf8' })
+        if (res.status === 0 && fs.existsSync(tmp)) { fs.renameSync(tmp, out); status = 'made' } else fs.rmSync(tmp, { force: true })
+      }
+      fs.rmSync(work, { recursive: true, force: true })
+      resolve({ dir, cover, status })
+    })
+    child.on('error', () => { clearTimeout(timer); fs.rmSync(work, { recursive: true, force: true }); resolve({ dir, status: 'error' }) })
+  })
+}
+
+export async function renderMany(dirs, { force = false, jobs = THUMB.jobs, config = THUMB } = {}) {
+  const queue = [...dirs]; const results = []
+  await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+    while (queue.length) results.push(await renderThumb(queue.shift(), { force, config }))
+  }))
+  return results
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const argv = process.argv.slice(2)
+  const flag = (n) => argv.includes(`--${n}`)
+  const jobs = Number(argv[argv.indexOf('--jobs') + 1]) || THUMB.jobs
+  const target = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--jobs')
+  if (flag('check')) {
+    const stale = designFolders().filter((d) => !isFresh(d))
+    stale.forEach((d) => console.log(`no thumbnail: ${path.basename(d)}`))
+    console.log(`${designFolders().length - stale.length}/${designFolders().length} designs have an up-to-date ${THUMB.name}`)
+    process.exit(stale.length ? 1 : 0)
+  }
+  const dirs = flag('all') ? designFolders() : target ? [path.resolve(target)] : []
+  if (!dirs.length) { console.error('usage: render-design-thumb.mjs <design-folder> | --all | --check  [--force] [--jobs N]'); process.exit(2) }
+  const results = await renderMany(dirs, { force: flag('force'), jobs })
+  const count = (s) => results.filter((r) => r.status === s).length
+  results.filter((r) => r.status === 'error').forEach((r) => console.error(`failed: ${path.basename(r.dir)}`))
+  console.log(JSON.stringify({ made: count('made'), fresh: count('fresh'), failed: count('error'), noHtml: count('no-html') }))
+  process.exit(count('error') ? 1 : 0)
+}
