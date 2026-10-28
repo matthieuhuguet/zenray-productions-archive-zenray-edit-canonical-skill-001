@@ -5,6 +5,12 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 28 October 2026 : duo typographique GT Ultra et Literata
+
+- Par défaut, GT Ultra Regular 400 porte les titres, les nombres et les textes sans empattement de l’interface ; Literata 400 porte les textes avec empattements et le corps. AnthropicMono reste la police du code. Cette règle remplace le rôle GT Standard L du 26 October 2026, sans interdire les autres familles sur demande. (28 October 2026)
+- ZenRay Progress : sidebar et vue Create en GT Ultra Regular ; dans ZenRay Plan, les anciens libellés GT Standard L passent en GT Ultra et les textes Literata restent en Literata. La modification du site se limite à ces vues demandées. (28 October 2026)
+
+
 ## 28 October 2026 : chaque HTML de design apparaît seul dans la galerie ZenRay Edit de ZenRayProgress
 
 - Demande de Matthieu (28 October 2026) : à chaque nouveau HTML créé avec ce skill, il doit être pointé dans la vue Gallery > ZenRay Edit de ZenRayProgress, automatiquement et sans bug, sans le réuploader. (28 October 2026)
@@ -230,3 +236,7 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 ## 27 October 2026 : correctif du moteur PDF, options non données
 
 - `render-pdf-document.mjs` : une option que l'appelant ne donne pas (`undefined`, comme le CLI les construit) n'efface plus la salutation, le destinataire ni le rôle trouvés dans le texte de la lettre (`...args` filtré). Test ajouté dans `render-pdf-document.test.mjs` (11 réussis). Utilisé aussi par ZenRay Freelance pour le PDF de chaque candidature préparée, sorti dans le dossier du lot et jamais dans `~/Downloads`. (27 October 2026)
+
+## 28 October 2026 : QLMarkdown GT Ultra et Literata
+
+- Les thèmes QLMarkdown utilisent GT Ultra pour les titres et Literata pour le corps, en clair comme en sombre ; le thème B reste actif. (28 October 2026)

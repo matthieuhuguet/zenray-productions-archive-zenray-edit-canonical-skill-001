@@ -41,7 +41,7 @@ var ZRQL = (function () {
       id: 'A', file: 'ZenRay-A-Ivoire.css', name: 'Ivoire',
       pitch: 'Le thème Claude actuel, gardé dans sa couleur, avec les titres en GT Sectra italique et un corps plus calme.',
       params: {
-        baseSize: 22, lineHeight: 1.65, h1Scale: 2.2, titleRatio: 1.22, titleStyle: 'italic', titleTracking: -0.01,
+        baseSize: 22, lineHeight: 1.65, h1Scale: 2.2, titleRatio: 1.22, titleStyle: 'normal', titleTracking: -0.01,
         measure: 0, padX: 2.6, radius: 10, h1Align: 'left', h2Rule: 'on', quoteStyle: 'bar', tableStripes: 'on', h1Accent: 'on',
         bg: '#F5F4EE', ink: '#1F1E1C', muted: '#6B6961', accent: '#C15F3C', rule: '#E0DDD2', block: '#ECEAE0',
         dBg: '#262624', dInk: '#ECE9E2', dMuted: '#A8A49A', dAccent: '#E0805F', dRule: '#3B3A36', dBlock: '#1E1D1B'
@@ -51,7 +51,7 @@ var ZRQL = (function () {
       id: 'B', file: 'ZenRay-B-Papier.css', name: 'Papier éditorial',
       pitch: 'Une page de livre : colonne de lecture étroite et centrée, encre presque noire, filets fins, accent bordeaux discret.',
       params: {
-        baseSize: 18, lineHeight: 1.7, h1Scale: 2.8, titleRatio: 1.28, titleStyle: 'italic', titleTracking: -0.015,
+        baseSize: 18, lineHeight: 1.7, h1Scale: 2.8, titleRatio: 1.28, titleStyle: 'normal', titleTracking: -0.015,
         measure: 68, padX: 2.2, radius: 2, h1Align: 'center', h2Rule: 'off', quoteStyle: 'italic', tableStripes: 'off', h1Accent: 'off',
         bg: '#FBFAF7', ink: '#161514', muted: '#76716A', accent: '#8A2F22', rule: '#E4E0D8', block: '#F3F1EC',
         dBg: '#1A1918', dInk: '#E9E5DE', dMuted: '#9A948B', dAccent: '#D98A7A', dRule: '#34312D', dBlock: '#232120'
@@ -61,7 +61,7 @@ var ZRQL = (function () {
       id: 'C', file: 'ZenRay-C-Graphite.css', name: 'Graphite',
       pitch: 'Une note d’atelier moderne : gris froid, bleu du site, blocs en cartes arrondies, pensée d’abord pour le mode sombre.',
       params: {
-        baseSize: 22, lineHeight: 1.6, h1Scale: 2.4, titleRatio: 1.2, titleStyle: 'italic', titleTracking: -0.005,
+        baseSize: 22, lineHeight: 1.6, h1Scale: 2.4, titleRatio: 1.2, titleStyle: 'normal', titleTracking: -0.005,
         measure: 88, padX: 2.4, radius: 16, h1Align: 'left', h2Rule: 'off', quoteStyle: 'card', tableStripes: 'on', h1Accent: 'off',
         bg: '#F2F3F5', ink: '#15171A', muted: '#62666E', accent: '#4371EE', rule: '#DDE0E5', block: '#FFFFFF',
         dBg: '#16171A', dInk: '#E8EAEE', dMuted: '#959AA3', dAccent: '#7FA2FF', dRule: '#2C2F35', dBlock: '#1F2125'
@@ -69,22 +69,15 @@ var ZRQL = (function () {
     }
   };
 
-  // Font faces. Titles use one family made of two faces: digits and euro from Anthropic Serif
-  // upright, every other glyph from GT Sectra LCG. local() names are PostScript names measured
-  // with fc-scan on 25 October 2026; url() is only used by the preview page.
-  // FR : les chiffres d'un titre restent droits en Anthropic Serif, par unicode-range.
+  // 28 October 2026 21:00: shared typography for both color schemes.
   function fonts(withUrls) {
     function src(ps, file) { return 'local("' + ps + '")' + (withUrls ? ', url("fonts/' + file + '")' : ''); }
-    var digits = 'U+0030-0039, U+0025, U+20AC, U+00A0, U+202F';
     return [
-      ['ZR Title', 'italic', src('GTSectraLCG-RegularItalic', 'GT-Sectra-LCGV-Regular-Italic.woff2'), ''],
-      ['ZR Title', 'normal', src('GTSectraLCG-Regular', 'GT-Sectra-LCGV-Regular.woff2'), ''],
-      ['ZR Title', 'italic', src('AnthropicSerif-Regular', 'AnthropicSerif-Regular.ttf'), digits],
-      ['ZR Title', 'normal', src('AnthropicSerif-Regular', 'AnthropicSerif-Regular.ttf'), digits],
-      ['ZR Body', 'normal', src('AnthropicSerif-Regular', 'AnthropicSerif-Regular.ttf'), ''],
-      ['ZR Body', 'italic', src('AnthropicSerif-Italic', 'AnthropicSerif-Italics.woff2'), ''],
+      ['ZR Title', 'normal', src('GTUltra-Regular', 'GT-Ultra-Regular.woff2'), ''],
+      ['ZR Body', 'normal', src('Literata-Regular', 'Literata-latin.woff2'), ''],
+      ['ZR Body', 'italic', src('Literata-Italic', 'Literata-Italic-latin.woff2'), ''],
       ['ZR Mono', 'normal', src('AnthropicMono-Regular', 'AnthropicMono-Regular.ttf'), ''],
-      ['ZR UI', 'normal', src('InterVariable', 'InterVariable.woff2'), '']
+      ['ZR UI', 'normal', src('GTUltra-Regular', 'GT-Ultra-Regular.woff2'), '']
     ].map(function (f) {
       return '@font-face { font-family: "' + f[0] + '"; font-style: ' + f[1] + '; font-weight: 400; src: ' + f[2] + ';' +
         (f[3] ? ' unicode-range: ' + f[3] + ';' : '') + ' }';
@@ -118,9 +111,9 @@ var ZRQL = (function () {
     if (scheme === 'auto') out.push('@media (prefers-color-scheme: dark) {\n  :root {\n' + palette(p, true) + '\n  }\n}');
     out.push([
       'html, body { background: var(--zr-bg) !important; color: var(--zr-ink); margin: 0; }',
-      'body { font-family: "ZR Body", "AnthropicSerif", Georgia, serif; font-weight: 400; font-size: ' + p.baseSize + 'px; line-height: ' + p.lineHeight + '; -webkit-font-smoothing: antialiased; font-variant-numeric: lining-nums; }',
+      'body { font-family: "ZR Body", "Literata", Georgia, serif; font-weight: 400; font-size: ' + p.baseSize + 'px; line-height: ' + p.lineHeight + '; -webkit-font-smoothing: antialiased; font-variant-numeric: lining-nums; }',
       '.markdown-body { box-sizing: border-box; max-width: ' + measure + '; margin: 0 auto; padding: 2em ' + p.padX + 'em 3em; }',
-      'h1, h2, h3, h4, h5, h6 { font-family: "ZR Title", "GT Sectra LCG", Georgia, serif; font-style: ' + p.titleStyle + '; font-weight: 400; letter-spacing: ' + p.titleTracking + 'em; line-height: 1.18; color: var(--zr-ink); margin: 1.5em 0 0.5em; }',
+      'h1, h2, h3, h4, h5, h6 { font-family: "ZR Title", "GT Ultra", sans-serif; font-style: ' + p.titleStyle + '; font-weight: 400; letter-spacing: ' + p.titleTracking + 'em; line-height: 1.18; color: var(--zr-ink); margin: 1.5em 0 0.5em; }',
       'h1 { font-size: ' + sizes[0] + '; margin-top: 0.4em; text-align: ' + p.h1Align + ';' + (p.h1Accent === 'on' ? ' color: var(--zr-accent);' : '') + ' }',
       'h2 { font-size: ' + sizes[1] + ';' + (p.h2Rule === 'on' ? ' padding-bottom: 0.25em; border-bottom: 1px solid var(--zr-rule);' : '') + ' }',
       'h3 { font-size: ' + sizes[2] + '; } h4 { font-size: ' + sizes[3] + '; color: var(--zr-muted); } h5 { font-size: ' + sizes[4] + '; } h6 { font-size: ' + sizes[5] + '; color: var(--zr-muted); }',
@@ -137,7 +130,7 @@ var ZRQL = (function () {
       '.hl.kwa, .hl.kwb { color: var(--zr-accent); } .hl.kwd { color: var(--zr-ink); font-weight: 700; } .hl.num, .hl.str, .hl.sng { color: color-mix(in srgb, var(--zr-accent) 70%, var(--zr-ink)); } .hl.slc, .hl.com { color: var(--zr-muted); font-style: italic; } .hl.opt { color: var(--zr-muted); }',
       'table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }',
       'th, td { border-bottom: 1px solid var(--zr-rule); padding: 0.5em 0.8em; text-align: left; }',
-      'th { font-family: "ZR UI", "Inter Variable", -apple-system, sans-serif; font-weight: 400; font-size: 0.78em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--zr-muted); border-bottom: 1.5px solid var(--zr-ink); }',
+      'th { font-family: "ZR UI", "GT Ultra", -apple-system, sans-serif; font-weight: 400; font-size: 0.78em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--zr-muted); border-bottom: 1.5px solid var(--zr-ink); }',
       p.tableStripes === 'on' ? 'tbody tr:nth-child(even) td { background: var(--zr-block); }' : '',
       'hr { border: none; border-top: 1px solid var(--zr-rule); margin: 2.2em 0; }',
       'ul, ol { padding-left: 1.4em; } li { margin: 0.25em 0; } li::marker { color: var(--zr-accent); }',
