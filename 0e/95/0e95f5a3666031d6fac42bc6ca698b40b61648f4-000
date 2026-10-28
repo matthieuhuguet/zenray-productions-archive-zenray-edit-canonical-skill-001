@@ -5,6 +5,15 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 28 October 2026 : chaque HTML de design apparaît seul dans la galerie ZenRay Edit de ZenRayProgress
+
+- Demande de Matthieu (28 October 2026) : à chaque nouveau HTML créé avec ce skill, il doit être pointé dans la vue Gallery > ZenRay Edit de ZenRayProgress, automatiquement et sans bug, sans le réuploader. (28 October 2026)
+- Chaîne, sans enregistrement manuel : `file-design.mjs` range le design dans `designs/<date>-<slug>/`, génère `_thumb.webp` (`scripts/render-design-thumb.mjs`, Chrome headless en profil isolé, 640 x 400, environ 30 Ko, moins d'une seconde), lance `sync-skill.sh zenray-edit` puis l'inventaire et l'archive Assets ; la copie `canonical-skill` du projet Assets `zenray-edit` porte alors page et miniature dans le cloud. La galerie lit la liste du cloud en direct (index de recherche, complété par l'API `children` pour les dossiers récents) : aucune liste à tenir. (28 October 2026)
+- Preuve obligatoire après chaque design : `node /Users/zenray/.claude/skills/zenray-edit/scripts/check-gallery-sync.mjs --folder <date>-<slug> --wait 300`. Code de sortie 0 seulement si les pages et la miniature existent dans le skill, dans le miroir `Memory1/Skills/zenray-edit` (mêmes octets) ET dans le cloud `zenray-data`. Un manque est nommé par maillon (local, mirror, cloud). Sans cet 0, le design n'est pas fini. Sans argument, il contrôle les 62 dossiers. (28 October 2026)
+- Miniatures de l'existant : `node scripts/render-design-thumb.mjs --all` (20 secondes pour 62 dossiers, `--force` pour refaire, `--check` rend 1 si un dossier n'a pas de miniature à jour). Ne jamais refaire une miniature à la main. (28 October 2026)
+- Pièges payés le 28 October 2026 : (1) le lecteur média du site (`loadChunked`) ne comprend pas le manifeste d'archive Assets (`type: file`, `mode: chunked`) et rend le texte « undefined » sans erreur ; la galerie lit par `src/lib/editHtmlArchive.js`, qui vérifie la taille reçue. (2) L'index de recherche avait 11 dossiers de retard (26 et 27 October 2026) ; d'où la découverte en direct. (3) Un script lancé par un chemin à lien symbolique (macOS `/var` vers `/private/var`) ne doit pas sortir en 0 sans rien faire : comparer des `realpath`. (28 October 2026)
+- Code de la vue : `ZenRayProgress/src/components/EditHtmlGallery.jsx`, réglages dans `src/config/editHtmlGallery.js`, fonctions pures et tests dans `src/lib/editHtmlPointers.js`. Les pages à fichiers voisins (CSS, JS, polices des rondes Sport) sont recomposées dans le navigateur en un seul document à l'ouverture ; rien n'est copié dans le cloud. (28 October 2026)
+
 ## 27 October 2026 : Shorts, Reels et vidéos verticales
 
 - 27 October 2026 : Pour les Shorts YouTube, Reels et vidéos verticales, lire `references/shorts/HoudiniShortsHistory.md` et `Shorts1.md` ; les moteurs sont `short-editor/` et `short-editor-v4/`, avec leurs paramètres et références d’origine. Les anciens chemins Houdini restent disponibles par liens de compatibilité. (27 October 2026)

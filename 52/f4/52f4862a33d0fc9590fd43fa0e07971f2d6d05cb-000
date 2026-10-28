@@ -80,6 +80,15 @@ function syncSkillAndAssets({ config }) {
   return { skillSynced, assetsQueued }
 }
 
+function makeThumbnail({ target, config }) {
+  const real = path.resolve(config.root) === path.resolve(DEFAULT_SKILL_ROOT)
+  if (config.thumbOnFile === false || (!real && config.thumbOnFile !== true)) return { made: false, reason: 'skipped' }
+  const script = path.join(config.root, 'scripts/render-design-thumb.mjs')
+  if (!fs.existsSync(script)) return { made: false, reason: 'script-missing' }
+  const res = spawnSync(process.execPath, [script, target, '--force'], { encoding: 'utf8', timeout: 60000, env: { ...process.env, ZENRAY_EDIT_ROOT: config.root } })
+  return { made: res.status === 0 && fs.existsSync(path.join(target, '_thumb.webp')), reason: res.status === 0 ? 'ok' : (res.stderr || 'failed').trim().slice(0, 160) }
+}
+
 export function fileDesign({ atelier, slug, title, module = 'general', project = '', note = '', now = new Date(), config = CONFIG }) {
   if (!atelier || !fs.existsSync(path.join(atelier, 'index.html'))) throw new Error(`no index.html in ${atelier}`)
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug || '')) throw new Error('--slug must be lowercase letters, digits and hyphens')
@@ -160,8 +169,11 @@ export function fileDesign({ atelier, slug, title, module = 'general', project =
   const row = `| ${long} | ${cell(slug)} | ${cell(module)} | ${cell(title)} | pending | ${cell(effectiveProjectLabel)} | designs/${folder}/index.html | ${cell(path.resolve(atelier))} |\n`
   fs.appendFileSync(register, row)
 
+  // 28 October 2026: every filed design gets its gallery thumbnail BEFORE the skill sync, so Assets archives page and thumbnail together and
+  // the ZenRay Edit gallery of ZenRayProgress picks both up with no registration. FR : la miniature part avec le design, la galerie la trouve seule.
+  const thumbStatus = makeThumbnail({ target, config })
   const syncStatus = syncSkillAndAssets({ config })
-  return { folder, target, assetsProjectCopy, workshopCopy, projectCopy, register, syncStatus, meta }
+  return { folder, target, assetsProjectCopy, workshopCopy, projectCopy, register, syncStatus, thumbStatus, meta }
 }
 
 export function decide({ slug, choice, note = '', now = new Date(), config = CONFIG }) {

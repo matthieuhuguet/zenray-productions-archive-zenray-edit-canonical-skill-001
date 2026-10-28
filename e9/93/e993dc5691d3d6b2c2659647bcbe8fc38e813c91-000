@@ -54,3 +54,15 @@ test('RED: no index.html, a bad slug and a missing title are refused', () => {
   assert.throws(() => fileDesign({ atelier, slug: 'ok', title: '', config }), /title/)
   assert.throws(() => decide({ slug: 'unknown-design', choice: 'A', config }), /no filed design/)
 })
+
+// 28 October 2026: the gallery thumbnail is made at filing time, never on a throw-away root unless asked.
+test('THUMB: skipped on a temporary root, made (a real webp) when asked and the script is present', () => {
+  const r1 = fileDesign({ atelier, slug: 'thumb-skip', title: 'Thumb skip', now: day, config })
+  assert.deepEqual(r1.thumbStatus, { made: false, reason: 'skipped' })
+  assert.equal(fs.existsSync(path.join(r1.target, '_thumb.webp')), false)
+  const scriptsDir = path.join(config.root, 'scripts'); fs.mkdirSync(scriptsDir, { recursive: true })
+  fs.copyFileSync(new URL('./render-design-thumb.mjs', import.meta.url), path.join(scriptsDir, 'render-design-thumb.mjs'))
+  const r2 = fileDesign({ atelier, slug: 'thumb-real', title: 'Thumb real', now: day, config: { ...config, thumbOnFile: true } })
+  assert.equal(r2.thumbStatus.made, true)
+  assert.equal(fs.readFileSync(path.join(r2.target, '_thumb.webp')).subarray(0, 4).toString(), 'RIFF')
+})

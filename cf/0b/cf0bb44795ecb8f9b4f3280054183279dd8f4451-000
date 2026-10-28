@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+// check-gallery-sync.mjs (28 October 2026): proves that every HTML design of the skill reaches the ZenRay Edit gallery of ZenRayProgress.
+// FR : prouve que chaque design HTML du skill atteint la galerie ZenRay Edit. Code de sortie 0 seulement si TOUT est en place.
+//
+// Chain checked, link by link (a missing link is named, never guessed):
+//   1. local   : designs/<folder>/<page>.html and _thumb.webp exist in the skill,
+//   2. mirror  : Memory1/Skills/zenray-edit/designs/<same path> has the same bytes (skill-sync),
+//   3. cloud   : pages/ZenRayAssets/zenray-edit/sources/memory/canonical-skill/designs/<same path>.file.json exists in zenray-data (Assets archive).
+// The gallery reads the cloud list live, so link 3 is the last one: nothing else has to be registered.
+//
+//   node check-gallery-sync.mjs [--folder <design-folder>] [--wait <seconds>] [--json]
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { spawnSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+import { THUMB, designFolders } from './render-design-thumb.mjs'
+
+const HOME = os.homedir()
+export const SYNC = {
+  skillRoot: THUMB.root,
+  mirrorRoot: process.env.ZENRAY_EDIT_MIRROR || path.join(HOME, '.claude/Memory1/Skills/zenray-edit'),
+  repo: process.env.CONTENT_REPO || 'matthieuhuguet/zenray-data',
+  cloudRoot: 'pages/ZenRayAssets/zenray-edit/sources/memory/canonical-skill/designs',
+  manifestSuffix: '.file.json',
+  pollMs: 15_000,
+}
+
+const sha = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+
+// Expected files of one design folder, relative to designs/ : its HTML pages and its thumbnail.
+export function expectedFiles(folderDir) {
+  const folder = path.basename(folderDir)
+  const out = []
+  const walk = (dir, prefix) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(path.join(dir, e.name), `${prefix}${e.name}/`)
+      else if (/\.html?$/i.test(e.name) || (!prefix && e.name === THUMB.name)) out.push(`${folder}/${prefix}${e.name}`)
+    }
+  }
+  walk(folderDir, '')
+  return out.sort()
+}
+
+export function cloudTree(config = SYNC) {
+  const res = spawnSync('gh', ['api', `repos/${config.repo}/git/trees/main:${config.cloudRoot}?recursive=1`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  if (res.status !== 0) return { ok: false, error: (res.stderr || 'gh api failed').trim().slice(0, 200), paths: new Set() }
+  const tree = JSON.parse(res.stdout)
+  if (tree.truncated) return { ok: false, error: 'cloud tree truncated', paths: new Set() }
+  return { ok: true, paths: new Set(tree.tree.filter((e) => e.type === 'blob').map((e) => e.path)) }
+}
+
+export function checkOnce({ folders, config = SYNC, tree = cloudTree(config) } = {}) {
+  const missing = { local: [], mirror: [], cloud: [] }
+  const dirs = folders ? folders.map((f) => path.join(config.skillRoot, 'designs', f)) : designFolders({ ...THUMB, root: config.skillRoot })
+  let expected = 0
+  for (const dir of dirs) {
+    const files = expectedFiles(dir)
+    if (!files.some((f) => /\.html?$/i.test(f))) continue
+    if (!files.some((f) => f.endsWith(`/${THUMB.name}`))) missing.local.push(`${path.basename(dir)}/${THUMB.name}`)
+    for (const rel of files) {
+      expected += 1
+      const local = path.join(config.skillRoot, 'designs', rel)
+      const mirror = path.join(config.mirrorRoot, 'designs', rel)
+      if (!fs.existsSync(mirror) || sha(mirror) !== sha(local)) missing.mirror.push(rel)
+      if (tree.ok && !tree.paths.has(rel + config.manifestSuffix)) missing.cloud.push(rel)
+    }
+  }
+  const ok = tree.ok && !missing.local.length && !missing.mirror.length && !missing.cloud.length
+  return { ok, expected, treeError: tree.ok ? null : tree.error, missing }
+}
+
+// realpath on both sides: a symlinked path (macOS /var -> /private/var) must still run the command line, never exit 0 silently.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+  const argv = process.argv.slice(2)
+  const value = (n) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : null }
+  const folder = value('folder')
+  const deadline = Date.now() + (Number(value('wait')) || 0) * 1000
+  let result = checkOnce({ folders: folder ? [folder] : null })
+  while (!result.ok && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, SYNC.pollMs))
+    result = checkOnce({ folders: folder ? [folder] : null })
+  }
+  if (argv.includes('--json')) console.log(JSON.stringify(result))
+  else {
+    console.log(result.ok ? `OK: ${result.expected} files reach the cloud gallery` : `NOT READY (${result.expected} files checked)`)
+    if (result.treeError) console.log(`cloud: ${result.treeError}`)
+    for (const [link, list] of Object.entries(result.missing)) if (list.length) console.log(`missing in ${link} (${list.length}): ${list.slice(0, 8).join(', ')}${list.length > 8 ? ' ...' : ''}`)
+  }
+  process.exit(result.ok ? 0 : 1)
+}

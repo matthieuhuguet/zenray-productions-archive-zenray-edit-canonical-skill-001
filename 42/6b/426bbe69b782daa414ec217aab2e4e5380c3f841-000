@@ -1,0 +1,63 @@
+// Tests for render-design-thumb.mjs helpers and check-gallery-sync.mjs, both directions (green on a complete chain, red on each broken link). 28 October 2026
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { coverOf, isFresh, designFolders } from './render-design-thumb.mjs'
+import { checkOnce, expectedFiles } from './check-gallery-sync.mjs'
+
+function fixture() {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'zr-gal-'))
+  const skillRoot = path.join(base, 'skill'); const mirrorRoot = path.join(base, 'mirror')
+  for (const root of [skillRoot, mirrorRoot]) {
+    const d = path.join(root, 'designs/2026-10-28-demo'); fs.mkdirSync(d, { recursive: true })
+    fs.writeFileSync(path.join(d, 'index.html'), '<h1>demo</h1>'); fs.writeFileSync(path.join(d, '_thumb.webp'), 'thumb')
+  }
+  fs.mkdirSync(path.join(skillRoot, 'designs/_shared/fonts'), { recursive: true })
+  const config = { skillRoot, mirrorRoot, manifestSuffix: '.file.json' }
+  const tree = (names) => ({ ok: true, paths: new Set(names.map((n) => `${n}.file.json`)) })
+  return { base, config, tree }
+}
+
+test('coverOf prefers index.html and designFolders skips _shared and html-less folders', () => {
+  const { config } = fixture()
+  const d = path.join(config.skillRoot, 'designs/2026-10-28-demo')
+  fs.writeFileSync(path.join(d, 'A.html'), 'a')
+  assert.equal(coverOf(d), 'index.html')
+  fs.mkdirSync(path.join(config.skillRoot, 'designs/2026-10-28-empty'))
+  assert.deepEqual(designFolders({ root: config.skillRoot, coverNames: ['index.html'] }).map((x) => path.basename(x)), ['2026-10-28-demo'])
+})
+
+test('isFresh is false without thumbnail or when a page is newer, true otherwise', () => {
+  const { config } = fixture()
+  const d = path.join(config.skillRoot, 'designs/2026-10-28-demo'); const t = { name: '_thumb.webp' }
+  assert.equal(isFresh(d, t), true)
+  const later = new Date(Date.now() + 5000); fs.utimesSync(path.join(d, 'index.html'), later, later)
+  assert.equal(isFresh(d, t), false)
+  fs.rmSync(path.join(d, '_thumb.webp')); assert.equal(isFresh(d, t), false)
+})
+
+test('checkOnce is green when local, mirror and cloud all hold page and thumbnail', () => {
+  const { config, tree } = fixture()
+  const r = checkOnce({ config, tree: tree(['2026-10-28-demo/index.html', '2026-10-28-demo/_thumb.webp']) })
+  assert.equal(r.ok, true); assert.equal(r.expected, 2)
+})
+
+test('checkOnce is red on each broken link and names it', () => {
+  const { config, tree } = fixture()
+  const full = tree(['2026-10-28-demo/index.html', '2026-10-28-demo/_thumb.webp'])
+  assert.deepEqual(checkOnce({ config, tree: tree(['2026-10-28-demo/index.html']) }).missing.cloud, ['2026-10-28-demo/_thumb.webp'])
+  fs.writeFileSync(path.join(config.mirrorRoot, 'designs/2026-10-28-demo/index.html'), '<h1>old</h1>')
+  assert.deepEqual(checkOnce({ config, tree: full }).missing.mirror, ['2026-10-28-demo/index.html'])
+  fs.rmSync(path.join(config.skillRoot, 'designs/2026-10-28-demo/_thumb.webp'))
+  assert.deepEqual(checkOnce({ config, tree: full }).missing.local, ['2026-10-28-demo/_thumb.webp'])
+  assert.equal(checkOnce({ config, tree: { ok: false, error: 'offline', paths: new Set() } }).ok, false)
+})
+
+test('expectedFiles lists nested HTML but only a root thumbnail', () => {
+  const { config } = fixture()
+  const d = path.join(config.skillRoot, 'designs/2026-10-28-demo'); fs.mkdirSync(path.join(d, 'sample'))
+  fs.writeFileSync(path.join(d, 'sample/Body.html'), 'b'); fs.writeFileSync(path.join(d, 'sample/_thumb.webp'), 'x')
+  assert.deepEqual(expectedFiles(d), ['2026-10-28-demo/_thumb.webp', '2026-10-28-demo/index.html', '2026-10-28-demo/sample/Body.html'])
+})
