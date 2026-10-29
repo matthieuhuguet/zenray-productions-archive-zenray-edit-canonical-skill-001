@@ -5,6 +5,13 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 29 October 2026 : réactivité et sauvegarde réelle
+
+- Pour les applications, faire apparaître immédiatement l'effet d'un clic ou d'une modification, comme dans Notion, puis montrer le spinner Apple pendant la sauvegarde effective ; ne jamais afficher une confirmation avant la réussite. (29 October 2026)
+- Les actions rapides restent utilisables et leurs écritures conservent leur ordre ; une panne reste visible et les changements non enregistrés sont clairement conservés ou annulés, sans perte silencieuse. (29 October 2026)
+- Utiliser une durée commune de 0,2 seconde pour les transitions d'interface et respecter la préférence système de réduction des animations ; l'animation ne retarde jamais le résultat du clic. (29 October 2026)
+- Exemple appliqué à ZenRay Sport : `src/sport/SportView.jsx`, file d'écritures et état affiché immédiatement ; `src/components/SpinnerApple.jsx`, indicateur réutilisable ; tests de retard, clics successifs et échec dans `src/sport/SportView.test.jsx` du dépôt ZenRayProgress. (29 October 2026)
+
 ## 29 October 2026 : médias liés à ZenRay Assets
 
 - Chaque média final créé avec ZenRay Edit rejoint le projet Assets `zenray-edit`, dans l'atelier `Media`, classé par format. Les vidéos restent dans cet atelier et ne sont pas copiées dans le dossier du skill. (29 October 2026)
