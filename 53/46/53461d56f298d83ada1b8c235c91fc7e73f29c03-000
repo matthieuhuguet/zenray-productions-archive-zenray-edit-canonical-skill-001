@@ -9,6 +9,7 @@ import os from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { fileDesign } from './file-design.mjs'
+import { bindMedia } from './bind-media.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -540,10 +541,12 @@ export async function renderPdfDocument(options = {}) {
         note: `Rendered PDF Document, ${pageCount} page(s)`,
       })
     } catch (archiveErr) {
-      console.warn(`Archiving notice: ${archiveErr.message}`)
+      throw new Error(`Design archive failed: ${archiveErr.message}`)
     }
   }
 
+  // 29 October 2026 at 11:12 CET. Every PDF is registered in Assets even without a slug.
+  const mediaBinding = options.bindAssets === false ? null : bindMedia(pdfOutPath)
   const durationMs = Date.now() - startTime
 
   // Optional open
@@ -560,6 +563,7 @@ export async function renderPdfDocument(options = {}) {
     slug,
     durationMs,
     archived: archiveResult ? archiveResult.folder : null,
+    mediaBinding,
   }
 }
 
@@ -612,6 +616,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     console.log(`  PDF:     [${result.pdfPath}](${pathToFileURL(result.pdfPath).href})`)
     console.log(`  Preview: [${result.previewPngPath}](${pathToFileURL(result.previewPngPath).href})`)
     console.log(`  Pages:   ${result.pageCount} ${result.isOverflow ? '(OVERFLOW ALERT)' : '(OK single-page)'}`)
+    if (result.mediaBinding) console.log(`  Assets:  ${result.mediaBinding.fileId} (${result.mediaBinding.status}, job ${result.mediaBinding.jobId})`)
     if (result.archived) {
       console.log(`  Archive: designs/${result.archived}/`)
     }

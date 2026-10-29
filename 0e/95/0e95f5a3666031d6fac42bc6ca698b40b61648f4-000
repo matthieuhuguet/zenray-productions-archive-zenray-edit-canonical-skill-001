@@ -5,6 +5,13 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 29 October 2026 : médias liés à ZenRay Assets
+
+- Chaque média final créé avec ZenRay Edit rejoint le projet Assets `zenray-edit`, dans l'atelier `Media`, classé par format. Les vidéos restent dans cet atelier et ne sont pas copiées dans le dossier du skill. (29 October 2026)
+- Les moteurs PDF, composition, motion et SFX transmettent leurs exports au relieur ; pour une création externe ou un ancien script, exécuter `node /Users/zenray/.claude/skills/zenray-edit/scripts/bind-media.mjs <fichier> [fichier ...]` sur tous les livrables. Une erreur d'inventaire ou d'archivage doit rester visible. (29 October 2026)
+- Le relieur vérifie l'empreinte des fichiers et retourne un identifiant de tâche d'archive ; cet identifiant prouve la mise en file, pas la présence dans le cloud. Vérifier la fin de la tâche et le manifeste pour confirmer la sauvegarde. (29 October 2026)
+- La galerie ZenRay Edit de Progress propose un filtre par type : HTML, PDF, images, vidéos et audio. Les médias sont conservés dans Assets ; leur aperçu dépend des limites du lecteur. (29 October 2026)
+
 ## 29 October 2026 : destinataire français des lettres
 
 - Le moteur PDF reconnaît la ligne initiale « À l’attention de » comme destinataire et la place avant la salutation, en préservant le texte ; contrôle dans `scripts/render-pdf-document.test.mjs`. (29 October 2026)

@@ -168,6 +168,7 @@ runTest('HTML builder replaces slots and injects HDA CSS variables', () => {
 await runAsyncTest('End-to-end PDF render, 150 dpi preview, and single-page verification', async () => {
   const outPdf = path.join(TEST_DIR, 'e2e-letter.pdf')
   const result = await renderPdfDocument({
+    bindAssets: false,
     company: 'Guerilla Games',
     subject: 'Candidature Technical Artist & Procedural Worlds',
     text: `Madame, Monsieur,

@@ -172,7 +172,7 @@ export function renderHtmlDesign(options = {}) {
         now,
       })
     } catch (err) {
-      console.warn(`Avertissement archivage file-design: ${err.message}`)
+      throw new Error(`Design archive failed: ${err.message}`)
     }
   }
 

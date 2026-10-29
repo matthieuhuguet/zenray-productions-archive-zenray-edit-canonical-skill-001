@@ -93,6 +93,7 @@ test('renderMotionProject renders a short motion project to MP4 using RunHyperfr
   })
 
   const res = await renderMotionProject({
+    bindAssets: false,
     projectId: 'macbook-pro-s20-fingerprint-ppm',
     format: '1x1',
     fps: 60,

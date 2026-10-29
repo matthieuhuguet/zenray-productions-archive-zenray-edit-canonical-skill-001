@@ -1,0 +1,77 @@
+// 29 October 2026 at 11:11 CET. Register media masters in the ZenRay Edit Assets workshop.
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+export const MEDIA_SETTINGS = Object.freeze({
+  workshop: path.join(os.homedir(), '.claude/tmp/tmp-zenray-edit'),
+  client: path.join(os.homedir(), 'Create/Build/Productions/GithubProductions/ZenRayProgress/scripts/Assets/Client.mjs'),
+  projectId: 'zenray-edit',
+  kinds: { pdf: 'PDF', html: 'HTML', htm: 'HTML', png: 'Images', jpg: 'Images', jpeg: 'Images', webp: 'Images', avif: 'Images', gif: 'Images', svg: 'Images', mp4: 'Video', mov: 'Video', webm: 'Video', mp3: 'Audio', wav: 'Audio', flac: 'Audio', m4a: 'Audio' },
+})
+
+export function hashFile(file) {
+  const hash = crypto.createHash('sha256')
+  const fd = fs.openSync(file, 'r')
+  const buffer = Buffer.allocUnsafe(1024 * 1024)
+  try { let count; while ((count = fs.readSync(fd, buffer, 0, buffer.length, null)) > 0) hash.update(buffer.subarray(0, count)) } finally { fs.closeSync(fd) }
+  return hash.digest('hex')
+}
+
+export function bindMedia(source, { workshop = MEDIA_SETTINGS.workshop, client = MEDIA_SETTINGS.client, projectId = MEDIA_SETTINGS.projectId, enqueue = true } = {}) {
+  const original = path.resolve(source)
+  if (!fs.statSync(original).isFile()) throw new Error(`Not a file: ${original}`)
+  const ext = path.extname(original).slice(1).toLowerCase()
+  const kind = MEDIA_SETTINGS.kinds[ext]
+  if (!kind) throw new Error(`Unsupported media format: ${ext}`)
+  const digest = hashFile(original)
+  const dir = path.join(workshop, 'Media', kind)
+  fs.mkdirSync(dir, { recursive: true })
+  const relative = path.relative(dir, original)
+  if (relative && !relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative)) {
+    const fileId = `workshop:Media/${kind}/${relative.split(path.sep).join('/')}`
+    const item = { source: original, path: original, fileId, sha256: digest, status: 'local' }
+    return enqueue ? { ...item, ...enqueueMedia([fileId], { client, projectId }) } : item
+  }
+  const name = path.basename(original, path.extname(original)) + '-' + digest.slice(0, 12) + path.extname(original).toLowerCase()
+  const dest = path.join(dir, name)
+  if (fs.existsSync(dest)) {
+    if (hashFile(dest) !== digest) throw new Error(`Existing media has different content: ${dest}`)
+  } else {
+    const temporary = dest + '.' + process.pid + '.pending'
+    try {
+      fs.copyFileSync(original, temporary, fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE)
+      if (hashFile(temporary) !== digest) throw new Error(`Source changed while copying: ${original}`)
+      fs.renameSync(temporary, dest)
+    } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary) }
+  }
+  const fileId = `workshop:Media/${kind}/${name}`
+  const item = { source: original, path: dest, fileId, sha256: digest, status: 'local' }
+  return enqueue ? { ...item, ...enqueueMedia([fileId], { client, projectId }) } : item
+}
+
+export function enqueueMedia(fileIds, { client = MEDIA_SETTINGS.client, projectId = MEDIA_SETTINGS.projectId } = {}) {
+  const inventory = spawnSync(process.execPath, [client, 'inventory', projectId], { encoding: 'utf8', timeout: 60000 })
+  if (inventory.status !== 0) throw new Error(`Assets inventory failed: ${inventory.stderr || inventory.error || inventory.stdout}`)
+  const archive = spawnSync(process.execPath, [client, 'archive', projectId, JSON.stringify({ fileIds })], { encoding: 'utf8', timeout: 60000 })
+  if (archive.status !== 0) throw new Error(`Assets archive failed: ${archive.stderr || archive.error || archive.stdout}`)
+  const response = JSON.parse(archive.stdout)
+  if (!response.jobId) throw new Error('Assets archive returned no job ID')
+  return { jobId: response.jobId, status: response.state || 'queued' }
+}
+
+export function bindMediaBatch(sources, options = {}) {
+  const items = sources.map(source => bindMedia(source, { ...options, enqueue: false }))
+  if (!items.length) return { items, status: 'empty' }
+  return options.enqueue === false ? { items, status: 'local' } : { items, ...enqueueMedia(items.map(item => item.fileId), options) }
+}
+
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
+  try {
+    if (process.argv.length < 3) throw new Error('Usage: node bind-media.mjs <media-file> [media-file ...]')
+    console.log(JSON.stringify(bindMediaBatch(process.argv.slice(2))))
+  } catch (error) { console.error(error.message); process.exitCode = 1 }
+}

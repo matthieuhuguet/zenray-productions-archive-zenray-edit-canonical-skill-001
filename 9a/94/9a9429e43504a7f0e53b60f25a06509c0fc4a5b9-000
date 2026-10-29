@@ -6,6 +6,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { bindMediaBatch } from './bind-media.mjs'
 
 export const MOTION_SETTINGS = {
   root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
@@ -256,6 +257,8 @@ export async function renderMotionProject(options = {}) {
       filesCreated = [finalTarget]
     }
 
+    // 29 October 2026 at 11:12 CET. Register output media outside the skill before returning.
+    const mediaBinding = options.bindAssets === false ? null : bindMediaBatch(filesCreated)
     return {
       ok: true,
       projectId,
@@ -267,6 +270,7 @@ export async function renderMotionProject(options = {}) {
       duration: cooked.duration,
       fps: renderFps,
       files: filesCreated,
+      mediaBinding,
       date: formatDate()
     }
   } finally {
@@ -317,6 +321,8 @@ export async function buildMontage(options = {}) {
   const verifyPath = path.join(resolvedOutDir, 'verify.json')
   const indexPath = path.join(baseDir, outputCfg.index || 'Index.md')
 
+  const mediaFiles = step === 'build' ? [mp4Path, movPath, masterWav] : step === 'video' ? [mp4Path] : step === 'mov' ? [movPath] : step === 'audio' ? [masterWav] : []
+  const mediaBinding = options.bindAssets === false ? null : bindMediaBatch(mediaFiles.filter(file => fs.existsSync(file)))
   return {
     ok: true,
     step,
@@ -328,6 +334,7 @@ export async function buildMontage(options = {}) {
     plan: fs.existsSync(planPath) ? planPath : null,
     verify: fs.existsSync(verifyPath) ? verifyPath : null,
     index: fs.existsSync(indexPath) ? indexPath : null,
+    mediaBinding,
     date: formatDate()
   }
 }
@@ -408,6 +415,7 @@ Options:
         console.log(`- Duration: ${result.duration}s`)
         console.log(`- Destination: ${result.target}`)
         console.log(`- Created files: ${result.files.length}`)
+        if (result.mediaBinding?.jobId) console.log(`- Assets: ${result.mediaBinding.status}, job ${result.mediaBinding.jobId}`)
       }
       process.exit(0)
     }
@@ -436,6 +444,7 @@ Options:
         if (result.mp4) console.log(`- MP4: ${result.mp4}`)
         if (result.mov) console.log(`- MOV: ${result.mov}`)
         if (result.masterWav) console.log(`- Master audio: ${result.masterWav}`)
+        if (result.mediaBinding?.jobId) console.log(`- Assets: ${result.mediaBinding.status}, job ${result.mediaBinding.jobId}`)
         if (result.index) console.log(`- Index: ${result.index}`)
       }
       process.exit(0)

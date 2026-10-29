@@ -6,6 +6,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { bindMedia } from './bind-media.mjs'
 
 export const SFX_SETTINGS = {
   root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
@@ -278,10 +279,13 @@ export async function normalizeSfx(options = {}) {
     await fsp.rm(tempDst, { force: true }).catch(() => {})
   }
 
+  // 29 October 2026 at 11:12 CET. Register the normalized audio in Assets.
+  const mediaBinding = options.bindAssets === false ? null : bindMedia(out)
   return {
     ok: true,
     input,
     output: out,
+    mediaBinding,
     targetLufs,
     limiterCeilingDb,
     inputLufs: initial.integratedLufs,
@@ -473,6 +477,7 @@ Options:
         console.log('Audio normalization and mastering complete:')
         console.log(`- Input: ${result.input} (${result.inputLufs} LUFS)`)
         console.log(`- Output: ${result.output} (${result.outputLufs} LUFS)`)
+        if (result.mediaBinding?.jobId) console.log(`- Assets: ${result.mediaBinding.status}, job ${result.mediaBinding.jobId}`)
         console.log(`- Gain applied: ${result.gainDb} dB`)
         console.log(`- True peak: ${result.truePeakDb} dBFS (ceiling: ${result.limiterCeilingDb} dBFS)`)
         console.log(`- Passes: ${result.passes}`)

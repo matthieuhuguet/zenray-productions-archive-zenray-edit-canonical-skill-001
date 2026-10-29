@@ -87,7 +87,10 @@ async function main() {
       report.push({file:destination,master:masterPath,width,height,scale,bytes:delivery.length,format:config.export.format,quality});
       await context.close();
     }
-    const result={ok:true,files:report};
+    // 29 October 2026 at 11:13 CET. Store finished image exports in the Assets workshop.
+    const binder=await import(pathToFileURL(path.join(os.homedir(),'.claude/skills/zenray-edit/scripts/bind-media.mjs')).href);
+    const mediaBinding=binder.bindMediaBatch(report.map(item=>item.file));
+    const result={ok:true,files:report,mediaBinding};
     fs.writeFileSync(path.join(out,'RenderReport.json'),JSON.stringify(result,null,2)+'\n');
     console.log(JSON.stringify(result,null,2));
   } finally {await browser.close();}

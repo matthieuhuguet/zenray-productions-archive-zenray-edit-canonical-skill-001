@@ -61,6 +61,7 @@ test('normalizeSfx masters audio to -14 LUFS with -1.5 dBFS ceiling', async t =>
   })
 
   const res = await normalizeSfx({
+    bindAssets: false,
     input: SAMPLE_WAV,
     out: tmpOut,
     targetLufs: -14.0,

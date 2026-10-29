@@ -1,0 +1,38 @@
+// 29 October 2026 at 11:14 CET. Check binding, deduplication and visible archive failures.
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { bindMedia, bindMediaBatch, hashFile } from './bind-media.mjs'
+
+test('copies media outside the skill once and keeps different versions', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zenray-bind-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const source = path.join(root, 'film.mp4')
+  const workshop = path.join(root, 'workshop')
+  fs.writeFileSync(source, 'first')
+  const a = bindMedia(source, { workshop, enqueue: false })
+  const b = bindMedia(source, { workshop, enqueue: false })
+  assert.equal(a.path, b.path)
+  assert.equal(a.sha256, hashFile(a.path))
+  assert.match(a.fileId, /^workshop:Media\/Video\//)
+  fs.writeFileSync(source, 'second')
+  const c = bindMedia(source, { workshop, enqueue: false })
+  assert.notEqual(c.path, a.path)
+  assert.equal(fs.readFileSync(a.path, 'utf8'), 'first')
+  assert.throws(() => bindMedia(path.join(root, 'missing.pdf'), { workshop, enqueue: false }))
+})
+
+test('enqueues one targeted Assets job and exposes an archive failure', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zenray-bind-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const file = path.join(root, 'cover.pdf')
+  const client = path.join(root, 'client.cjs')
+  fs.writeFileSync(file, '%PDF sample')
+  fs.writeFileSync(client, "if(process.argv[2]==='archive'){const p=JSON.parse(process.argv[4]);if(p.fileIds.length!==1)process.exit(2);console.log(JSON.stringify({jobId:'job-1',state:'queued'}))}else console.log('{}')")
+  const result = bindMediaBatch([file], { workshop: path.join(root, 'workshop'), client })
+  assert.equal(result.jobId, 'job-1')
+  assert.match(result.items[0].fileId, /^workshop:Media\/PDF\//)
+  assert.throws(() => bindMedia(file, { workshop: path.join(root, 'workshop'), client: path.join(root, 'missing-client.cjs') }), /Assets inventory failed/)
+})

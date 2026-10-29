@@ -13,6 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawnSync } from 'node:child_process'
+import { bindMediaBatch, MEDIA_SETTINGS } from './bind-media.mjs'
 
 const HOME = os.homedir()
 const DEFAULT_SKILL_ROOT = path.join(HOME, '.claude/skills/zenray-edit')
@@ -117,7 +118,7 @@ export function fileDesign({ atelier, slug, title, module = 'general', project =
   const copied = ['index.html']
   for (const entry of fs.readdirSync(atelier, { withFileTypes: true })) {
     if (!entry.isFile() || entry.name === 'index.html' || config.skipNames.has(entry.name)) continue
-    if (!/\.(png|jpe?g|webp|svg|gif|avif|json|css|mp4)$/i.test(entry.name)) continue
+    if (!/\.(png|jpe?g|webp|svg|gif|avif|json|css)$/i.test(entry.name)) continue
     if (fs.statSync(path.join(atelier, entry.name)).size > 8 * 1024 * 1024) continue
     fs.copyFileSync(path.join(atelier, entry.name), path.join(target, entry.name)); copied.push(entry.name)
   }
@@ -173,7 +174,10 @@ export function fileDesign({ atelier, slug, title, module = 'general', project =
   // the ZenRay Edit gallery of ZenRayProgress picks both up with no registration. FR : la miniature part avec le design, la galerie la trouve seule.
   const thumbStatus = makeThumbnail({ target, config })
   const syncStatus = syncSkillAndAssets({ config })
-  return { folder, target, assetsProjectCopy, workshopCopy, projectCopy, register, syncStatus, thumbStatus, meta }
+  // 29 October 2026 at 11:13 CET. Media masters go to the Assets workshop, not the skill.
+  const mediaFiles = module === 'cover-letter' ? [] : fs.readdirSync(atelier, { withFileTypes: true }).filter(entry => entry.isFile() && MEDIA_SETTINGS.kinds[path.extname(entry.name).slice(1).toLowerCase()] && !/\.html?$/i.test(entry.name) && !/preview|thumb/i.test(entry.name)).map(entry => path.join(atelier, entry.name))
+  const mediaBinding = config.syncOnFile === false || path.resolve(config.root) !== path.resolve(DEFAULT_SKILL_ROOT) ? null : bindMediaBatch(mediaFiles)
+  return { folder, target, assetsProjectCopy, workshopCopy, projectCopy, register, syncStatus, thumbStatus, mediaBinding, meta }
 }
 
 export function decide({ slug, choice, note = '', now = new Date(), config = CONFIG }) {
