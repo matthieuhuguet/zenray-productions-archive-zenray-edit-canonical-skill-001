@@ -188,7 +188,8 @@ export function parseDocumentInput({ filePath, args = {}, text = '' }) {
     }
 
     // Recipient line at document start
-    if (blocks.length === 0 && currentParagraph.length === 0 && /^to\s+(the\s+)?(recruitment|hiring|\w+)\s+team,?$/i.test(trimmed)) {
+    // 29 October 2026 at 11:06 CET. Keep a French addressee before the greeting.
+    if (blocks.length === 0 && currentParagraph.length === 0 && (/^to\s+(the\s+)?(recruitment|hiring|\w+)\s+team,?$/i.test(trimmed) || /^à\s+l[’']attention\s+de\b/i.test(trimmed))) {
       detectedRecipient = trimmed
       continue
     }

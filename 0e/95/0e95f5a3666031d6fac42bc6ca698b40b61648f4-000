@@ -5,6 +5,10 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 29 October 2026 : destinataire français des lettres
+
+- Le moteur PDF reconnaît la ligne initiale « À l’attention de » comme destinataire et la place avant la salutation, en préservant le texte ; contrôle dans `scripts/render-pdf-document.test.mjs`. (29 October 2026)
+
 ## 28 October 2026 : duo typographique GT Ultra et Literata
 
 - Par défaut, GT Ultra Regular 400 porte les titres, les nombres et les textes sans empattement de l’interface ; Literata 400 porte les textes avec empattements et le corps. AnthropicMono reste la police du code. Cette règle remplace le rôle GT Standard L du 26 October 2026, sans interdire les autres familles sur demande. (28 October 2026)

@@ -217,6 +217,14 @@ runTest('Options the caller did not give never erase the greeting and recipient 
   assert.equal(doc.company, 'Acme Studio')
 })
 
+// 29 October 2026 at 11:06 CET. Preserve the French addressee before the greeting.
+runTest('French addressee precedes the greeting', () => {
+  const doc = parseDocumentInput({ text: 'À l’attention de l’équipe de recrutement,\n\nBonjour Ludia,\n\nJe vous écris.', args: {} })
+  assert.equal(doc.recipient, 'À l’attention de l’équipe de recrutement,')
+  assert.equal(doc.salutation, 'Bonjour Ludia,')
+  assert.equal(doc.blocks[0].text, 'Je vous écris.')
+})
+
 // Summary
 console.log(`\nResults: ${testsPassed} passed, ${testsFailed} failed.`)
 
@@ -228,3 +236,4 @@ try {
 }
 
 process.exit(testsFailed > 0 ? 1 : 0)
+
