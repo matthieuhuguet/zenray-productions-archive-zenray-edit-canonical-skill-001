@@ -1,0 +1,49 @@
+{
+  "_comment": "29 October 2026 : parameters of the grading slider page. Edit sliders or images here, then run scripts/build-grading-sliders.py. FR : paramètres de la page de curseurs d'étalonnage, 8 curseurs au plus.",
+  "title": "Louisiana Bayou, étalonnage des 6 plans",
+  "unreal_values_file": "/Users/zenray/Create/Build/Productions/ZenRayHoudini/LouisianaBayou/unreal/lb_grading_values_29-October-2026.json",
+  "images": [
+    {
+      "label": "Plan 1",
+      "path": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/render/ZRS-29-October-2026/Grading/neutral/c1_21x9.png"
+    },
+    {
+      "label": "Plan 2",
+      "path": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/render/ZRS-29-October-2026/Grading/neutral/c2_21x9.png"
+    },
+    {
+      "label": "Plan 3",
+      "path": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/render/ZRS-29-October-2026/Grading/neutral/c3_21x9.png"
+    },
+    {
+      "label": "Plan 4",
+      "path": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/render/ZRS-29-October-2026/Grading/neutral/c4_21x9.png"
+    },
+    {
+      "label": "Plan 5",
+      "path": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/render/ZRS-29-October-2026/Grading/neutral/c5_21x9.png"
+    },
+    {
+      "label": "Plan 6",
+      "path": "/Users/zenray/.claude/tmp/tmp-houdini-september-2026/tmp-bayou-louisiana/render/ZRS-29-October-2026/Grading/neutral/c6_21x9.png"
+    }
+  ],
+  "sliders": "FROM_UNREAL_PARAMS",
+  "unreal_params": "/Users/zenray/Create/Build/Productions/ZenRayHoudini/LouisianaBayou/unreal/lb_postprocess_29-October-2026.json",
+  "auto_swap_seconds": 2.5,
+  "jpeg_quality": 90,
+  "preview_model": {
+    "_comment": "29 October 2026 : constants of the approximate preview model, fitted on real Unreal renders (4 value sets x 3 plans, checked on 3 other plans). FR : constantes du modèle d'aperçu, ajustées sur des rendus Unreal.",
+    "ek": 1.125,
+    "wbk": 0.9375,
+    "tk": 0.525,
+    "gk": 1.75,
+    "ck": 0.125,
+    "sk": 0.875,
+    "p": 0.21875,
+    "ts": 0.4,
+    "th": 0.8,
+    "shk": 0.375,
+    "hik": 0.25
+  }
+}

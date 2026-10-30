@@ -1,0 +1,21 @@
+/* 30 October 2026, 02:10 CET: reversible article editing controls. */
+.zr-editor-bar{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 14px;background:var(--paper);border-bottom:1px solid var(--line);font:400 13px/1.3 'GT Ultra',sans-serif}
+.zr-editor-bar button,.zr-tools button{appearance:none;border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:var(--paper);color:var(--ink);font:inherit;cursor:pointer;transition:background .2s,color .2s}
+.zr-editor-bar button:hover,.zr-tools button:hover{background:var(--panel)}
+.zr-editor-status{color:var(--muted)}
+.zr-editor-output{display:none;width:min(100%,70ch);max-height:220px;margin:8px 14px;padding:8px;background:var(--paper);color:var(--ink);border:1px solid var(--line);font:12px/1.4 monospace}
+.zr-editor-output[data-visible="true"]{display:block}
+.zr-edit-item,section.zr-edit-component,figure.zr-edit-component,.hero.zr-edit-component{position:relative;outline:1px solid transparent;outline-offset:4px}
+.zr-edit-item:hover,section.zr-edit-component:hover,figure.zr-edit-component:hover,.hero.zr-edit-component:hover,.zr-edit-item:focus-within{outline-color:var(--line)}
+[data-zr-editable="true"]{cursor:text;min-height:1em}
+[data-zr-editable="true"]:focus{outline:2px solid var(--accent);outline-offset:3px}
+.zr-tools{position:absolute;right:0;top:-28px;z-index:20;display:flex;gap:3px;opacity:0;pointer-events:none;font:400 11px/1.2 'GT Ultra',sans-serif;white-space:nowrap}
+.zr-edit-item:hover>.zr-tools,.zr-edit-item:focus-within>.zr-tools,.zr-edit-component:hover>.zr-tools,.zr-edit-component:focus-within>.zr-tools{opacity:1;pointer-events:auto}
+.zr-tools button{padding:4px 6px;box-shadow:0 2px 8px rgb(0 0 0 / .12)}
+[data-zr-font="gtultra"]>[data-zr-editable="true"],[data-zr-font="gtultra"][data-zr-editable="true"]{font-family:'GT Ultra',sans-serif!important}
+[data-zr-font="literata"]>[data-zr-editable="true"],[data-zr-font="literata"][data-zr-editable="true"]{font-family:'Literata',serif!important}
+[data-zr-removed="true"]{opacity:.55}
+.zr-edit-item[data-zr-removed="true"]>[data-zr-editable="true"],figure.zr-edit-component[data-zr-removed="true"]>a,figure.zr-edit-component[data-zr-removed="true"]>figcaption,section.zr-edit-component[data-zr-removed="true"]>:not(.zr-tools),.hero.zr-edit-component[data-zr-removed="true"]>:not(.zr-tools){display:none!important}
+[data-zr-removed="true"]>.zr-tools{position:static;opacity:1;pointer-events:auto;margin:8px 0}
+@media(hover:none){.zr-tools{position:static;opacity:1;pointer-events:auto;margin:3px 0 7px}}
+@media(prefers-reduced-motion:reduce){.zr-editor-bar button,.zr-tools button{transition:none}}

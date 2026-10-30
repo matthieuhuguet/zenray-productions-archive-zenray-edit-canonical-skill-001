@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+# 29 October 2026 : takes the line copied from the grading slider page, validates it against the 8 sliders of lb_postprocess_29-October-2026.json, writes lb_grading_values_29-October-2026.json and applies it in the Unreal editor through the file queue. FR : applique dans Unreal les valeurs copiées depuis la page de curseurs.
+import json, os, sys, time
+UD = '/Users/zenray/Create/Build/Productions/ZenRayHoudini/LouisianaBayou/unreal'; Q = os.path.expanduser('~/.claude/tmp/tmp-unreal-queue')
+G = {k: v for k, v in json.load(open(UD + '/lb_postprocess_29-October-2026.json'))['grading'].items() if not k.startswith('_')}
+vals = json.loads(sys.argv[1] if len(sys.argv) > 1 else sys.stdin.read())
+for k in vals: assert k in G, 'unknown value ' + k
+for k, g in G.items():
+    assert k in vals, 'missing value ' + k
+    assert g['min'] <= vals[k] <= g['max'], '%s=%s outside [%s, %s]' % (k, vals[k], g['min'], g['max'])
+json.dump(vals, open(UD + '/lb_grading_values_29-October-2026.json', 'w'), indent=2)
+name = 'grade_%d' % int(time.time()); out = Q + '/done/' + name + '.out'
+open(Q + '/' + name + '.py', 'w').write("ON=['01_ChromaticAberration','02_Vignette','03_Bloom','04_FilmGrain','05_LensFlare','09_FilmicToneCurve','10_AmbientOcclusion','11_Sharpen','12_LocalExposure','13_LightShafts','14_VolumetricFog','15_ContactShadows','16_VolumetricClouds']\nNEUTRAL=False\nGVALUES=None\nexec(open('%s/ue_apply_postprocess_29-October-2026.py').read())\n" % UD)
+for _ in range(60):
+    if os.path.exists(out): break
+    time.sleep(1)
+else: sys.exit('Unreal editor did not answer (queue)')
+r = open(out).read(); print(r.splitlines()[0], '|', [l for l in r.splitlines() if l.startswith('grading')][-1:]); sys.exit(0 if r.startswith('OK') else 1)

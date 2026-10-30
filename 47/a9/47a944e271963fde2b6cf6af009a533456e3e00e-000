@@ -1,0 +1,11 @@
+# Le français de relais corrigé par Matthieu (30 October 2026), conservé comme exemple de sa voix et de ses corrections (le français n'est PAS un livrable)
+
+Un toit finalement c'est une seule tuile répétée encore et encore, et l'œil repère vite cette répétition.
+
+Mon problème était de construire un toit dont la répétition d'une texture ne se verrait pas à l'œil tout en étant optimisé dans le cadre d'un jeu. Alors j'ai construit le toit de l'église sur mon projet "Louisiana Bayou" pour l'éviter. Dans Houdini, un HDA pose les tuiles en rangées décalées, chaque rangée recouvrant celle du dessous, avec un curseur pour régler le nombre de tuiles en rangée comme en colonne.
+
+Vient ensuite la texture : une feuille de 2 048 px contient 36 motifs (6x6), et un peu de VEX en choisit un au hasard pour chaque tuile et déplace ses UV vers la bonne case. Chaque tuile reçoit aussi l'une de quatre orientations, si bien que 36 motifs x 4 donnent 144 aspects sans texture plus grande ! (Voir l'article pour savoir comment je fais pour passer d'une texture à 4 avec la même attribution de texture.)
+
+Toute l'église repose sur trois matériaux, tous en 2 048 px, avec des cartes de heightmap issues d'un graphe Copernicus, l'outil équivalent dans Houdini qui permet, comme Substance Designer, de créer un graphe de texture. (Consigne de Matthieu : simplifier cette phrase, expliquer de façon pédagogique que Substance Designer et Copernicus, c'est à peu près la même chose.)
+
+Le détail complet est dans l'article, la vidéo YouTube au format original est disponible.

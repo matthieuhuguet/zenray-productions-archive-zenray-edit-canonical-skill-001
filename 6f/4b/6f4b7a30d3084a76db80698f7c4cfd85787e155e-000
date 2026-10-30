@@ -1,0 +1,58 @@
+// page-slices.mjs (30 October 2026) : renders a web page exactly as it looks and cuts it into numbered slices of a chosen width (2K = 2048 px), cutting ONLY between blocks (never through a figure, a video, a paragraph or a heading). Floating bars (sticky header, table of contents, buttons) are removed so no bar repeats on every slice.
+// FR : rend une page web telle quelle et la découpe en tranches numérotées, coupées entre les blocs.
+// Usage: node page-slices.mjs <url> <out-dir> [--width 2048] [--css-width 1024] [--max-height 2600] [--selector article] [--keep-header]
+// The slices frame the column of the --selector element (default `article`) so its width fills the `--width` pixels (maximum pixels, no empty margins); use --selector body for the whole page.
+// width / css-width = device scale factor (2048 / 1024 = 2). Slices are PNG: 01.png, 02.png ... (two digits, three if there are 100 or more).
+import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync, readdirSync, rmSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { createRequire } from "node:module";
+const MOTION = "/Users/zenray/Create/Build/Productions/GithubProductions/ZenRayMotionDesign/tooling";
+const require = createRequire(join(MOTION, "package.json")); const puppeteer = require("puppeteer-core");
+const a = process.argv.slice(2); const get = (k, d) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : d; };
+const url = a[0], out = a[1], W = Number(get("--width", 2048)), CW = Number(get("--css-width", 1024)), MAXH = Number(get("--max-height", 2600)), keepHeader = a.includes("--keep-header");
+if (!url || !out) { console.error("usage: page-slices.mjs <url> <out-dir> [--width 2048] [--css-width 1024] [--max-height 2600]"); process.exit(2); }
+const SEL = get("--selector", "article"); let scale = W / CW, maxCss = MAXH / scale; mkdirSync(out, { recursive: true });
+for (const f of readdirSync(out)) if (/^\d+\.png$/.test(f)) rmSync(join(out, f));
+const env = { ...process.env, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1", HYPERFRAMES_NO_UPDATE_CHECK: "1" };
+const exe = spawnSync(join(MOTION, "node_modules", ".bin", "hyperframes"), ["browser", "path"], { env, encoding: "utf8" }).stdout.trim();
+const browser = await puppeteer.launch({ executablePath: exe, headless: true, args: ["--no-first-run", "--disable-extensions"] });
+try {
+  const tab = await browser.newPage(); await tab.setViewport({ width: CW, height: 1400, deviceScaleFactor: scale });
+  await tab.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
+  await tab.evaluate(async () => { const skip = [...document.querySelectorAll("button, a")].find((e) => /^\s*skip/i.test(e.textContent)); if (skip) skip.click(); });
+  await new Promise((r) => setTimeout(r, 2500));
+  // load every lazy image: scroll through the whole page once, then back to the top
+  await tab.evaluate(async () => { const H = () => document.documentElement.scrollHeight; for (let y = 0; y < H(); y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 120)); } window.scrollTo(0, 0); await Promise.all([...document.images].map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; }))); await document.fonts.ready; });
+  await new Promise((r) => setTimeout(r, 800));
+  // freeze the page: no animation or transition may move a block between the measure and the shot
+  await tab.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }" }); await new Promise((r) => setTimeout(r, 500));
+  // remove floating bars so they do not repeat on every slice
+  const removed = await tab.evaluate((keepHeader) => { let n = 0; document.querySelectorAll("*").forEach((e) => { const p = getComputedStyle(e).position; if ((p === "fixed" || p === "sticky") && !(keepHeader && e.tagName === "HEADER")) { e.style.setProperty("display", "none", "important"); n++; } }); return n; }, keepHeader);
+  await new Promise((r) => setTimeout(r, 400));
+  // the framed column: the selector element (its x, width, top, bottom in CSS px); the device scale makes its width exactly W pixels
+  const col = await tab.evaluate((sel) => { const e = document.querySelector(sel) || document.body, r = e.getBoundingClientRect(); return { x: r.x + scrollX, w: r.width, top: r.top + scrollY, bottom: r.bottom + scrollY }; }, SEL);
+  scale = W / col.w; maxCss = MAXH / scale; await tab.setViewport({ width: CW, height: 1400, deviceScaleFactor: scale }); await new Promise((r) => setTimeout(r, 600));
+  const col2 = await tab.evaluate((sel) => { const e = document.querySelector(sel) || document.body, r = e.getBoundingClientRect(); return { x: r.x + scrollX, w: r.width, top: r.top + scrollY, bottom: r.bottom + scrollY }; }, SEL);
+  // atomic blocks: nothing may be cut through them (leaf-like blocks only, so a wrapper never hides a real gap)
+  const info = await tab.evaluate(() => { const atoms = []; document.querySelectorAll("img, video, canvas, svg, figure, figcaption, p, h1, h2, h3, h4, li, pre, table, iframe, button").forEach((e) => { if (e.closest("svg") && e.tagName !== "svg") return; const r = e.getBoundingClientRect(); if (r.height > 1 && r.width > 1 && getComputedStyle(e).display !== "none") atoms.push([r.top + scrollY, r.bottom + scrollY]); }); return { atoms }; });
+  const T = col2.top, B = col2.bottom, ev = []; info.atoms.forEach(([t, b]) => { ev.push([t, 1], [b, -1]); }); ev.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  const free = []; let depth = 0, last = T; for (const [y, d] of ev) { if (y < T - 1 || y > B + 1) continue; if (depth === 0 && y - last >= 6) free.push([last, y]); depth += d; if (depth === 0) last = y; }   // a real gap is at least 6 CSS px
+  const cuts = [T]; let start = T;
+  while (B - start > maxCss * 1.02) {
+    let best = null;
+    for (const lo of [0.55, 0.35, 0.2]) { for (const [s0, e0] of free) { const hi = Math.min(e0, start + maxCss), l = Math.max(s0, start + maxCss * lo); if (hi >= l) best = Math.max(best ?? -1, l + (hi - l) * 0.35); } if (best !== null) break; }
+    if (best === null) { for (const [s0, e0] of free) if (s0 > start + maxCss && s0 < start + maxCss * 1.6) { best = s0 + (e0 - s0) * 0.35; break; } }   // a block taller than the limit: cut after it, the slice is taller
+    if (best === null) { best = start + maxCss; console.log("WARNING: no free gap, hard cut at", Math.round(best)); }
+    start = best; cuts.push(start);
+  }
+  cuts.push(B);
+  const pad = cuts.length - 1 >= 100 ? 3 : 2, names = [];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const y0 = cuts[i], y1 = cuts[i + 1], name = String(i + 1).padStart(pad, "0") + ".png";
+    await tab.screenshot({ path: join(out, name), type: "png", captureBeyondViewport: true, clip: { x: col2.x, y: y0, width: col2.w, height: y1 - y0 } }); names.push([name, Math.round((y0 - T) * scale), Math.round((y1 - T) * scale)]);
+  }
+  const info2 = { H: B - T };
+  writeFileSync(join(out, "_slices.json"), JSON.stringify({ url, width_px: W, css_width: CW, page_height_px: Math.round(info2.H * scale), column_css_width: Math.round(col2.w), floating_removed: removed, slices: names }, null, 1));
+  console.log("ok", names.length, "slices, article", Math.round(info2.H * scale), "px high,", removed, "floating elements hidden, column", Math.round(col2.w), "css px ->", W, "px");
+} finally { await browser.close(); }

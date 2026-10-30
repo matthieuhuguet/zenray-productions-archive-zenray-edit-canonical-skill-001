@@ -1,5 +1,11 @@
 # Project articles in Assets (20 October 2026)
 
+## 30 October 2026 : révision visuelle avant la version finale
+
+- 30 October 2026 : ajouter `"editor": true` à la définition de l'article pour intégrer `templates/project-article/editor/editor.css` et `editor.js` au HTML de revue ; le gabarit et les autres articles ne changent pas. (30 October 2026)
+- 30 October 2026 : le lecteur édite les textes sur place, retire ou rétablit les composants et choisit GT Ultra ou Literata par bloc de texte ; le bouton copie ou télécharge uniquement les différences au format `zenray-article-edits@1`. (30 October 2026)
+- 30 October 2026 : le JSON exporté est la liste de décisions de Matthieu, à reporter dans la définition source et à relire avant rendu final ; enlever `"editor": true` au rendu final, puis suivre le contrat d'approbation et d'archivage ci-dessous. (30 October 2026)
+
 - Render an illustrated, editable project recap from one JSON definition with `node /Users/zenray/.claude/skills/zenray-edit/scripts/render-project-article.mjs <definition.json> <index.html>`; template: `templates/project-article/article.html`, derived from the existing Galerie direction, with InterVariable Medium 500, AnthropicSerif Medium 500 and embedded fonts. (20 October 2026)
 - The definition owns text, prompts, captions and source roles. Its `sources` manifest names each selected dependency with a safe relative path, byte count and SHA-256. The renderer embeds illustrations and fonts so the HTML survives an archived, moved or unloaded source folder. (20 October 2026)
 - File the result locally: `node /Users/zenray/.claude/skills/zenray-edit/scripts/file-article.mjs <article-folder> --project <actual-project-id> --title "<title>" --slug <slug> --definition <definition.json> --manifest <sources.json> --thumbnail <opening.jpg>`. The default writes a draft in `articles/<day>-<Month>-<year>-<slug>/`, retaining changed versions as V_002 etc. It never synchronizes the skill or calls Assets. (20 October 2026)

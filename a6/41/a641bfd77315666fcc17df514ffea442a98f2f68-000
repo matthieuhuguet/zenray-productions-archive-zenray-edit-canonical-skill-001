@@ -1,0 +1,188 @@
+// 30 October 2026, 02:10 CET: export reversible edits relative to the rendered article.
+(() => {
+  const root = document.querySelector('.article-layout main');
+  if (!root) return;
+  const storageKey = 'zenray-article-draft:' + location.pathname;
+  const entries = new Map();
+  let staleDraft = false;
+  const bar = document.createElement('div');
+  bar.className = 'zr-editor-bar';
+  bar.innerHTML = '<strong>Édition de l’article</strong><span>Survole un bloc pour le modifier ou le retirer.</span><button type="button" data-action="copy">Copier mes modifications</button><button type="button" data-action="download">Télécharger les modifications</button><button type="button" data-action="reset">Réinitialiser</button><span class="zr-editor-status" role="status">Prêt</span>';
+  const output = document.createElement('textarea');
+  output.className = 'zr-editor-output';
+  output.readOnly = true;
+  output.setAttribute('aria-label', 'Modifications à recopier');
+  document.body.prepend(output);
+  document.body.prepend(bar);
+  const status = bar.querySelector('.zr-editor-status');
+
+  function textOf(node) {
+    return node.innerText.trim();
+  }
+  function fontOf(node) {
+    return getComputedStyle(node).fontFamily.toLowerCase().includes('gt ultra') ? 'gtultra' : 'literata';
+  }
+  function toolsFor(host, entry, allowFont) {
+    const tools = document.createElement('div');
+    tools.className = 'zr-tools';
+    tools.setAttribute('contenteditable', 'false');
+    if (allowFont) {
+      const font = document.createElement('button');
+      font.type = 'button';
+      font.dataset.action = 'font';
+      font.textContent = entry.font === 'gtultra' ? 'GT Ultra' : 'Literata';
+      font.title = 'Changer la fonte de cet élément';
+      tools.append(font);
+    }
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.dataset.action = 'remove';
+    remove.textContent = '×';
+    remove.title = 'Retirer cet élément, puis rétablir si besoin';
+    tools.append(remove);
+    host.prepend(tools);
+    tools.addEventListener('click', event => {
+      const action = event.target.dataset.action;
+      if (action === 'font') {
+        entry.font = entry.font === 'gtultra' ? 'literata' : 'gtultra';
+        host.dataset.zrFont = entry.font;
+        event.target.textContent = entry.font === 'gtultra' ? 'GT Ultra' : 'Literata';
+      } else if (action === 'remove') {
+        entry.removed = !entry.removed;
+        host.dataset.zrRemoved = String(entry.removed);
+        event.target.textContent = entry.removed ? 'Rétablir' : '×';
+      } else return;
+      event.preventDefault();
+      event.stopPropagation();
+      save();
+    });
+  }
+  function addText(id, node) {
+    if (!node || entries.has(id)) return;
+    const original = textOf(node);
+    const initialFont = fontOf(node);
+    const host = document.createElement(node.parentElement.classList.contains('meta') ? 'span' : 'div');
+    host.className = 'zr-edit-item';
+    host.dataset.zrId = id;
+    node.before(host);
+    host.append(node);
+    node.dataset.zrEditable = 'true';
+    node.setAttribute('contenteditable', 'plaintext-only');
+    node.setAttribute('spellcheck', 'true');
+    const entry = { id, type: 'text', host, node, original, initialFont, font: initialFont, removed: false };
+    entries.set(id, entry);
+    toolsFor(host, entry, true);
+    node.addEventListener('input', save);
+  }
+  function addComponent(id, node) {
+    if (!node || entries.has(id)) return;
+    node.classList.add('zr-edit-component');
+    node.dataset.zrId = id;
+    const entry = { id, type: 'component', host: node, node, original: textOf(node).slice(0, 500), initialFont: null, font: null, removed: false };
+    entries.set(id, entry);
+    toolsFor(node, entry, false);
+  }
+  const header = root.querySelector('header');
+  addText('header:eyebrow', header.querySelector(':scope > .eyebrow'));
+  addText('header:title', header.querySelector(':scope > h1'));
+  addText('header:lead', header.querySelector(':scope > .lead'));
+  header.querySelectorAll(':scope > .meta > span').forEach((node, index) => addText('header:meta:' + index, node));
+  addComponent('header:hero', header.querySelector(':scope > .hero'));
+  header.querySelectorAll(':scope > .hero p').forEach((node, index) => addText('header:hero:text:' + index, node));
+  root.querySelectorAll(':scope > section').forEach(section => {
+    const sectionId = 'section:' + section.id;
+    addComponent(sectionId, section);
+    addText(sectionId + ':title', section.querySelector(':scope > h2'));
+    section.querySelectorAll('p').forEach((node, index) => {
+      if (!node.closest('.texture-controls') && !node.closest('figcaption')) addText(sectionId + ':paragraph:' + index, node);
+    });
+    section.querySelectorAll('figure').forEach(figure => {
+      addComponent('figure:' + figure.id.replace(/^figure-/, ''), figure);
+      addText('figure:' + figure.id.replace(/^figure-/, '') + ':caption', figure.querySelector('figcaption'));
+    });
+  });
+  addText('footer', root.querySelector(':scope > footer'));
+
+  function changes() {
+    return [...entries.values()].flatMap(entry => {
+      const change = { id: entry.id, type: entry.type };
+      if (entry.removed) { change.removed = true; change.original = entry.original; }
+      if (entry.type === 'text') {
+        const current = textOf(entry.node);
+        if (current !== entry.original) { change.original = entry.original; change.text = current; }
+        if (entry.font !== entry.initialFont) change.font = entry.font;
+      }
+      return Object.keys(change).length > 2 ? [change] : [];
+    });
+  }
+  function payload() {
+    return JSON.stringify({ schema: 'zenray-article-edits@1', article: location.pathname.split('/').pop(), source: location.pathname, changes: changes() }, null, 2);
+  }
+  function save() {
+    try {
+      localStorage.setItem(storageKey, payload());
+      status.textContent = changes().length + ' modification(s), brouillon local';
+    } catch {
+      status.textContent = 'Sauvegarde locale indisponible. Copie les modifications.';
+    }
+  }
+  function apply(change) {
+    const entry = entries.get(change.id);
+    if (!entry) return;
+    if (typeof change.original === 'string' && change.original !== entry.original) {
+      staleDraft = true;
+      return;
+    }
+    if (typeof change.text === 'string' && entry.type === 'text') entry.node.innerText = change.text;
+    if (change.font && entry.type === 'text') {
+      entry.font = change.font;
+      entry.host.dataset.zrFont = change.font;
+      entry.host.querySelector('[data-action="font"]').textContent = change.font === 'gtultra' ? 'GT Ultra' : 'Literata';
+    }
+    if (change.removed) {
+      entry.removed = true;
+      entry.host.dataset.zrRemoved = 'true';
+      entry.host.querySelector('[data-action="remove"]').textContent = 'Rétablir';
+    }
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    if (saved?.schema === 'zenray-article-edits@1' && Array.isArray(saved.changes)) saved.changes.forEach(apply);
+    if (staleDraft) {
+      localStorage.setItem(storageKey + ':backup', JSON.stringify(saved));
+      output.value = JSON.stringify(saved, null, 2);
+      output.dataset.visible = 'true';
+    }
+  } catch { status.textContent = 'Brouillon local illisible.'; }
+  if (staleDraft) status.textContent = 'Le texte source a changé. Ancien brouillon conservé ci-dessous.';
+  else save();
+  bar.addEventListener('click', async event => {
+    const action = event.target.dataset.action;
+    if (!action) return;
+    if (action === 'reset') {
+      localStorage.removeItem(storageKey);
+      location.reload();
+      return;
+    }
+    const data = payload();
+    output.value = data;
+    output.dataset.visible = 'true';
+    if (action === 'download') {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+      link.download = 'ArticleEdits.json';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      status.textContent = 'Modifications téléchargées';
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(data);
+      status.textContent = 'Modifications copiées';
+    } catch {
+      output.focus();
+      output.select();
+      status.textContent = 'Copie le texte sélectionné ci-dessous';
+    }
+  });
+})();

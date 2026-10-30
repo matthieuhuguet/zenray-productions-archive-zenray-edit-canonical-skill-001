@@ -123,10 +123,18 @@ export async function renderProjectArticle(configFile, outFile, settings = ARTIC
   if (!['papier', 'galerie'].includes(theme)) throw new Error(`Unknown article theme "${theme}" (papier or galerie)`)
   const themed = theme === 'papier' ? finalHtml.replace('</head>', (await papierCss(settings)) + '</head>') : finalHtml
   const overrideCss = fontSet === 'gtultra' ? settings.gtUltraCss : fontSet === 'gtstandard' ? settings.gtStandardCss : ''
-  const output = overrideCss ? themed.replace('</head>', overrideCss + '</head>') : themed
+  let output = overrideCss ? themed.replace('</head>', overrideCss + '</head>') : themed
   if (overrideCss && output === themed) throw new Error(`fontSet ${fontSet}: template has no </head>`)
+  // 30 October 2026, 02:10 CET: the opt-in editor is embedded only in review articles.
+  if (config.editor === true) {
+    const editorRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../templates/project-article/editor')
+    const editorCss = await fs.readFile(path.join(editorRoot, 'editor.css'), 'utf8')
+    const editorJs = await fs.readFile(path.join(editorRoot, 'editor.js'), 'utf8')
+    if (!output.includes('</head>') || !output.includes('</body>')) throw new Error('Editor requires complete article HTML')
+    output = output.replace('</head>', `<style>${editorCss}</style></head>`).replace('</body>', `<script>${editorJs}</script></body>`)
+  }
   await fs.writeFile(outFile,output)
-  return {path:path.resolve(outFile),bytes:Buffer.byteLength(html),sha256:createHash('sha256').update(html).digest('hex'),illustrations:sources.files.filter(file => mimeOf(file.path).startsWith('image/')).length}
+  return {path:path.resolve(outFile),bytes:Buffer.byteLength(output),sha256:createHash('sha256').update(output).digest('hex'),illustrations:sources.files.filter(file => mimeOf(file.path).startsWith('image/')).length}
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (!process.argv[2] || !process.argv[3]) throw new Error('Usage: render-project-article.mjs <definition.json> <index.html>')

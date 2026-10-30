@@ -1,0 +1,9 @@
+# Grading sliders (29 October 2026)
+
+Page HTML autonome : 8 curseurs d'étalonnage sur 5 ou 6 vues Unreal en swap, bouton « Copier les valeurs ». FR : page de curseurs d'étalonnage, les valeurs se collent ensuite dans Unreal.
+
+- Définition : `template.html` (aucune valeur en dur, tout vient de `CFG`). Paramètres : `params.json` (titre, images, constantes du modèle d'aperçu `preview_model`) et le bloc `grading` de `lb_postprocess_29-October-2026.json` (8 valeurs : nom, propriété Unreal, défaut, neutre, min, max, pas).
+- Générer : `python3 /Users/zenray/.claude/skills/zenray-edit/scripts/build-grading-sliders.py --out <atelier>/index.html` (images en JPEG base64, polices GT Ultra et Literata embarquées, 1,5 Mo pour 6 plans).
+- Appliquer dans Unreal : `python3 /Users/zenray/.claude/skills/zenray-edit/scripts/apply-grading-values.py '<ligne copiée>'` (valide les plages, écrit `lb_grading_values_29-October-2026.json`, applique par la file d'attente de l'éditeur).
+- Les images de base sont rendues NEUTRES (saturation 1, contraste 1, EV 0, 6500 K, teinte 0, gamma 1) ; les valeurs par défaut des curseurs sont les valeurs actuelles d'Unreal.
+- Précision : l'aperçu est approché (modèle en lumière linéaire ajusté sur 12 rendus Unreal). Mesuré le 29 October 2026 : écart moyen 4 à 6 niveaux sur 255 au réglage actuel, 6 à 13 sur des réglages extrêmes (42 à 46 sans étalonnage), dont une part de bruit propre à Unreal (grain, nuages). La vérité est le rendu Unreal : appliquer, capturer, comparer.

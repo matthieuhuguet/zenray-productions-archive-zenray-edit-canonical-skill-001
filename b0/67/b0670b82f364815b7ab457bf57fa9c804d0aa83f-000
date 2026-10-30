@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# build-picker.py (29 October 2026) : one self-contained HTML where Matthieu clicks the items he wants (assets, images, meshes),
+# then copies ONE line of selection back into the chat. Replaces long "which ones?" exchanges, costs almost no tokens.
+# FR : sélecteur HTML autonome ; on clique, on copie la sélection, on la colle dans le chat.
+#
+#   python3 build-picker.py spec.json            -> writes spec["output"] (default <spec dir>/index.html)
+#   spec = {"title","subtitle","output","thumb_px":220,
+#           "mcp":"/path/to/Scripts/mcp.py"  (only needed when an item has "asset", thumbnail rendered by Unreal CaptureAssetImage),
+#           "groups":[{"name","items":[{"id","label","asset"|"image","note","color"(hex swatch),"selected"(bool)}]}],
+#           "copy":{"group_line":"{group}: {labels}","separator":" | "}}
+# Fonts: GT Ultra (titles, numbers), Literata (text), embedded base64 from designs/_shared/fonts. Light and dark themes.
+import json, sys, os, base64, io, subprocess, html
+from concurrent.futures import ThreadPoolExecutor
+ROOT = os.environ.get("ZENRAY_EDIT_ROOT", os.path.expanduser("~/.claude/skills/zenray-edit"))
+FONTS = os.path.join(ROOT, "designs/_shared/fonts")
+
+def b64(path, mime):
+    return f"data:{mime};base64," + base64.b64encode(open(path, "rb").read()).decode()
+
+def fetch_asset(mcp, asset):
+    out = subprocess.run(["python3", mcp, "t", "EditorToolset.EditorAppToolset", "CaptureAssetImage",
+                          json.dumps({"assetPath": asset})], capture_output=True, text=True).stdout
+    try: return base64.b64decode(json.loads(out)["returnValue"]["data"])
+    except Exception: raise SystemExit(f"FAIL: no thumbnail for {asset}. Editor open? Output: {out[:200]}")
+
+def to_data_uri(raw, px):
+    from PIL import Image
+    im = Image.open(io.BytesIO(raw)).convert("RGBA"); bg = Image.new("RGBA", im.size, (58, 58, 58, 255))
+    bg.alpha_composite(im); bg = bg.convert("RGB").resize((px, px), Image.LANCZOS)
+    buf = io.BytesIO(); bg.save(buf, "WEBP", quality=82)
+    return "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
+
+def main(spec_path):
+    S = json.load(open(spec_path)); px = S.get("thumb_px", 220); items = [i for g in S["groups"] for i in g["items"]]
+    todo = [i for i in items if "asset" in i and "data" not in i]
+    if todo:
+        mcp = S.get("mcp") or sys.exit("FAIL: spec has asset items but no 'mcp' path")
+        with ThreadPoolExecutor(8) as ex: raws = list(ex.map(lambda i: fetch_asset(mcp, i["asset"]), todo))
+        for i, r in zip(todo, raws): i["data"] = to_data_uri(r, px)
+    for i in items:
+        if "data" not in i:
+            if "image" not in i: sys.exit(f"FAIL: item {i.get('id')} has neither asset nor image")
+            i["data"] = to_data_uri(open(i["image"], "rb").read(), px)
+    cfg = {"groups": [{"name": g["name"], "items": [{k: i.get(k) for k in ("id", "label", "selected")} for i in g["items"]]} for g in S["groups"]],
+           "copy": S.get("copy", {"group_line": "{group}: {labels}", "separator": " | "})}
+    cards = ""
+    for gi, g in enumerate(S["groups"]):
+        cards += f'<section><div class="gh"><h2>{html.escape(g["name"])}</h2><span class="gb"><button data-all="{gi}">All</button><button data-none="{gi}">None</button></span></div><div class="grid">'
+        for ii, i in enumerate(g["items"]):
+            sw = f'<i style="background:{i["color"]}"></i>' if i.get("color") else ""
+            cards += (f'<button class="card{" on" if i.get("selected") else ""}" data-g="{gi}" data-i="{ii}" aria-pressed="{str(bool(i.get("selected"))).lower()}">'
+                      f'<img src="{i["data"]}" alt="" width="{px}" height="{px}">{sw}<b>{html.escape(str(i["label"]))}</b>'
+                      f'<small>{html.escape(i.get("note") or "")}</small><span class="tick">✓</span></button>')
+        cards += "</div></section>"
+    font = lambda n, fam: f"@font-face{{font-family:'{fam}';src:url({b64(os.path.join(FONTS, n), 'font/woff2')}) format('woff2');font-display:block}}"
+    page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{html.escape(S.get("title","Picker"))}</title><style>
+{font("GT-Ultra-Regular.woff2","GT Ultra")}{font("Literata-latin.woff2","Literata")}
+:root{{--bg:#f4f2ee;--card:#fff;--ink:#1d1d1b;--mute:#6f6c66;--line:#dcd8d0;--accent:#2f7d4f;--dur:.2s;--font-title:'GT Ultra',sans-serif;--font-body:'Literata',serif}}
+@media(prefers-color-scheme:dark){{:root:not([data-theme=light]){{--bg:#161614;--card:#222220;--ink:#f1efe9;--mute:#9a968d;--line:#37352f;--accent:#58c283}}}}
+:root[data-theme=dark]{{--bg:#161614;--card:#222220;--ink:#f1efe9;--mute:#9a968d;--line:#37352f;--accent:#58c283}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 var(--font-body);padding:0 16px 140px}}
+header{{max-width:1200px;margin:0 auto;padding:28px 0 8px}}h1,h2,b,.n{{font-family:var(--font-title);font-weight:400}}h1{{font-size:30px;margin:0}}header p{{color:var(--mute);margin:6px 0 0}}
+section{{max-width:1200px;margin:22px auto}}.gh{{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}}h2{{font-size:22px;margin:0}}
+.gb button{{font:inherit;font-size:14px;margin-left:6px;padding:4px 12px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;cursor:pointer}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}
+.card{{position:relative;text-align:left;padding:0 0 10px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);cursor:pointer;overflow:hidden;font:inherit;transition:border-color var(--dur),transform var(--dur),box-shadow var(--dur)}}
+.card img{{display:block;width:100%;height:auto}}.card i{{display:block;height:8px}}.card b{{display:block;padding:8px 10px 0;font-size:17px}}.card small{{display:block;padding:0 10px;color:var(--mute);font-size:12px}}
+.card .tick{{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;opacity:0;transform:scale(.6);transition:opacity var(--dur),transform var(--dur)}}
+.card.on{{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}}.card.on .tick{{opacity:1;transform:none}}.card:active{{transform:scale(.98)}}
+.bar{{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}}
+.bar output{{flex:1 1 320px;font:13px/1.35 ui-monospace,Menlo,monospace;color:var(--mute);word-break:break-word}}.bar button{{font:inherit;font-family:var(--font-title);background:var(--accent);color:#fff;border:0;border-radius:99px;padding:10px 22px;cursor:pointer;transition:opacity var(--dur)}}
+@media(prefers-reduced-motion:reduce){{*{{transition:none!important}}}}
+</style></head><body><header><h1>{html.escape(S.get("title","Picker"))}</h1><p>{html.escape(S.get("subtitle","Click the ones you want, then copy the selection and paste it in the chat."))}</p></header>
+{cards}<div class="bar"><span class="n" id="cnt"></span><output id="out"></output><button id="copy">Copy selection</button></div>
+<script>const C={json.dumps(cfg, ensure_ascii=False)};
+const cards=[...document.querySelectorAll('.card')],out=document.getElementById('out'),cnt=document.getElementById('cnt');
+function line(){{const parts=[];let n=0;C.groups.forEach((g,gi)=>{{const l=g.items.filter(i=>cards.find(c=>+c.dataset.g==gi&&g.items[+c.dataset.i]===i).classList.contains('on')).map(i=>i.label);n+=l.length;if(l.length)parts.push(C.copy.group_line.replace('{{group}}',g.name).replace('{{labels}}',l.join(' ')))}});cnt.textContent=n+' selected';return parts.join(C.copy.separator)}}
+function sync(){{out.textContent=line()||'(nothing selected)'}}
+cards.forEach(c=>c.addEventListener('click',()=>{{c.classList.toggle('on');c.setAttribute('aria-pressed',c.classList.contains('on'));sync()}}));
+document.querySelectorAll('[data-all],[data-none]').forEach(b=>b.addEventListener('click',()=>{{const gi=b.dataset.all??b.dataset.none,on=b.dataset.all!==undefined;cards.filter(c=>c.dataset.g==gi).forEach(c=>{{c.classList.toggle('on',on);c.setAttribute('aria-pressed',on)}});sync()}}));
+document.getElementById('copy').addEventListener('click',async e=>{{const t=line();try{{await navigator.clipboard.writeText(t);e.target.textContent='Copied ✓'}}catch(_){{const r=document.createRange();r.selectNodeContents(out);getSelection().removeAllRanges();getSelection().addRange(r);e.target.textContent='Select + ⌘C'}}setTimeout(()=>e.target.textContent='Copy selection',1500)}});
+sync();</script></body></html>"""
+    outp = S.get("output") or os.path.join(os.path.dirname(os.path.abspath(spec_path)), "index.html")
+    open(outp, "w").write(page); print(outp, f"{len(page)//1024} KB", len(items), "items")
+
+if __name__ == "__main__": main(sys.argv[1])

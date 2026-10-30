@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# build-music-versions.py (30 October 2026, v4) : montage soundtracks built from STEMS placed on a timeline. No loop anywhere.
+#   stem = source excerpt, loudness-normalised BEFORE mixing, then placed at time t_in with an easing curve on its fade-in and fade-out.
+#   V1 : main track plays until the START of the motion ; V2 : until its END. Then an equal-power crossfade (xf seconds, centred on that cut,
+#   so xf/2 of transition for each track) to the second track. Wind everywhere except on the motion. Motion sounds from the motion project.
+# Usage: python3 build-music-versions.py params.json     FR : pistes posées sur une ligne de temps, fondus croisés à puissance égale, aucune boucle.
+import json, sys, os, subprocess, re
+P = json.load(open(sys.argv[1])); D = P["video_seconds"]; out = P["out_dir"]; tmp = out + "/_stems"; os.makedirs(tmp, exist_ok=True)
+sr = P["sample_rate"]; xf = P["crossfade_seconds"]; ms, me = P["motion_start"], P["motion_end"]; endf = P["end_fade"]
+def ff(args, info=False):
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "info" if info else "error", "-y"] + args, capture_output=True, text=True)
+    if r.returncode: raise SystemExit("FAIL: " + r.stderr[-700:])
+    return r.stderr
+def pcm(src, start, dur):
+    return __import__("numpy").frombuffer(subprocess.run(["ffmpeg", "-v", "error", "-ss", str(start), "-t", str(dur), "-i", src, "-f", "f32le", "-ac", "1", "-ar", "16000", "-"], capture_output=True).stdout, "float32")
+def find_attack(src, a, b):
+    """Time (s) of the first strong note attack inside [a, b] : biggest 5 ms jump of the level. Aligns the music on the picture."""
+    import numpy as np
+    x = pcm(src, a, b - a); w = 80; db = np.array([20 * np.log10(np.sqrt((x[i:i + w] ** 2).mean()) + 1e-9) for i in range(0, len(x) - w, w)])
+    j = int(np.argmax(np.diff(db))) + 1; return a + j * w / 16000.0
+def norm(src, start, dur, lufs, name):
+    """Two-pass EBU R128 on the excerpt really used (measure, then one linear gain), true peak guard -1.5 dB."""
+    raw = f"{tmp}/{name}_raw.wav"; ff(["-ss", str(start), "-t", str(dur), "-i", src, "-ar", str(sr), "-ac", "2", raw])
+    log = ff(["-i", raw, "-af", f"loudnorm=I={lufs}:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"], info=True)
+    j = json.loads(re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", log, re.S).group(0)); o = f"{tmp}/{name}.wav"
+    ff(["-i", raw, "-af", f"loudnorm=I={lufs}:TP=-1.5:LRA=11:measured_I={j['input_i']}:measured_TP={j['input_tp']}:measured_LRA={j['input_lra']}:measured_thresh={j['input_thresh']}:offset={j['target_offset']}:linear=true,aresample={sr}", "-ar", str(sr), o])
+    return o, float(j["input_i"])
+def lufs(f, a=0.0, b=None):
+    af = f"atrim={a}:{b}," if b else (f"atrim=start={a}," if a else "")
+    log = ff(["-i", f, "-af", af + "ebur128", "-f", "null", "-"], info=True); return float(re.findall(r"I:\s+(-?[\d.]+) LUFS", log)[-1])
+def place(wav, t_in, length, fade_in, fade_out, gain_db=0.0, curve_in="qsin", curve_out="qsin"):
+    """One stem on the timeline : cut to its length, ease in, ease out, delay to t_in, pad with silence to the video length. Returns the stem file."""
+    o = wav.replace(".wav", "_placed.wav"); fi = f"afade=t=in:d={fade_in}:curve={curve_in}," if fade_in else ""; fo = f"afade=t=out:st={length - fade_out}:d={fade_out}:curve={curve_out}," if fade_out else ""
+    ff(["-i", wav, "-af", f"atrim=0:{length},asetpts=PTS-STARTPTS,volume={gain_db}dB,{fi}{fo}adelay={int(round(t_in * 1000))}:all=1,apad=whole_dur={D},atrim=0:{D}", "-ar", str(sr), o]); return o
+M, S, W, X = P["main"], P["second"], P["wind"], P["motion_sfx"]
+for k in (M["file"], S["file"], W["file"]): assert os.path.exists(k), "MISSING " + k
+att = find_attack(M["file"], *M["attack_between"]); main_start = att - M.get("preroll", 0.01)
+report = {"main_attack_in_source_s": round(att, 3), "main_start_in_source_s": round(main_start, 3)}
+def motion_bus():
+    """The three motion project clips exactly as the project places them (start, duration, gain), shifted by motion_start, normalised as one bus."""
+    parts = []
+    for c in X["clips"]:
+        src = X["dir"] + "/" + c["file"]; w, _ = norm(src, 0, c["duration"], X["clip_lufs"], "sfx_" + c["id"])   # every clip normalised to the same level, then the project's own relative gain
+        parts.append(place(w, ms + c["start"], c["duration"], c.get("fade_in", 0.01), c.get("fade_out", 0.05), c["gain_db"], "tri", "tri"))
+    o = f"{tmp}/motion_sfx_bus.wav"; ff(sum([["-i", p] for p in parts], []) + ["-filter_complex", f"amix=inputs={len(parts)}:duration=longest:normalize=0,alimiter=limit=0.89", "-ar", str(sr), "-c:a", "pcm_s24le", o]); return o
+def build(variant):
+    cut = ms if variant == 1 else me; a0, a1 = cut - xf / 2, cut + xf / 2
+    m_wav, m_in = norm(M["file"], main_start, a1, P["music_lufs"], f"main_v{variant}")
+    s_wav, s_in = norm(S["file"], S["start"], D - a0, P["music_lufs"], f"second_v{variant}")
+    wf = W["fade"]; w1, w1_in = norm(W["file"], W["start_a"], ms, P["wind_lufs"], "wind_a"); w2, w2_in = norm(W["file"], W["start_b"], D - me, P["wind_lufs"], "wind_b")
+    stems = {
+     "main":   place(m_wav, 0.0, a1, M.get("fade_in", 0.03), xf, 0.0),                                  # ease out over the crossfade window [a0, a1]
+     "second": place(s_wav, a0, D - a0, xf, endf, 0.0),                                                  # ease in over the same window
+     "wind_a": place(w1, 0.0, ms, 0.05, wf, 0.0),                                                        # intro wind, gone before the motion
+     "wind_b": place(w2, me, D - me, wf, W["end_fade"], 0.0)}                                            # outro wind, back after the motion
+    bus = motion_bus()
+    names = list(stems) + ["sfx"]; files = list(stems.values()) + [bus]
+    for n, f in zip(names, files): os.replace(f, f"{tmp}/V{variant}_{n}_stem.wav")
+    files = [f"{tmp}/V{variant}_{n}_stem.wav" for n in names]
+    wav = f"{out}/music_V{variant}_{'until_motion_start' if variant == 1 else 'through_motion'}.wav"
+    ff(sum([["-i", f] for f in files], []) + ["-filter_complex", f"amix=inputs={len(files)}:duration=longest:normalize=0,alimiter=limit=0.89,atrim=0:{D}", "-ar", str(sr), "-c:a", "pcm_s24le", wav])
+    ff(["-i", wav, "-c:a", "libmp3lame", "-b:a", "320k", wav.replace(".wav", ".mp3")])
+    report[f"v{variant}"] = {"source_lufs": {"main": m_in, "second": s_in, "wind_a": w1_in, "wind_b": w2_in}, "crossfade_window_s": [a0, a1],
+        "stem_lufs": {n: lufs(f, *( (a0, a1) if n in ("main", "second") else (0.0, None))) for n, f in zip(names, files) if n in ("main", "second")},
+        "mix_lufs_whole": lufs(wav)}
+    return wav
+for v in (1, 2): build(v)
+json.dump(report, open(out + "/music_report.json", "w"), indent=1); print(json.dumps(report, indent=1))

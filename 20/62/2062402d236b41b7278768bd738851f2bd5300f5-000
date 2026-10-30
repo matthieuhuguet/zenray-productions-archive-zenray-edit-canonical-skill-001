@@ -1,0 +1,25 @@
+# Louisiana Bayou Church: The Roof, post (anglais seul, v3 d'après le français de Matthieu, 30 October 2026)
+
+Brouillon consigné le 30 October 2026, rien n'est publié. L'anglais est écrit à partir du français corrigé par Matthieu (le français était un relais, il n'est pas conservé) : son sens et son rythme, jamais mot à mot. Ses suppressions font loi (la phrase du rendu Unreal et la mesure de 0,9 s ne sont plus dans le post). Versions antérieures : `deprecated/` (v1 agents en trois langues ; v2 séquentielle). Procédure : `/Users/zenray/.claude/skills/zenray-edit/references/Posts.md`.
+
+## Le post
+
+A roof is, in the end, one tile repeated over and over, and the eye spots that repetition fast.
+
+My problem was building a roof where the texture repetition would not show, while staying optimised for a game. So I built the roof of the church in my Louisiana Bayou project. In Houdini, an HDA lays the tiles in offset rows, each row overlapping the one below, with a slider for the number of tiles per row and per column.
+
+Then comes the texture: a 2,048 px sheet holds 36 patterns (6 x 6), and a bit of VEX picks one at random for every tile and moves its UVs to the right cell. Each tile also gets one of four orientations, so 36 patterns x 4 give 144 looks without a bigger texture! (The article shows how I go from one pattern to four with the same texture assignment.)
+
+The whole church runs on three materials, all in 2,048 px, with heightmaps built in Copernicus, Houdini's answer to Substance Designer: a graph that generates textures.
+
+The full breakdown is in the article, and the video is on YouTube in its original format.
+https://matthieuhuguet.com/reels/louisiana-bayou-church-the-roof
+
+thanks for reading, like for more! ᕙ(`▿´)ᕗ
+
+#houdini #unrealengine #technicalart
+
+## À compléter par Matthieu
+
+- Le lien YouTube de la vidéo, à ajouter sous la dernière phrase (je ne l'ai pas).
+- Les hashtags : `#unrealengine` reste alors que la phrase du rendu Unreal a été retirée ; à garder ou à remplacer par `#substancedesigner` ou rien.

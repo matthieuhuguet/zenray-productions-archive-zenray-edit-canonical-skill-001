@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+# 29 October 2026 : builds the standalone grading slider HTML (8 sliders, image swap, copy values) from templates/grading-sliders/params.json. FR : génère la page de curseurs d'étalonnage.
+import argparse, base64, io, json, os, re, sys
+from PIL import Image
+SK = '/Users/zenray/.claude/skills/zenray-edit'
+ap = argparse.ArgumentParser(); ap.add_argument('--params', default=SK + '/templates/grading-sliders/params.json'); ap.add_argument('--out', required=True)
+a = ap.parse_args()
+P = json.load(open(a.params)); U = json.load(open(P['unreal_params']))['grading']
+sliders = {k: v for k, v in U.items() if not k.startswith('_')}
+assert 1 <= len(sliders) <= 8, 'at most 8 sliders (rule of 30 September 2026), got %d' % len(sliders)
+def b64(path): return base64.b64encode(open(path, 'rb').read()).decode()
+imgs = []
+for im in P['images']:
+    assert os.path.exists(im['path']), 'missing image ' + im['path']
+    buf = io.BytesIO(); Image.open(im['path']).convert('RGB').save(buf, 'JPEG', quality=P.get('jpeg_quality', 90))
+    imgs.append({'label': im['label'], 'src': 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()})
+cfg = {'id': re.sub(r'[^a-z0-9]+', '-', P['title'].lower()).strip('-'), 'title': P['title'], 'sliders': sliders, 'auto_swap_seconds': P.get('auto_swap_seconds', 2.5), 'model': {k: v for k, v in P['preview_model'].items() if not k.startswith('_')}}
+t = open(SK + '/templates/grading-sliders/template.html').read()
+t = t.replace('{{FONT_GTULTRA}}', b64(SK + '/designs/_shared/fonts/GT-Ultra-Regular.woff2')).replace('{{FONT_LITERATA}}', b64(SK + '/designs/_shared/fonts/Literata-latin.woff2'))
+t = t.replace('{{CONFIG_JSON}}', json.dumps(cfg, ensure_ascii=False)).replace('{{IMAGES_JSON}}', json.dumps(imgs))
+assert '{{' not in t, 'unreplaced placeholder'
+os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True); open(a.out, 'w').write(t)
+print('written', a.out, round(len(t) / 1e6, 2), 'MB', len(imgs), 'images', len(sliders), 'sliders')

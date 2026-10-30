@@ -223,6 +223,7 @@ export async function renderMotionProject(options = {}) {
   try {
     const renderFps = fps || cooked.fps || 60
     const args = ['render', '-f', String(renderFps), '-q', quality]
+    if (options.resolution) args.push('--resolution', String(options.resolution))   // 30 October 2026: landscape-4k, portrait-4k, square-4k...
 
     if (isPngSequence) {
       args.push('--format=png-sequence', '-o', finalTarget)
@@ -356,6 +357,7 @@ Options:
   --fps <num>                 Target frame rate (default: project fps or 60)
   --out <path>                Destination file or folder
   --output-format <fmt>       Output type: mp4 or png-sequence
+  --resolution <preset>       landscape-4k (3840x2160), portrait-4k, square-4k, 1080p... (HyperFrames preset)
   --montage <params.json>     Assemble a 1:1 montage from params.json
   --step <name>               Montage step (default: build)
   --json                      Output raw JSON results
@@ -397,13 +399,15 @@ Options:
       const fps = getArg('--fps')
       const out = getArg('--out')
       const outputFormat = getArg('--output-format')
+      const resolution = getArg('--resolution')
 
       const result = await renderMotionProject({
         projectId,
         format,
         fps,
         out,
-        outputFormat
+        outputFormat,
+        resolution
       })
 
       if (asJson) {
