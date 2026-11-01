@@ -5,6 +5,11 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 1 November 2026 : document de synthèse HTML illustré et horodaté
+
+- Tout projet ou chantier, y compris TMP, possède une synthèse HTML visuelle, éditable par ses sources, avec résumé neutre, inventaire compact replié, visuels intégrés et date/heure/fuseau de chaque entrée. Contrat courant : [references/ProjectSynthesis.md](references/ProjectSynthesis.md), à lire avec [references/ProjectArticles.md](references/ProjectArticles.md) pour les commandes existantes. (1 November 2026)
+- Réutiliser les générateurs et le registre d'articles existants ; les nouvelles règles précisent leur usage sans prétendre que le suivi complet des fichiers, la rédaction des évolutions et l'historique structuré sont déjà automatiques. Conserver les dépendances Project1.md jusqu'à migration vérifiée ; ne pas dupliquer les connaissances déjà sourcées. (1 November 2026)
+
 ## 30 October 2026 : article révisable directement dans le HTML
 
 - 30 October 2026 : pour préparer un article avant validation, mettre `"editor": true` dans son `Article.json`, puis lancer `node /Users/zenray/.claude/skills/zenray-edit/scripts/render-project-article.mjs <Article.json> <index.html>` ; le moteur ajoute au HTML un éditeur autonome depuis `templates/project-article/editor/`. (30 October 2026)
