@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+# score-timeline.py (2 November 2026, 22:55) : the soundtrack of a film from N music tracks placed on a timeline, no loop, then muxed on one or more videos.
+#   Track i plays until its cut ("until", seconds); the next one enters over an equal-power crossfade of `crossfade` seconds centred on that cut
+#   (crossfade/2 where the first still plays at full, crossfade/2 where the next rises, as in rule 9). The film opens with `fade_in` and closes with `fade_out`.
+#   Each excerpt is loudness-normalised BEFORE mixing (one linear gain to track_lufs, rule 1), the mix gets one constant gain to master_lufs and a fast limiter
+#   (true peak ceiling), never a dynamic loudnorm on the mix (26 October 2026 trap). A track can be aligned on a note: attack_between finds its attack and
+#   attack_at puts it at that time of the film, so a fade-in never eats the first note (rule 10). Report: level per 0.5 s of every stem and of the mix.
+# Usage: python3 score-timeline.py params.json      FR : bande-son de N musiques sur une ligne de temps, fondus croisés à puissance égale, normalisation avant mixage.
+import json
+import os
+import re
+import subprocess
+import sys
+
+import numpy as np
+
+P = json.load(open(sys.argv[1]))
+SR = P.get("sample_rate", 48000)
+OUT = P["out_dir"]
+TMP = OUT + "/_stems"
+os.makedirs(TMP, exist_ok=True)
+XF, FIN, FOUT = P["crossfade"], P["fade_in"], P["fade_out"]
+
+
+def ff(args, info=False):
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "info" if info else "error", "-y"] + args, capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit("ffmpeg failed: " + r.stderr[-800:])
+    return r.stderr
+
+
+def probe_duration(path):
+    return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True).stdout)
+
+
+def pcm(src, start, dur, sr=16000):
+    return np.frombuffer(subprocess.run(["ffmpeg", "-v", "error", "-ss", str(start), "-t", str(dur), "-i", src, "-f", "f32le", "-ac", "1", "-ar", str(sr), "-"], capture_output=True).stdout, "float32")
+
+
+def levels(x, sr, step=0.5):
+    n = int(sr * step)
+    return [round(float(20 * np.log10(np.sqrt((x[i:i + n] ** 2).mean()) + 1e-9)), 1) for i in range(0, len(x) - n + 1, n)]
+
+
+def find_attack(src, a, b):
+    """Time (s) in the source of the strongest note attack inside [a, b]: biggest 5 ms jump of the level. FR : l'attaque de note la plus franche."""
+    x = pcm(src, a, b - a)
+    w = 80
+    db = np.array([20 * np.log10(np.sqrt((x[i:i + w] ** 2).mean()) + 1e-9) for i in range(0, len(x) - w, w)])
+    return a + (int(np.argmax(np.diff(db))) + 1) * w / 16000.0
+
+
+def first_sound(src, threshold_db=-50.0):
+    """First time the source rises above threshold_db (skips a silent head). FR : le premier instant non silencieux."""
+    x = pcm(src, 0, 30)
+    w = 160
+    for i in range(0, len(x) - w, w):
+        if 20 * np.log10(np.sqrt((x[i:i + w] ** 2).mean()) + 1e-9) > threshold_db:
+            return i / 16000.0
+    return 0.0
+
+
+def integrated(path):
+    log = ff(["-i", path, "-af", "ebur128=peak=true", "-f", "null", "-"], info=True)
+    return float(re.findall(r"I:\s+(-?[\d.]+) LUFS", log)[-1]), float(re.findall(r"Peak:\s+(-?[\d.]+) dBFS", log)[-1])
+
+
+D = P.get("duration") or probe_duration(P["duration_from"])
+T = P["tracks"]
+report = {"duration_s": round(D, 3), "tracks": []}
+stems = []
+for i, t in enumerate(T):
+    t_in = 0.0 if i == 0 else T[i - 1]["until"] - XF / 2
+    t_out = D if i == len(T) - 1 else t["until"] + XF / 2
+    length = t_out - t_in
+    if "attack_between" in t:
+        att = find_attack(t["file"], *t["attack_between"])
+        src_start = att - (t["attack_at"] - t_in)
+    elif t.get("start", "auto") == "auto":
+        att, src_start = None, first_sound(t["file"])
+    else:
+        att, src_start = None, float(t["start"])
+    assert src_start >= 0 and src_start + length <= probe_duration(t["file"]) + 0.01, f"track {t['id']} too short for {length:.2f} s from {src_start:.2f} s"
+    raw = f"{TMP}/{t['id']}_raw.wav"
+    ff(["-ss", f"{src_start:.4f}", "-t", f"{length:.4f}", "-i", t["file"], "-ar", str(SR), "-ac", "2", "-c:a", "pcm_f32le", raw])
+    lufs_in, _ = integrated(raw)
+    gain = P["track_lufs"] - lufs_in                                        # one linear gain, the excerpt keeps all its dynamics
+    fade_in = FIN if i == 0 else XF
+    fade_out = FOUT if i == len(T) - 1 else XF
+    stem = f"{TMP}/{i + 1:02d}_{t['id']}_stem.wav"
+    ff(["-i", raw, "-af", f"volume={gain:.3f}dB,afade=t=in:d={fade_in}:curve=qsin,afade=t=out:st={length - fade_out:.4f}:d={fade_out}:curve=qsin,"
+        f"adelay={int(round(t_in * 1000))}:all=1,apad=whole_dur={D},atrim=0:{D}", "-ar", str(SR), "-c:a", "pcm_f32le", stem])
+    stems.append(stem)
+    report["tracks"].append({"id": t["id"], "file": t["file"], "timeline_in_s": round(t_in, 3), "timeline_out_s": round(t_out, 3), "source_start_s": round(src_start, 3),
+                             "attack_in_source_s": round(att, 3) if att is not None else None, "excerpt_lufs": round(lufs_in, 2), "gain_db": round(gain, 2)})
+
+mix = f"{TMP}/mix.wav"
+ff(sum([["-i", s] for s in stems], []) + ["-filter_complex", f"amix=inputs={len(stems)}:duration=longest:normalize=0", "-ar", str(SR), "-c:a", "pcm_f32le", mix])
+lim = 10 ** (P["true_peak_db"] / 20)
+gain = P["master_lufs"] - integrated(mix)[0]
+final = f"{OUT}/{P['name']}.wav"
+for _ in range(3):                                                         # the limiter takes a little loudness: measure and correct the gain
+    ff(["-i", mix, "-af", f"volume={gain:.3f}dB,alimiter=limit={lim:.4f}:attack=2:release=40:level=0,atrim=0:{D}", "-ar", str(SR), "-c:a", "pcm_s24le", final])
+    got, peak = integrated(final)
+    if abs(got - P["master_lufs"]) < 0.15:
+        break
+    gain += P["master_lufs"] - got
+report["master"] = {"file": final, "lufs": got, "true_peak_dbfs": peak, "gain_db": round(gain, 2)}
+report["levels_per_0_5s"] = {os.path.basename(s): levels(pcm(s, 0, D), 16000) for s in stems + [final]}
+if any("attack_at" in t for t in T):
+    t = next(t for t in T if "attack_at" in t)
+    report["attack_found_in_master_s"] = round(find_attack(final, max(0.0, t["attack_at"] - 0.3), t["attack_at"] + 0.3), 3)
+for m in P.get("mux", []):
+    ff(["-i", m["video"], "-i", final, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", P.get("audio_bitrate", "320k"), "-shortest", "-movflags", "+faststart", m["out"]])
+    report.setdefault("muxed", []).append({"out": m["out"], "video_s": round(probe_duration(m["video"]), 3), "out_s": round(probe_duration(m["out"]), 3)})
+json.dump(report, open(f"{OUT}/{P['name']}_report.json", "w"), indent=1)
+print(json.dumps({k: report[k] for k in ("master", "tracks")} | {"attack": report.get("attack_found_in_master_s"), "muxed": report.get("muxed")}, indent=1))
