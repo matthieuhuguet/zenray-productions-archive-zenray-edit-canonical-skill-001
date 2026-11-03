@@ -5,6 +5,19 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 03 November 2026 : miniatures 1:1 et 9:16, safe zones YouTube / Instagram, ne jamais coller les titres et sous-titres aux bords
+
+- Ses mots (03 November 2026), grammaire seule : « ne pas coller les titres sous titres afin de pouvoir voir sur youtube / instagram. Bref, consigner à l'avenir cette erreur et ne plus la reproduire directement dans le skill. » (03 November 2026)
+- RÈGLE 15, safe zones et resserrement des textes sur les miniatures : sur tout format de miniature ou de couverture (Reels Instagram, YouTube Shorts, feed 1:1, ArtStation), les textes (titre et sous-titre) ne doivent JAMAIS être collés aux bords extérieurs sous peine d'être tronqués par le cadre de la plateforme ou recouverts par son interface utilisateur. (03 November 2026)
+- Format vertical 9:16 (2160 × 3840 ou 1080 × 1920) :
+  1. Marge supérieure : laisser au moins 18 % à 20 % de hauteur libre au sommet (titre commençant autour de Y = 620 à 720 px sur un canevas 3840 px). Évite le rognage par le haut des grilles de Reels et les en-têtes d'application.
+  2. Marge inférieure : laisser au moins 18 % à 20 % de hauteur libre au bas (sous-titre se terminant avant Y = 3150 px sur un canevas 3840 px). Évite la collision avec l'icône de vue (œil « 👁 0 »), le pseudonyme du compte, la description et la barre de progression d'Instagram et de YouTube.
+  3. Resserrement central : en resserrant le titre vers le bas et le sous-titre vers le haut, les deux textes restent entièrement visibles et lisibles lors du recadrage automatique 1:1 ou 4:5 appliqué par Instagram sur la grille de profil (feed grid).
+- Format carré 1:1 (4096 × 4096, 2048 × 2048 ou 1024 × 1024) :
+  1. Marges de sécurité symétriques d'environ 12 % à 14 % en haut et en bas (~500 px sur 4096 px).
+  2. Aucun texte collé aux extrémités où les masques arrondis des cartes, les avatars ou les vignettes mobiles pourraient le couper.
+- Fenêtre centrale pour le sujet : entre le titre et le sous-titre ainsi resserrés, le sujet principal (la texture, le mesh 3D, le héros) conserve au moins 40 % à 50 % de la hauteur totale pour s'exposer sans aucun texte ni obstruction. (03 November 2026)
+
 ## 1 November 2026 : document de synthèse HTML illustré et horodaté
 
 - Tout projet ou chantier, y compris TMP, possède une synthèse HTML visuelle, éditable par ses sources, avec résumé neutre, inventaire compact replié, visuels intégrés et date/heure/fuseau de chaque entrée. Contrat courant : [references/ProjectSynthesis.md](references/ProjectSynthesis.md), à lire avec [references/ProjectArticles.md](references/ProjectArticles.md) pour les commandes existantes. (1 November 2026)
