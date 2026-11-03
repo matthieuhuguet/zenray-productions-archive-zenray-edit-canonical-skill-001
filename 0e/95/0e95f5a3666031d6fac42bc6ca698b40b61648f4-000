@@ -5,6 +5,12 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 3 November 2026, 22:47 +0100 : prompts chaînés ChatGPT, génération d'image et Python dans un seul message
+
+- Mots de Matthieu (3 November 2026, 22:47 +0100) : « Insane le prompt, consigne-le vraiment partout, c'est magique ! Ultra fort, un prompt de ce genre, surtout combiné à ChatGPT. » (3 November 2026, 22:47 +0100)
+- Méthode et règles d'écriture : [references/ChatGptChainPrompts.md](references/ChatGptChainPrompts.md). Étapes numérotées et ordonnées ; Python pour garder chaque pixel à sa place, génération pour corriger un défaut ; chaque étape nomme son outil et son image ; concept plutôt que formule ; dire ce que l'on reprend, ce que l'on ne reprend jamais et le sens d'une opération ; chaque étape finit par « then redo with 99.9% precision in the composition. » (3 November 2026, 22:47 +0100)
+- Exemple canonique validé : la height depuis une map éclairée en quatre étapes, source de vérité `/Users/zenray/.claude/skills/zenray-houdini/templates/zenray-height-from-map/prompt_height_chain.md`. (3 November 2026, 22:47 +0100)
+
 ## 03 November 2026 : miniatures 1:1 et 9:16, safe zones YouTube / Instagram, ne jamais coller les titres et sous-titres aux bords
 
 - Ses mots (03 November 2026), grammaire seule : « ne pas coller les titres sous titres afin de pouvoir voir sur youtube / instagram. Bref, consigner à l'avenir cette erreur et ne plus la reproduire directement dans le skill. » (03 November 2026)

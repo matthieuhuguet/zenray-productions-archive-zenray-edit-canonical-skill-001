@@ -19,3 +19,4 @@ Lire ActiveContract.md et le mode demandé ; les blocs legacy sont historiques. 
 | [DesignLibrary](legacy/DesignLibrary.md) | 6024 à 6087 | 7 October 2026 |
 | [UiContract](legacy/UiContract.md) | 6088 à 6123 | 7 October 2026 |
 | [ShortsCorrections](legacy/ShortsCorrections.md) | 6124 à 6279 | 7 October 2026 |
+| [ChatGptChainPrompts](ChatGptChainPrompts.md) | nouveau, prompts chaînés génération et Python | 3 November 2026 |
