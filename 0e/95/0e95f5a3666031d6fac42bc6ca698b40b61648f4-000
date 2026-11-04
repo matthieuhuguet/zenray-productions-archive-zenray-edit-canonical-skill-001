@@ -5,6 +5,13 @@ description: Moteur de création et d'édition instantanée : générer en 1,2 s
 
 # ZenRay Edit (7 October 2026)
 
+## 4 November 2026 : document de synthèse HTML ultra-simple (zéro UI geek, schémas 1080p, routage Assets ou galerie ZenRay Edit)
+
+- Mots de Matthieu (4 November 2026), grammaire seule : dans le document de synthèse HTML, mettre le moins d'UI possible : uniquement le titre propre du projet, puis directement dessous (sans titre « Résumé ») 1 à 3 paragraphes courts expliquant d'abord à quoi sert le projet puis comment il marche techniquement (zéro chemin de fichier, zéro identifiant de conversation avec numéro, zéro jargon geek), puis directement dessous (sans titre « Schéma ») un ou plusieurs schémas simples et rapides à lire en résolution 1080p (1920 x 1080) avec texte anti-aliasé net, et c'est tout. (4 November 2026)
+- Routage obligatoire par l'agent qui finalise le travail :
+  1. Si le travail correspond à un projet Assets dédié, publier la synthèse directement dans ce projet Assets (`set-article`, `publish`, `archive`).
+  2. Si c'est un petit projet qui ne nécessite pas de créer un atelier Assets dédié, créer quand même ce document de synthèse HTML ultra-simple et le relier à ZenRay Edit dans la section design via `node /Users/zenray/.claude/skills/zenray-edit/scripts/file-design.mjs <dossier> --slug <slug> --title "<Titre>"` (et vérifier avec `check-gallery-sync.mjs`), afin qu'il soit visible dans la galerie ZenRay Edit de ZenRayProgress. Détail complet : [references/ProjectSynthesis.md](references/ProjectSynthesis.md). (4 November 2026)
+
 ## 3 November 2026, 22:47 +0100 : prompts chaînés ChatGPT, génération d'image et Python dans un seul message
 
 - Mots de Matthieu (3 November 2026, 22:47 +0100) : « Insane le prompt, consigne-le vraiment partout, c'est magique ! Ultra fort, un prompt de ce genre, surtout combiné à ChatGPT. » (3 November 2026, 22:47 +0100)
