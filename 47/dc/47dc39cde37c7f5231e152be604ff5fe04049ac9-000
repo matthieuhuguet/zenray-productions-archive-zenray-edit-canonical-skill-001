@@ -145,6 +145,35 @@
       ],
       "publish": "archive",
       "addedAt": "1 November 2026"
+    },
+    {
+      "id": "007-first-light-crossover-3-november-2026",
+      "project": "007-first-light-crossover-3-november-2026",
+      "kind": "build",
+      "workshop": "/Users/zenray/.claude/tmp/tmp-007-first-light-crossover-3-november-2026",
+      "inputs": [
+        "SynthesisSource.json",
+        "Scripts/BuildSynthesis.py",
+        "Scripts/PublishSynthesis.mjs"
+      ],
+      "steps": [
+        {
+          "cwd": "/Users/zenray/.claude/tmp/tmp-007-first-light-crossover-3-november-2026",
+          "cmd": [
+            "python3",
+            "Scripts/BuildSynthesis.py"
+          ]
+        },
+        {
+          "cwd": "/Users/zenray/.claude/tmp/tmp-007-first-light-crossover-3-november-2026",
+          "cmd": [
+            "node",
+            "Scripts/PublishSynthesis.mjs"
+          ]
+        }
+      ],
+      "publish": "archive",
+      "addedAt": "4 November 2026"
     }
   ]
 }
