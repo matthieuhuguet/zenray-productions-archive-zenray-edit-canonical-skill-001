@@ -371,3 +371,10 @@ Les 15 blocs historiques, les corpus d’origine et leur provenance restent cons
 ## 5 November 2026 : ChatGPT image gen piloté depuis un agent
 
 - Workflow navigateur intégré (onglets parallèles, localStorage zrSend et zrGet, limite d'images) et index des chaînes en 4 étapes height, base color et composant : [references/ChatGptChainPrompts.md](references/ChatGptChainPrompts.md), section du 5 November 2026. Une image manquante pour une méthode existante se génère, elle ne bloque pas. (5 November 2026)
+
+
+## 5 November 2026 : extraction de références vidéo à une image par seconde (5 November 2026, 17:54 Europe/Paris)
+
+- 5 November 2026 : `node /Users/zenray/.claude/skills/zenray-edit/scripts/zr-edit.mjs frames /chemin/video.mp4 --step 1 [--out /chemin/frames]` : conserve la définition, décode en un seul passage et garde la première image à partir de chaque seconde. `extract-video-frames.mjs` écrit les JPEG, `extraction.log` et `frames.json` (SHA256, instant demandé et décodé). Ne pas confondre cet outil avec `render-frames.sh`, qui rend une animation HTML en vidéo. (5 November 2026)
+- 5 November 2026 : le nombre attendu vient du dernier timestamp réellement décodé, pas d'un arrondi aveugle de la durée du conteneur. Le script contrôle la continuité, un écart temporel au plus égal à une image source, la définition et le décodage complet de la séquence JPEG. Il refuse un pas nul et un dossier appartenant à une autre cadence ou source ; une relance identique relit les empreintes et réutilise le lot. (5 November 2026)
+- 5 November 2026 : preuve ArtStation pour ZenRay Meshes : radio Fuze 05, viewport 18 frames en 1920 × 1080 et trailer 125 en 3840 × 2160 ; caisse Fuze 04, rotation 7 en 1920 × 1920 et trailer 131 en 3840 × 2160. Total 281, tous temps et fichiers relus. Sources et médias restent dans l'atelier du projet Meshes auquel ils appartiennent ; ZenRay Edit porte l'outil, sans dupliquer les vidéos dans son skill. (5 November 2026)
