@@ -63,3 +63,12 @@
 - AssetsService.mjs crée encore metadata.memoryFile = Project1.md et le fichier initial ; FindInProject.mjs utilise cette mémoire dans sa recherche. Les fichiers historiques sont conservés. (1 November 2026)
 - refresh-articles.mjs traite les articles skill, definition et build déjà déclarés ; il compare leurs entrées configurées et lance leurs constructions. Ce mécanisme ne rédige pas de lui-même une nouvelle synthèse de toutes les modifications d'un projet. (1 November 2026)
 - La présente intervention consigne le contrat et ses points d'entrée. Elle ne met pas en service le suivi universel, l'historique structuré ni l'inventaire HTML de tous les projets existants. (1 November 2026)
+
+## Diagramme SVG récapitulatif (3 November 2026)
+
+- Demande de Matthieu, grammaire seule : « Pour toutes les chaînes de valeur et pour tous les documents HTML de synthèse, on devrait faire à chaque fois un diagramme SVG très simple qui récapitule tout ce qu'on a fait. » (3 November 2026)
+- Toute synthèse porte, juste après le résumé, un diagramme SVG inline très simple qui récapitule tout ce qui a été fait : l'entrée, les étapes dans l'ordre avec leur outil et leur chiffre mesuré, la sortie ; les voies écartées à côté, en pointillé, avec leur verdict. Il résume les figures de preuve, il ne les remplace pas. (3 November 2026)
+- Le diagramme suit la typographie globale, GT Ultra Regular 400 pour les titres, les nombres et les libellés, Literata 400 pour le texte, sans script ni ressource distante, lisible en clair et en sombre ; sur petit écran, son cadre défile en largeur sans que la page déborde. (3 November 2026)
+- Le même diagramme existe en fichier autonome `value-chain.svg` à côté de la synthèse, polices embarquées, pour être relu ou réutilisé seul. (3 November 2026)
+- Ses chiffres viennent des fichiers de mesure du projet ; ce qui n'est pas mesuré s'écrit « non mesuré » ; quand l'ordre est logique et non chronologique, la légende le dit. (3 November 2026)
+- Vérification avant de déclarer terminé : les textes du diagramme restent dans leurs boîtes, mesurés dans un navigateur isolé à grande et à petite largeur, et un script recalcule ses chiffres depuis les sources. Exemple de référence : `/Users/zenray/.claude/tmp/tmp-zorah-materials-3-november-2026/Articles/build/BuildSynthesis.py`, commandes `verify` et `selftest`. (3 November 2026)
