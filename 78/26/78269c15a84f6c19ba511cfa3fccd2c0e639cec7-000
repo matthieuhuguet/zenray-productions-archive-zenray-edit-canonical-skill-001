@@ -10,7 +10,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 
 // Every location in ONE place (HDA rule). ZENRAY_DOCUMENTS_SCRIPT overrides the tool, ZENRAY_DOCUMENTS_DISABLE=1 turns registration off.
 export const DOCUMENT_SETTINGS = Object.freeze({
@@ -21,6 +21,18 @@ export const DOCUMENT_SETTINGS = Object.freeze({
 
 export const documentsEnabled = (settings = DOCUMENT_SETTINGS) =>
   !process.env.ZENRAY_DOCUMENTS_DISABLE && fs.existsSync(settings.script)
+
+// Keeps the cloud copy (what the Documents view of the site reads) fresh without any gesture: a detached `publish --if-changed` after each filing.
+// Only the real root is published (Documents.mjs refuses any other), and one publication runs at a time. ZENRAY_DOCUMENTS_AUTOPUBLISH=0 turns it off.
+// FR : republie le cloud en arrière-plan après chaque rangement ; jamais une racine de test, jamais deux publications en même temps.
+export function autoPublish(settings = DOCUMENT_SETTINGS) {
+  if (process.env.ZENRAY_DOCUMENTS_AUTOPUBLISH === '0' || process.env.ZENRAY_DOCUMENTS_ROOT || !documentsEnabled(settings)) return false
+  try {
+    const child = spawn(process.execPath, [settings.script, 'publish', '--if-changed'], { detached: true, stdio: 'ignore', env: process.env })
+    child.unref()
+    return true
+  } catch { return false }
+}
 
 const flags = (name, values) => [].concat(values || []).filter(Boolean).flatMap((value) => [`--${name}`, String(value)])
 
@@ -40,6 +52,7 @@ export function registerDocument({ source, id, title, kind = 'other', tags, proj
   if (result.status !== 0) return { registered: false, reason: result.stderr || `exit ${result.status}` }
   try {
     const parsed = JSON.parse(result.stdout)
+    autoPublish(settings)
     return { registered: true, id: parsed.id, n: parsed.n, dir: parsed.dir, main: parsed.main, origin }
   } catch { return { registered: false, reason: 'unreadable answer from Documents.mjs' } }
 }
@@ -50,5 +63,6 @@ export function syncLegacyDesigns({ settings = DOCUMENT_SETTINGS } = {}) {
   if (!documentsEnabled(settings)) return { synced: false, reason: 'disabled' }
   const result = run(['import-legacy', '--apply'], settings)
   if (result.status !== 0) return { synced: false, reason: result.stderr || `exit ${result.status}` }
+  autoPublish(settings)
   try { return { synced: true, ...JSON.parse(result.stdout) } } catch { return { synced: true } }
 }

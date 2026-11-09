@@ -57,6 +57,16 @@ export const COMMANDS = {
       'node scripts/zr-edit.mjs article --help'
     ]
   },
+  // 9 November 2026: every document made with ZenRay Edit lives in Create/ZenRayDocuments (skill zenray-documents), found through its index.json.
+  documents: {
+    script: 'documents-cli.mjs',
+    desc: 'ZenRay Documents : ranger, versionner (V_001-date-heure), retrouver et lier les documents dans Create/ZenRayDocuments',
+    examples: [
+      'node scripts/zr-edit.mjs documents find "gaming synthese"',
+      'node scripts/zr-edit.mjs documents new mon-document --title "Mon document" --kind report',
+      'node scripts/zr-edit.mjs documents add fichier.pdf --id mon-pdf --title "Mon PDF" --kind pdf'
+    ]
+  },
   file: {
     script: 'file-design.mjs',
     desc: 'Classement automatique d\'un atelier HTML dans designs/ et ZenRay Assets',
@@ -73,7 +83,8 @@ export const ALIASES = {
   doc: 'pdf',
   sound: 'sfx',
   audio: 'sfx',
-  animation: 'motion'
+  animation: 'motion',
+  docs: 'documents'
 }
 
 export function printHelp() {
@@ -109,6 +120,7 @@ Documentation et chemins :
   - Gabarits : /Users/zenray/.claude/skills/zenray-edit/templates/
   - Scripts  : /Users/zenray/.claude/skills/zenray-edit/scripts/
   - Registre : /Users/zenray/.claude/skills/zenray-edit/designs/INDEX.md
+  - Documents : /Users/zenray/Create/ZenRayDocuments/index.json (skill zenray-documents)
 `)
 }
 

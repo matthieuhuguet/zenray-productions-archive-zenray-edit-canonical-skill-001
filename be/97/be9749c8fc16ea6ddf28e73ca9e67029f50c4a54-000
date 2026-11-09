@@ -1,0 +1,83 @@
+// register-document.test.mjs, 9 November 2026, 16:10 Europe/Paris.
+// FR : ZenRay Edit range ses produits dans ZenRay Documents ; ces tests prouvent le cas vert et les cas rouges, dans une racine temporaire.
+// Run: node --test scripts/register-document.test.mjs
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { registerDocument, syncLegacyDesigns, documentsEnabled, DOCUMENT_SETTINGS } from './register-document.mjs'
+import { renderPdfDocument, DOWNLOADS_DIR } from './render-pdf-document.mjs'
+import { fileArticle, ARTICLE_FILE_SETTINGS } from './file-article.mjs'
+
+const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'zr-regdoc-'))
+const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); return file }
+const withRoot = (root, fn) => async () => {
+  const before = { root: process.env.ZENRAY_DOCUMENTS_ROOT, off: process.env.ZENRAY_DOCUMENTS_DISABLE }
+  process.env.ZENRAY_DOCUMENTS_ROOT = root; delete process.env.ZENRAY_DOCUMENTS_DISABLE
+  try { await fn() } finally {
+    for (const [key, value] of [['ZENRAY_DOCUMENTS_ROOT', before.root], ['ZENRAY_DOCUMENTS_DISABLE', before.off]]) { if (value === undefined) delete process.env[key]; else process.env[key] = value }
+  }
+}
+const index = (root) => JSON.parse(fs.readFileSync(path.join(root, 'index.json'), 'utf8'))
+const letter = { company: 'Test Studio', subject: 'Registre ZenRay Documents', text: 'Madame, Monsieur,\n\nUn court paragraphe de test pour le rangement du PDF.\n\nCordialement.' }
+
+test('registerDocument files a folder as a timestamped version and answers with its main file', withRoot(temp(), async () => {
+  const root = process.env.ZENRAY_DOCUMENTS_ROOT
+  const result = registerDocument({ source: write(path.join(temp(), 'a.md'), '# a'), id: 'reg-a', title: 'Reg A', kind: 'note', tags: ['x'], projects: ['zenray-edit'], note: 'n' })
+  assert.equal(result.registered, true); assert.equal(result.n, 1)
+  assert.match(result.main, new RegExp(`${root}/reg-a/V_001-`)); assert.equal(fs.readFileSync(result.main, 'utf8'), '# a')
+  assert.deepEqual(index(root).documents.map((d) => [d.id, d.kind, d.projects]), [['reg-a', 'note', ['zenray-edit']]])
+  assert.equal(registerDocument({ source: write(path.join(temp(), 'a.md'), '# b'), id: 'reg-a', title: 'Reg A', kind: 'note' }).n, 2, 'same id = next version')
+}))
+
+test('RED: a missing source, an unknown kind, a bad id and the disabled switch register nothing and never throw', withRoot(temp(), async () => {
+  const root = process.env.ZENRAY_DOCUMENTS_ROOT; const file = write(path.join(temp(), 'b.md'), 'b')
+  assert.match(registerDocument({ source: '/nonexistent/x', id: 'ok', title: 't', kind: 'note' }).reason, /source not found/)
+  assert.match(registerDocument({ source: file, id: 'ok', title: 't', kind: 'nope' }).reason, /unknown kind/)
+  assert.equal(registerDocument({ source: file, id: 'Bad Id', title: 't', kind: 'note' }).registered, false)
+  process.env.ZENRAY_DOCUMENTS_DISABLE = '1'
+  assert.equal(documentsEnabled(), false); assert.equal(registerDocument({ source: file, id: 'ok', title: 't', kind: 'note' }).reason, 'disabled')
+  assert.equal(syncLegacyDesigns().synced, false)
+  assert.equal(fs.existsSync(path.join(root, 'index.json')), false, 'nothing was written')
+}))
+
+test('a PDF made without --out is filed in ZenRay Documents with its preview and source data, and never lands in Downloads', withRoot(temp(), async () => {
+  const root = process.env.ZENRAY_DOCUMENTS_ROOT; const slug = `regdoc-pdf-${Date.now()}`
+  const result = await renderPdfDocument({ ...letter, slug, bindAssets: false, archive: false })
+  assert.equal(result.success, true); assert.equal(result.pageCount, 1)
+  assert.ok(result.pdfPath.startsWith(root), 'the PDF is inside the documents root')
+  assert.ok(fs.existsSync(result.previewPngPath) && result.previewPngPath.startsWith(root))
+  assert.deepEqual(result.document && [result.document.id, result.document.version], [slug, 1])
+  assert.equal(fs.existsSync(path.join(DOWNLOADS_DIR, `${slug}.pdf`)), false, 'no copy in Downloads')
+  const doc = index(root).documents.find((d) => d.id === slug)
+  assert.equal(doc.kind, 'letter'); assert.equal(doc.versions[0].main, `${slug}.pdf`)
+  assert.deepEqual(doc.versions[0].files.map((f) => f.path).sort(), [`${slug}-preview-1.png`, `${slug}.pdf`, 'document.json'].sort())
+  const verify = (await import('node:child_process')).spawnSync(process.execPath, [path.join(path.dirname(DOCUMENT_SETTINGS.script), 'Documents.mjs'), 'verify'], { encoding: 'utf8', env: process.env })
+  assert.equal(verify.status, 0, verify.stdout + verify.stderr)
+}))
+
+test('--out keeps its old meaning (no registration) unless --document is given; --downloads adds a copy; --no-document is honoured by the switch', withRoot(temp(), async () => {
+  const root = process.env.ZENRAY_DOCUMENTS_ROOT; const dir = temp()
+  const plain = await renderPdfDocument({ ...letter, slug: 'regdoc-out-plain', out: path.join(dir, 'plain.pdf'), bindAssets: false, archive: false })
+  assert.equal(plain.document, null); assert.ok(fs.existsSync(path.join(dir, 'plain.pdf'))); assert.equal(fs.existsSync(path.join(root, 'index.json')), false)
+  const filed = await renderPdfDocument({ ...letter, slug: 'regdoc-out-filed', out: path.join(dir, 'filed.pdf'), document: true, bindAssets: false, archive: false })
+  assert.equal(filed.document.id, 'regdoc-out-filed'); assert.ok(filed.pdfPath.startsWith(root)); assert.equal(fs.existsSync(path.join(dir, 'filed.pdf')), false)
+  const off = await renderPdfDocument({ ...letter, slug: 'regdoc-out-off', out: path.join(dir, 'off.pdf'), document: false, bindAssets: false, archive: false })
+  assert.equal(off.document, null); assert.ok(fs.existsSync(path.join(dir, 'off.pdf')))
+}))
+
+test('a registration failure falls back to the old destination instead of losing the PDF', withRoot(temp(), async () => {
+  const dir = temp()
+  // an uppercase id cannot be a document id: the PDF must still be written where --out says
+  const result = await renderPdfDocument({ ...letter, slug: 'Bad_Slug', out: path.join(dir, 'fallback.pdf'), document: true, bindAssets: false, archive: false })
+  assert.equal(result.document, null); assert.ok(fs.existsSync(path.join(dir, 'fallback.pdf')))
+}))
+
+test('an article filed on a temporary root is not registered (only the real skill root files documents)', withRoot(temp(), async () => {
+  const root = process.env.ZENRAY_DOCUMENTS_ROOT; const source = temp()
+  write(path.join(source, 'index.html'), '<html><body><h1>Article</h1></body></html>'); write(path.join(source, 'config.json'), '{}'); write(path.join(source, 'Sources.json'), '{"files":[]}')
+  fs.writeFileSync(path.join(source, 'cover.jpg'), Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0n//2Q==', 'base64'))
+  const article = await fileArticle({ folder: source, projectId: 'regdoc-article', title: 'Article', slug: 'regdoc-article', definition: 'config.json', manifest: 'Sources.json', thumbnail: 'cover.jpg', settings: { ...ARTICLE_FILE_SETTINGS, root: path.join(temp(), 'skill') } })
+  assert.equal(article.document.registered, false); assert.equal(fs.existsSync(path.join(root, 'index.json')), false)
+}))

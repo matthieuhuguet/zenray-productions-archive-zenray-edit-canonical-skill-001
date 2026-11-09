@@ -114,5 +114,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     options[args[i].slice(2)]=args[i+1]
   }
   const article=await fileArticle({folder,projectId:options.project,title:options.title,slug:options.slug,definition:options.definition,manifest:options.manifest,thumbnail:options.thumbnail,approvedSha:options['approved-sha'],publish:(...args)=>publishArticle(...args)})
-  console.log(JSON.stringify({projectId:article.projectId,title:article.title,status:article.status,path:path.join(article.folder,'index.html'),sha256:article.sha256,files:article.files.length,publication:article.publication || null}))
+  console.log(JSON.stringify({projectId:article.projectId,title:article.title,status:article.status,path:path.join(article.folder,'index.html'),sha256:article.sha256,files:article.files.length,publication:article.publication || null,document:article.document || null}))
 }

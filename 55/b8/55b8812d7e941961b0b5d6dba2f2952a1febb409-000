@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// documents-cli.mjs, 9 November 2026: ZenRay Edit door to ZenRay Documents (skill zenray-documents), used by `zr-edit.mjs documents`.
+// FR : la porte de ZenRay Edit vers ZenRay Documents ; tout se passe dans Create/ZenRayDocuments.
+import os from 'node:os'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+// One place for the location (HDA rule); ZENRAY_DOCUMENTS_SCRIPT overrides it in tests.
+const SCRIPT = process.env.ZENRAY_DOCUMENTS_SCRIPT || path.join(os.homedir(), '.claude/skills/zenray-documents/scripts/Documents.mjs')
+const { runCli } = await import(pathToFileURL(SCRIPT).href)
+process.exitCode = runCli(process.argv.slice(2))

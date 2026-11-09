@@ -3,7 +3,7 @@
 // Builds clean A4 PDFs with ZenRay system typography (GT Ultra 400 + Literata 400/500).
 // Usage: node render-pdf-document.mjs [file] [--text "..."] [--company "..."] [--subject "..."] [--slug "..."] [--out "..."]
 //   9 November 2026: by default the PDF is filed in ZenRay Documents (Create/ZenRayDocuments); [--kind letter|pdf|report] [--project assets-id] [--tag t]
-//   [--downloads] also copies it to ~/Downloads; [--no-document] disables the filing; --out writes there (and files too only with --document).
+//   [--downloads] also copies it to ~/Downloads; [--no-document] disables the filing; [--no-archive] skips the design gallery filing; --out writes there (and files too only with --document).
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -559,7 +559,7 @@ export async function renderPdfDocument(options = {}) {
 
   // Automatic archiving if --slug was passed
   let archiveResult = null
-  if (options.slug) {
+  if (options.slug && options.archive !== false) {
     try {
       const designTitle = docData.subject || `Cover Letter ${docData.company || docData.name}`
       archiveResult = fileDesign({
@@ -636,6 +636,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     out: parsedArgs.out,
     downloads: Boolean(parsedArgs.downloads),
     document: parsedArgs['no-document'] ? false : (parsedArgs.document ? true : undefined),
+    archive: parsedArgs['no-archive'] ? false : undefined,
     kind: parsedArgs.kind,
     project: parsedArgs.project,
     tag: parsedArgs.tag,
