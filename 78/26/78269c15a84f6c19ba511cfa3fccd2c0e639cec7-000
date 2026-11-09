@@ -1,0 +1,54 @@
+// register-document.mjs, 9 November 2026, 15:40 Europe/Paris.
+// FR : enregistre dans ZenRay Documents (Create/ZenRayDocuments) ce que ZenRay Edit produit : un PDF, un article, un design.
+//
+// ZenRay Edit never keeps a document only in Downloads or in a tmp folder: every product is filed through the ZenRay Documents tool
+// (skill zenray-documents, scripts/Documents.mjs), which copies it into a timestamped version and updates index.json.
+// Registration never breaks a render: on failure it returns { registered: false, reason } and the caller keeps its own output.
+//
+//   registerDocument({ source, id, title, kind, tags, projects, note, main, as, move })  -> { registered, id, n, dir, main } | { registered:false, reason }
+//   syncLegacyDesigns()                                                                  -> index the skill's designs/ folders by reference
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+
+// Every location in ONE place (HDA rule). ZENRAY_DOCUMENTS_SCRIPT overrides the tool, ZENRAY_DOCUMENTS_DISABLE=1 turns registration off.
+export const DOCUMENT_SETTINGS = Object.freeze({
+  script: process.env.ZENRAY_DOCUMENTS_SCRIPT || path.join(os.homedir(), '.claude/skills/zenray-documents/scripts/Documents.mjs'),
+  timeoutMs: 60000,
+  kinds: Object.freeze(['article', 'synthesis', 'source', 'pdf', 'letter', 'design', 'report', 'note', 'media', 'other']),
+})
+
+export const documentsEnabled = (settings = DOCUMENT_SETTINGS) =>
+  !process.env.ZENRAY_DOCUMENTS_DISABLE && fs.existsSync(settings.script)
+
+const flags = (name, values) => [].concat(values || []).filter(Boolean).flatMap((value) => [`--${name}`, String(value)])
+
+function run(args, settings) {
+  const result = spawnSync(process.execPath, [settings.script, ...args], { encoding: 'utf8', timeout: settings.timeoutMs, env: process.env })
+  return { status: result.status, stdout: (result.stdout || '').trim(), stderr: (result.stderr || '').trim() }
+}
+
+export function registerDocument({ source, id, title, kind = 'other', tags, projects, related, note, main, as, move = false, origin = 'zenray-edit', settings = DOCUMENT_SETTINGS } = {}) {
+  if (!documentsEnabled(settings)) return { registered: false, reason: 'disabled' }
+  if (!source || !fs.existsSync(source)) return { registered: false, reason: `source not found: ${source}` }
+  if (!settings.kinds.includes(kind)) return { registered: false, reason: `unknown kind: ${kind}` }
+  const args = ['add', source, '--id', id, '--title', title, '--kind', kind, '--json',
+    ...flags('tag', tags), ...flags('project', projects), ...flags('related', related),
+    ...(note ? ['--note', note] : []), ...(main ? ['--main', main] : []), ...(as ? ['--as', as] : []), ...(move ? ['--move'] : [])]
+  const result = run(args, settings)
+  if (result.status !== 0) return { registered: false, reason: result.stderr || `exit ${result.status}` }
+  try {
+    const parsed = JSON.parse(result.stdout)
+    return { registered: true, id: parsed.id, n: parsed.n, dir: parsed.dir, main: parsed.main, origin }
+  } catch { return { registered: false, reason: 'unreadable answer from Documents.mjs' } }
+}
+
+// Skill designs stay where the ZenRay Edit gallery reads them: they are indexed BY REFERENCE (storage "reference"), no second copy.
+// FR : les designs restent dans le skill, que la galerie lit ; l'index ne les copie pas.
+export function syncLegacyDesigns({ settings = DOCUMENT_SETTINGS } = {}) {
+  if (!documentsEnabled(settings)) return { synced: false, reason: 'disabled' }
+  const result = run(['import-legacy', '--apply'], settings)
+  if (result.status !== 0) return { synced: false, reason: result.stderr || `exit ${result.status}` }
+  try { return { synced: true, ...JSON.parse(result.stdout) } } catch { return { synced: true } }
+}

@@ -5,6 +5,7 @@ import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { registerDocument } from './register-document.mjs'
 
 export const ARTICLE_FILE_SETTINGS = {
   root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
@@ -12,6 +13,7 @@ export const ARTICLE_FILE_SETTINGS = {
   maxHtmlBytes: 32 * 1024 * 1024,
   thumbnailMaxChars: 400000,
   syncScript: path.join(os.homedir(), '.claude/skills/skill-sync/scripts/sync-skill.sh'),
+  documentKind: 'article',
   months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
 }
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -26,7 +28,7 @@ async function exactFile(root, name) {
   return {name,bytes:await fs.readFile(source)}
 }
 
-export async function fileArticle({ folder, projectId, title, slug, definition, manifest, thumbnail, approvedSha, now = new Date(), settings = ARTICLE_FILE_SETTINGS, publish }) {
+export async function fileArticle({ folder, projectId, title, slug, definition, manifest, thumbnail, approvedSha, kind, now = new Date(), settings = ARTICLE_FILE_SETTINGS, publish }) {
   if (!projectIdPattern.test(projectId || '') || !projectIdPattern.test(slug || '')) throw new Error('Stable project id and slug required')
   if (!title?.trim()) throw new Error('Article title required')
   const root = await fs.realpath(folder)
@@ -55,11 +57,11 @@ export async function fileArticle({ folder, projectId, title, slug, definition, 
   const bundleName = `${now.getDate()}-${month}-${now.getFullYear()}-${slug}`
   const dest = path.join(settings.root,'articles',bundleName)
   // 20 October 2026, 15:16 CEST: a changed draft gets a version folder; the original article is retained.
-  let target = dest, version = 1
+  let target = dest, version = 1, unchanged = false
   while (true) {
     try {
       const existing = JSON.parse(await fs.readFile(path.join(target,'Article.json'),'utf8'))
-      if (existing.sha256 === digest) break
+      if (existing.sha256 === digest) { unchanged = true; break }
       version++; target = `${dest}-V_${String(version).padStart(3,'0')}`
     } catch (error) { if (error.code !== 'ENOENT') throw error; break }
   }
@@ -71,6 +73,12 @@ export async function fileArticle({ folder, projectId, title, slug, definition, 
   const index = path.join(settings.root,'articles','INDEX.md')
   try { await fs.writeFile(index,`# Project articles (${date})\n\n`,{flag:'wx'}) } catch(error) {if(error.code!=='EEXIST') throw error}
   await fs.appendFile(index,`- ${date} : ${title.replace(/[\r\n]/g,' ')} ; ${projectId} ; ${article.status} ; ${path.basename(target)}/index.html ; SHA-256 ${digest}. (${date})\n`)
+  // 9 November 2026: every filed article is also a ZenRay Documents entry (Create/ZenRayDocuments, timestamped version, index.json), linked to its Assets project.
+  // Only on the real skill root, and only when the content is new; a failed registration never blocks the article. FR : l'article entre aussi dans ZenRay Documents.
+  const realRoot = path.resolve(settings.root) === path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
+  article.document = !unchanged && realRoot && settings.documentsOnFile !== false
+    ? registerDocument({ source: target, id: slug, title, kind: kind || settings.documentKind, tags: ['zenray-edit', 'article'], projects: [projectId], note: `Project article ${date}, SHA-256 ${digest.slice(0,12)}`, main: 'index.html' })
+    : { registered: false, reason: unchanged ? 'unchanged' : 'skipped' }
   if (approvedSha) {
     if (!publish) throw new Error('Assets publisher is unavailable; local article retained')
     article.publication = await publish(article,files)
