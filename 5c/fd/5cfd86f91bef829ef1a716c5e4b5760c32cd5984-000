@@ -72,3 +72,9 @@
 - Le même diagramme existe en fichier autonome `value-chain.svg` à côté de la synthèse, polices embarquées, pour être relu ou réutilisé seul. (3 November 2026)
 - Ses chiffres viennent des fichiers de mesure du projet ; ce qui n'est pas mesuré s'écrit « non mesuré » ; quand l'ordre est logique et non chronologique, la légende le dit. (3 November 2026)
 - Vérification avant de déclarer terminé : les textes du diagramme restent dans leurs boîtes, mesurés dans un navigateur isolé à grande et à petite largeur, et un script recalcule ses chiffres depuis les sources. Exemple de référence : `/Users/zenray/.claude/tmp/tmp-zorah-materials-3-november-2026/Articles/build/BuildSynthesis.py`, commandes `verify` et `selftest`. (3 November 2026)
+
+## 9 November 2026 : typographie des synthèses en Adobe Clean (9 November 2026)
+
+- Mots de Matthieu (9 November 2026), grammaire seule : « Tous les documents de synthèse devront être faits en Adobe Clean. La fonte serif reste Literata, mais le corps, c'est Adobe Clean [...] Il faudrait la mettre aussi pour les numéros [...] Donc je pense qu'il faut mettre tout en Adobe Clean. » (9 November 2026)
+- Pour tout nouveau document de synthèse : le titre, les paragraphes, les nombres, les dates et le texte du schéma SVG sont en Adobe Clean (Regular, Medium si un titre en a besoin, pas de gras lourd) ; Literata seulement si une serif est réellement requise. (9 November 2026)
+- Cette règle remplace, pour les nouveaux documents, le titre en GT Ultra et le corps en Literata du 4 November 2026 ; les synthèses déjà publiées ne sont pas réécrites en masse. Les woff2 sont dans `/Users/zenray/.claude/skills/zenray-edit/designs/_shared/fonts/` (`AdobeClean-Regular.woff2`, `AdobeClean-Medium.woff2`, `AdobeClean-Bold.woff2`). (9 November 2026)
